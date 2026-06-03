@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell } from "@/components/layout/AppShell";
-import { useOnboarding, calcZrStartDate, formatDateDe } from "@/lib/onboarding-state";
+import { useOnboarding, calcZrStartDate, formatDateDe, getChecklistProgress } from "@/lib/onboarding-state";
 import { ArrowRight, CheckCircle2, FileText, PenLine } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard")({
@@ -45,9 +45,7 @@ function ProgressRing({ pct }: { pct: number }) {
 
 function DashboardPage() {
   const { state } = useOnboarding();
-  const total = Object.keys(state.checklist).length;
-  const done = Object.values(state.checklist).filter(Boolean).length;
-  const pct = Math.round((done / total) * 100);
+  const { done, total, pct } = getChecklistProgress(state);
   const zr = calcZrStartDate();
 
   return (

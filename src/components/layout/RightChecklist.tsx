@@ -1,40 +1,16 @@
 import { Check, Loader2, CalendarDays } from "lucide-react";
-import { useOnboarding, calcZrStartDate, formatDateDe } from "@/lib/onboarding-state";
-
-interface Item { id: string; label: string }
-interface Group { title: string; items: Item[] }
-
-const GROUPS: Group[] = [
-  {
-    title: "Identifikation",
-    items: [
-      { id: "ausweiskopie", label: "Ausweiskopie" },
-      { id: "hr_auszug", label: "Auszug Handelsregister" },
-      { id: "gesellschaftsvertrag", label: "Gesellschaftsvertrag" },
-      { id: "gesellschafterliste", label: "Gesellschafterliste" },
-    ],
-  },
-  {
-    title: "Finanzen",
-    items: [
-      { id: "steuernummer", label: "Steuernummer" },
-      { id: "sepa_mandat", label: "SEPA Mandat" },
-    ],
-  },
-  {
-    title: "Formulare",
-    items: [
-      { id: "neukundenformular", label: "Neukundenformular" },
-      { id: "gwg_bogen", label: "GWG Bogen (falls vorhanden)" },
-    ],
-  },
-];
+import {
+  CHECKLIST_GROUPS,
+  calcZrStartDate,
+  formatDateDe,
+  getChecklistProgress,
+  isChecklistItemDone,
+  useOnboarding,
+} from "@/lib/onboarding-state";
 
 export function RightChecklist() {
-  const { state, toggleChecklist } = useOnboarding();
-  const all = GROUPS.flatMap((g) => g.items);
-  const done = all.filter((i) => state.checklist[i.id]).length;
-  const pct = Math.round((done / all.length) * 100);
+  const { state } = useOnboarding();
+  const { done, total, pct } = getChecklistProgress(state);
   const zrDate = calcZrStartDate();
 
   return (
@@ -42,8 +18,9 @@ export function RightChecklist() {
       <div className="rounded-xl border border-upload bg-card/40 p-5 space-y-5">
         <div>
           <h3 className="font-display text-base font-semibold text-card-foreground">Checkliste</h3>
+          <p className="mt-1 text-[11px] text-muted">Automatisch aktualisiert durch das System</p>
           <div className="mt-2 flex items-center justify-between text-xs text-secondary">
-            <span>{done} von {all.length} abgeschlossen</span>
+            <span>{done} von {total} abgeschlossen</span>
             <span className="font-medium text-card-foreground">{pct}%</span>
           </div>
           <div className="mt-2 h-1.5 rounded-full bg-popover overflow-hidden">
@@ -54,32 +31,33 @@ export function RightChecklist() {
           </div>
         </div>
 
-        {GROUPS.map((g) => (
+        {CHECKLIST_GROUPS.map((g) => (
           <div key={g.title} className="space-y-2">
             <h4 className="font-display text-sm font-semibold text-card-foreground">{g.title}</h4>
             <ul className="space-y-1.5">
               {g.items.map((i) => {
-                const checked = !!state.checklist[i.id];
+                const checked = isChecklistItemDone(i, state);
                 return (
-                  <li key={i.id}>
-                    <button
-                      onClick={() => toggleChecklist(i.id)}
-                      className="group flex w-full items-center gap-3 text-left"
+                  <li key={i.id} className="flex items-center gap-3">
+                    <span
+                      aria-hidden
+                      className={[
+                        "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-all",
+                        checked
+                          ? "bg-success border-success"
+                          : "border-muted/60 bg-transparent",
+                      ].join(" ")}
                     >
-                      <span
-                        className={[
-                          "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-all",
-                          checked
-                            ? "bg-success border-success"
-                            : "border-primary/70 bg-transparent",
-                        ].join(" ")}
-                      >
-                        {checked && <Check className="h-3 w-3 text-white" strokeWidth={3} />}
-                      </span>
-                      <span className="text-sm text-secondary underline decoration-border underline-offset-4 group-hover:text-card-foreground">
-                        {i.label}
-                      </span>
-                    </button>
+                      {checked && <Check className="h-3 w-3 text-primary-foreground" strokeWidth={3} />}
+                    </span>
+                    <span
+                      className={[
+                        "text-sm",
+                        checked ? "text-card-foreground" : "text-secondary",
+                      ].join(" ")}
+                    >
+                      {i.label}
+                    </span>
                   </li>
                 );
               })}
