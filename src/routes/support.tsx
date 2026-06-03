@@ -46,7 +46,7 @@ function SupportPage() {
             </div>
             <div>
               <p className="font-display text-base font-semibold">Tanja Lemke</p>
-              <p className="text-xs text-secondary">Teamleitung Onboarding</p>
+              <p className="text-xs text-secondary">Vertragswesen</p>
             </div>
           </div>
 
@@ -54,13 +54,13 @@ function SupportPage() {
             <li className="flex items-center gap-3">
               <Phone className="h-4 w-4 text-primary" />
               <a href="tel:+4905214567890" className="text-foreground hover:underline">
-                +49 (0) 521 / 456 78 90
+                +49 731 707 94 52
               </a>
             </li>
             <li className="flex items-center gap-3">
               <Mail className="h-4 w-4 text-primary" />
-              <a href="mailto:onboarding@unitex.de" className="text-foreground hover:underline">
-                onboarding@unitex.de
+              <a href="mailto:t.lemke@unitex.de" className="text-foreground hover:underline">
+                t.lemke@unitex.de
               </a>
             </li>
             <li className="flex items-center gap-3 text-secondary">

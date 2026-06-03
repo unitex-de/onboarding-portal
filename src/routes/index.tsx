@@ -61,7 +61,7 @@ function Index() {
             <span className="text-primary">unitex Onboarding Portal.</span>
           </h1>
           <p className="text-base text-secondary max-w-md">
-            Schließen Sie Ihre Mitgliedschaft beim Textil-Verband in wenigen Schritten ab –
+            Schließen Sie Ihre ZR-Mitgliedschaft in wenigen Schritten ab –
             flexibel, sicher und ohne Papierkram.
           </p>
           <ul className="space-y-3 pt-2">
