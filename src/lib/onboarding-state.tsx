@@ -135,3 +135,59 @@ export function calcZrStartDate(from: Date = new Date()): Date {
 export function formatDateDe(d: Date): string {
   return d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
+
+// ---------------------------------------------------------------------------
+// Checklist – system-driven, read-only for the user.
+// ---------------------------------------------------------------------------
+
+export type ChecklistSource =
+  | { kind: "upload"; docId: string }
+  | { kind: "section"; sectionId: string };
+
+export interface ChecklistItem {
+  id: string;
+  label: string;
+  source: ChecklistSource;
+}
+
+export interface ChecklistGroup {
+  title: string;
+  items: ChecklistItem[];
+}
+
+export const CHECKLIST_GROUPS: ChecklistGroup[] = [
+  {
+    title: "Identifikation",
+    items: [
+      { id: "ausweiskopie", label: "Ausweiskopie", source: { kind: "upload", docId: "ausweiskopie_gf" } },
+      { id: "hr_auszug", label: "Auszug Handelsregister", source: { kind: "upload", docId: "hr_auszug" } },
+      { id: "gesellschaftsvertrag", label: "Gesellschaftsvertrag", source: { kind: "upload", docId: "gesellschaftsvertrag" } },
+      { id: "gesellschafterliste", label: "Gesellschafterliste", source: { kind: "upload", docId: "gesellschafterliste" } },
+    ],
+  },
+  {
+    title: "Finanzen",
+    items: [
+      { id: "steuernummer", label: "Steuernummer", source: { kind: "section", sectionId: "steuernummer" } },
+      { id: "sepa_mandat", label: "SEPA Mandat", source: { kind: "section", sectionId: "sepa_mandat" } },
+    ],
+  },
+  {
+    title: "Formulare",
+    items: [
+      { id: "neukundenformular", label: "Neukundenformular", source: { kind: "section", sectionId: "neukundenformular" } },
+      { id: "gwg_bogen", label: "GWG Bogen (falls vorhanden)", source: { kind: "upload", docId: "gwg_bogen" } },
+    ],
+  },
+];
+
+export function isChecklistItemDone(item: ChecklistItem, state: OnboardingState): boolean {
+  if (item.source.kind === "upload") return !!state.uploadedDocs[item.source.docId];
+  return !!state.completedSections[item.source.sectionId];
+}
+
+export function getChecklistProgress(state: OnboardingState): { done: number; total: number; pct: number } {
+  const all = CHECKLIST_GROUPS.flatMap((g) => g.items);
+  const done = all.filter((i) => isChecklistItemDone(i, state)).length;
+  return { done, total: all.length, pct: Math.round((done / all.length) * 100) };
+}
