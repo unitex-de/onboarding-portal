@@ -107,11 +107,13 @@ function DocumentRow({
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
       onClick={onSelect}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect(); } }}
       className={[
-        "w-full rounded-xl border p-4 flex items-center gap-4 text-left transition-all",
+        "w-full rounded-xl border p-4 flex items-center gap-4 text-left transition-all cursor-pointer",
         isActive
           ? "border-upload bg-upload-active"
           : uploaded
@@ -199,7 +201,7 @@ function DocumentRow({
         </div>
       </div>
       <span className="sr-only">{docId}</span>
-    </button>
+    </div>
   );
 }
 
