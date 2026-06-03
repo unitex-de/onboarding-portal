@@ -9,8 +9,44 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as UploadCenterRouteImport } from './routes/upload-center'
+import { Route as UnternehmenRouteImport } from './routes/unternehmen'
+import { Route as SupportRouteImport } from './routes/support'
+import { Route as SignaturenRouteImport } from './routes/signaturen'
+import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as ChecklisteRouteImport } from './routes/checkliste'
 import { Route as IndexRouteImport } from './routes/index'
 
+const UploadCenterRoute = UploadCenterRouteImport.update({
+  id: '/upload-center',
+  path: '/upload-center',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UnternehmenRoute = UnternehmenRouteImport.update({
+  id: '/unternehmen',
+  path: '/unternehmen',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SupportRoute = SupportRouteImport.update({
+  id: '/support',
+  path: '/support',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignaturenRoute = SignaturenRouteImport.update({
+  id: '/signaturen',
+  path: '/signaturen',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChecklisteRoute = ChecklisteRouteImport.update({
+  id: '/checkliste',
+  path: '/checkliste',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -19,28 +55,116 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/checkliste': typeof ChecklisteRoute
+  '/dashboard': typeof DashboardRoute
+  '/signaturen': typeof SignaturenRoute
+  '/support': typeof SupportRoute
+  '/unternehmen': typeof UnternehmenRoute
+  '/upload-center': typeof UploadCenterRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/checkliste': typeof ChecklisteRoute
+  '/dashboard': typeof DashboardRoute
+  '/signaturen': typeof SignaturenRoute
+  '/support': typeof SupportRoute
+  '/unternehmen': typeof UnternehmenRoute
+  '/upload-center': typeof UploadCenterRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/checkliste': typeof ChecklisteRoute
+  '/dashboard': typeof DashboardRoute
+  '/signaturen': typeof SignaturenRoute
+  '/support': typeof SupportRoute
+  '/unternehmen': typeof UnternehmenRoute
+  '/upload-center': typeof UploadCenterRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/checkliste'
+    | '/dashboard'
+    | '/signaturen'
+    | '/support'
+    | '/unternehmen'
+    | '/upload-center'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/checkliste'
+    | '/dashboard'
+    | '/signaturen'
+    | '/support'
+    | '/unternehmen'
+    | '/upload-center'
+  id:
+    | '__root__'
+    | '/'
+    | '/checkliste'
+    | '/dashboard'
+    | '/signaturen'
+    | '/support'
+    | '/unternehmen'
+    | '/upload-center'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ChecklisteRoute: typeof ChecklisteRoute
+  DashboardRoute: typeof DashboardRoute
+  SignaturenRoute: typeof SignaturenRoute
+  SupportRoute: typeof SupportRoute
+  UnternehmenRoute: typeof UnternehmenRoute
+  UploadCenterRoute: typeof UploadCenterRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/upload-center': {
+      id: '/upload-center'
+      path: '/upload-center'
+      fullPath: '/upload-center'
+      preLoaderRoute: typeof UploadCenterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/unternehmen': {
+      id: '/unternehmen'
+      path: '/unternehmen'
+      fullPath: '/unternehmen'
+      preLoaderRoute: typeof UnternehmenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/support': {
+      id: '/support'
+      path: '/support'
+      fullPath: '/support'
+      preLoaderRoute: typeof SupportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/signaturen': {
+      id: '/signaturen'
+      path: '/signaturen'
+      fullPath: '/signaturen'
+      preLoaderRoute: typeof SignaturenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/checkliste': {
+      id: '/checkliste'
+      path: '/checkliste'
+      fullPath: '/checkliste'
+      preLoaderRoute: typeof ChecklisteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -53,17 +177,13 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ChecklisteRoute: ChecklisteRoute,
+  DashboardRoute: DashboardRoute,
+  SignaturenRoute: SignaturenRoute,
+  SupportRoute: SupportRoute,
+  UnternehmenRoute: UnternehmenRoute,
+  UploadCenterRoute: UploadCenterRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
