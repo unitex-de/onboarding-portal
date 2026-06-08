@@ -93,7 +93,7 @@ function UnternehmenPage() {
         </FormSection>
 
         {/* Sektion A */}
-        <FormSection id="grunddaten" letter="A" title="Grunddaten" description="Firmensitz und Rechtsform Ihres Unternehmens.">
+        <FormSection id="grunddaten" letter="1" title="Grunddaten" description="Firmensitz und Rechtsform Ihres Unternehmens.">
           <div className="grid md:grid-cols-2 gap-4">
             <Field label="Firmenname">
               <input className={inputClass} defaultValue={state.companyName} />
@@ -120,7 +120,7 @@ function UnternehmenPage() {
         </FormSection>
 
         {/* Sektion B */}
-        <FormSection id="kontakt" letter="B" title="Kontakt" description="Geschäftsführung und Buchhaltung.">
+        <FormSection id="kontakt" letter="2" title="Kontakt" description="Geschäftsführung und Buchhaltung.">
           <p className="text-xs font-medium uppercase tracking-wide text-secondary">Geschäftsführung</p>
           <div className="grid md:grid-cols-3 gap-4">
             <Field label="Name"><input className={inputClass} /></Field>
@@ -139,7 +139,7 @@ function UnternehmenPage() {
         </FormSection>
 
         {/* Sektion C */}
-        <FormSection id="bankdaten" letter="C" title="Bankdaten" description="Konto- und Steuerinformationen.">
+        <FormSection id="bankdaten" letter="3" title="Bankdaten" description="Konto- und Steuerinformationen.">
           <div className="grid md:grid-cols-2 gap-4">
             <Field label="Bankname"><input className={inputClass} /></Field>
             <Field label="BIC"><input className={inputClass} placeholder="GENODEM1XXX" /></Field>
@@ -152,7 +152,7 @@ function UnternehmenPage() {
         </FormSection>
 
         {/* Sektion D */}
-        <FormSection id="gln" letter="D" title="GLN & Filialen" description="Global Location Number und Filialstruktur.">
+        <FormSection id="gln" letter="4" title="GLN & Filialen" description="Global Location Number und Filialstruktur.">
           <div className="rounded-lg bg-popover p-4">
             <p className="text-sm font-medium text-foreground mb-3">Haben Sie bereits eine GLN-Nummer?</p>
             <div className="flex gap-3">
@@ -236,7 +236,7 @@ function UnternehmenPage() {
         </FormSection>
 
         {/* Sektion E */}
-        <FormSection id="geschaeft" letter="E" title="Geschäftsdaten" description="Umsatz, Mitarbeiter, Sortimentsschwerpunkte.">
+        <FormSection id="geschaeft" letter="5" title="Geschäftsdaten" description="Umsatz, Mitarbeiter, Sortimentsschwerpunkte.">
           <div className="grid md:grid-cols-3 gap-4">
             <Field label="Geschätzter Jahresumsatz">
               <select className={inputClass}>
@@ -285,7 +285,7 @@ function UnternehmenPage() {
         {SHOWS_GWG.includes(legalForm) && (
           <FormSection
             id="gwg"
-            letter="F"
+            letter="6"
             title="GWG-Daten"
             description="Geldwäschegesetz – wirtschaftlich Berechtigte und Gesellschafterstruktur."
           >
