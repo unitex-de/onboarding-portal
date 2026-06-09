@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { ArrowRight, Mail, ShieldCheck, CheckCircle2, UserCog, User } from "lucide-react";
 import { useOnboarding, type MemberType, type LegalForm, type UserRole } from "@/lib/onboarding-state";
+import { UnitexLogo } from "@/components/ui/UnitexLogo";
 
 export const Route = createFileRoute("/")(({
   head: () => ({
@@ -70,12 +71,15 @@ function Index() {
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       {/* Header */}
       <header className="px-10 py-8 flex items-center justify-between">
-        <div className="flex flex-col items-start">
-          <span className="font-display text-2xl font-bold leading-tight">unitex</span>
-          <span className="text-[10px] leading-tight text-secondary">
-            Vertrauen.<br />Kompetenz.<br />Innovation.
+        <div className="flex flex-col items-start gap-2">
+          <div className="bg-white px-1 pt-10 pb-1.5 shadow-sm flex items-end justify-center">
+            <UnitexLogo className="h-4 w-[60px] text-slate-900" />
+          </div>
+          <span className="text-[10px] leading-tight text-slate-400 mt-1">
+            VERTRAUEN.<br />KOMPETENZ.<br />INNOVATION.
           </span>
         </div>
+        
         <a
           href="https://unitex.de/kontakt/"
           target="_blank"

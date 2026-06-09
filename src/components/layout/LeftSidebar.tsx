@@ -1,5 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { Home, Building2, FolderUp, PenLine, MessageCircleQuestion } from "lucide-react";
+import { UnitexLogo } from "../ui/UnitexLogo";
 
 const items = [
   { to: "/dashboard",     label: "Dashboard",     icon: Home },
@@ -14,13 +15,18 @@ export function LeftSidebar() {
 
   return (
     <aside className="hidden lg:flex w-[240px] shrink-0 flex-col bg-card border-r border-border h-screen sticky top-0">
-      <div className="px-6 pt-8 pb-10">
-        <div className="flex flex-col items-start gap-0.5">
-          <span className="font-display text-2xl font-bold leading-tight text-card-foreground">unitex</span>
-          <span className="text-[10px] leading-tight text-secondary">
-            Vertrauen.<br />Kompetenz.<br />Innovation.
-          </span>
+      <div className="flex flex-row items-end gap-3 p-6">
+  
+        {/* Der weiße Hintergrund-Kasten mit dem Logo */}
+        <div className="bg-white px-0.5 pt-10 pb-0.5 shadow-sm flex items-end justify-center shrink-0">
+          <UnitexLogo className="h-4 w-[60px] text-slate-900" />
         </div>
+        
+        {/* ÄNDERUNG HIER: pb-1.5 zieht den Slogan auf die exakt gleiche Grundlinie wie das Logo */}
+        <span className="text-[10px] leading-tight  font-medium">
+          VERTRAUEN.<br />KOMPETENZ.<br />INNOVATION.
+        </span>
+        
       </div>
 
       <nav className="flex-1 px-3 space-y-1">
