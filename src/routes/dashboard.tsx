@@ -1,7 +1,12 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { AppShell } from "@/components/layout/AppShell";
-import { useOnboarding, calcZrStartDate, formatDateDe, getChecklistProgress } from "@/lib/onboarding-state";
-import { ArrowRight, CheckCircle2, FileText, PenLine } from "lucide-react";
+import {
+  useOnboarding,
+  calcZrStartDate,
+  formatDateDe,
+  getProgressBreakdown,
+} from "@/lib/onboarding-state";
+import { ArrowRight, FileText, FolderUp, PenLine, SendHorizonal, Lock } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard | unitex Onboarding" }] }),
@@ -16,26 +21,17 @@ function ProgressRing({ pct }: { pct: number }) {
     <svg width="130" height="130" viewBox="0 0 130 130" className="-rotate-90">
       <circle cx="65" cy="65" r={r} stroke="var(--popover)" strokeWidth="10" fill="none" />
       <circle
-        cx="65"
-        cy="65"
-        r={r}
-        stroke="var(--primary)"
-        strokeWidth="10"
-        fill="none"
+        cx="65" cy="65" r={r}
+        stroke="var(--primary)" strokeWidth="10" fill="none"
         strokeLinecap="round"
-        strokeDasharray={c}
-        strokeDashoffset={off}
+        strokeDasharray={c} strokeDashoffset={off}
         className="transition-all duration-700"
       />
       <text
-        x="65"
-        y="65"
-        textAnchor="middle"
-        dominantBaseline="central"
+        x="65" y="65" textAnchor="middle" dominantBaseline="central"
         transform="rotate(90 65 65)"
         fill="var(--card-foreground)"
-        className="font-display font-bold"
-        fontSize="22"
+        className="font-display font-bold" fontSize="22"
       >
         {pct}%
       </text>
@@ -43,10 +39,33 @@ function ProgressRing({ pct }: { pct: number }) {
   );
 }
 
+function MiniBar({ label, pct, color = "bg-primary" }: { label: string; pct: number; color?: string }) {
+  return (
+    <div className="space-y-1">
+      <div className="flex justify-between text-xs">
+        <span className="text-secondary">{label}</span>
+        <span className="text-card-foreground font-medium">{pct}%</span>
+      </div>
+      <div className="h-1.5 rounded-full bg-popover overflow-hidden">
+        <div className={`h-full ${color} transition-all duration-500`} style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
+
 function DashboardPage() {
-  const { state } = useOnboarding();
-  const { done, total, pct } = getChecklistProgress(state);
+  const { state, update } = useOnboarding();
+  const { stammdaten, uploads, signaturen, total } = getProgressBreakdown(state);
   const zr = calcZrStartDate();
+  const navigate = useNavigate();
+
+  const signaturesUnlocked = total >= 75;
+  const canSubmit = total >= 100;
+
+  const onSubmit = () => {
+    update({ submittedAt: new Date().toISOString() });
+    // TODO: trigger email to TL
+  };
 
   return (
     <AppShell
@@ -54,45 +73,121 @@ function DashboardPage() {
       subtitle="Sie sind auf dem Weg zur Mitgliedschaft bei unitex."
     >
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        {/* Progress card */}
         <div className="lg:col-span-2 rounded-2xl border border-border bg-card p-8">
-          <div className="flex items-center gap-8">
-            <ProgressRing pct={pct} />
-            <div>
-              <p className="text-xs uppercase tracking-wide text-secondary">Gesamtfortschritt</p>
-              <h3 className="mt-1 font-display text-2xl font-semibold">
-                {done} von {total} erledigt
-              </h3>
-              <p className="mt-2 text-sm text-secondary max-w-md">
-                Sobald alle Pflichtdokumente und Formulare vollständig sind, können Sie Ihre Verträge digital unterschreiben.
-              </p>
+          <div className="flex items-start gap-8">
+            <ProgressRing pct={total} />
+            <div className="flex-1 space-y-4 pt-1">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-secondary">Gesamtfortschritt</p>
+                <h3 className="mt-1 font-display text-2xl font-semibold">{total}% abgeschlossen</h3>
+                <p className="mt-1 text-sm text-secondary">
+                  {total < 75
+                    ? "Stammdaten und Dokumente vervollständigen, um Signaturen freizuschalten."
+                    : total < 100
+                    ? "Fast geschafft! Verträge jetzt unterschreiben."
+                    : "Alles vollständig – bereit zur Einreichung."}
+                </p>
+              </div>
+              <div className="space-y-2">
+                <MiniBar label="Stammdaten (50%)" pct={stammdaten} />
+                <MiniBar label="Dokumenten-Uploads (25%)" pct={uploads} color="bg-primary/70" />
+                <MiniBar label="Signaturen (25%)" pct={signaturen} color="bg-primary/40" />
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="rounded-2xl border border-primary/40 bg-card p-8">
-          <p className="text-xs uppercase tracking-wide text-secondary">Voraussichtlicher ZR-Start</p>
-          <p className="mt-3 font-display text-3xl font-bold text-primary">{formatDateDe(zr)}</p>
-          <p className="mt-2 text-sm text-secondary">+10 Werktage ab Einreichung</p>
+        {/* ZR-Start */}
+        <div className="rounded-2xl border border-border bg-card p-8 flex flex-col justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-wide text-secondary">Voraussichtlicher ZR-Start</p>
+            <p className="mt-3 font-display text-3xl font-bold text-primary">
+              01.{String(zr.getMonth() + 1).padStart(2, "0")}.{zr.getFullYear()}
+            </p>
+            <p className="mt-2 text-sm text-secondary">
+              Ab dem 1. des Folgemonats nach vollständiger Einreichung
+            </p>
+          </div>
+          {state.submittedAt ? (
+            <div className="mt-4 rounded-lg bg-primary/10 border border-primary/30 px-4 py-3 text-sm text-primary font-medium">
+              ✓ Zur Prüfung eingereicht
+            </div>
+          ) : canSubmit ? (
+            <button
+              type="button"
+              onClick={onSubmit}
+              className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+            >
+              <SendHorizonal className="h-4 w-4" />
+              Zur Prüfung freigeben
+            </button>
+          ) : null}
         </div>
 
-        {[
-          { to: "/unternehmen" as const, icon: FileText, title: "Stammdaten vervollständigen", desc: "Firma, Bank und GLN-Angaben" },
-          { to: "/upload-center" as const, icon: CheckCircle2, title: "Pflichtdokumente hochladen", desc: "HR-Auszug, Gesellschaftsvertrag …" },
-          { to: "/signaturen" as const, icon: PenLine, title: "Verträge unterschreiben", desc: "Anschluss-Vertrag & SEPA-Mandat" },
-        ].map(({ to, icon: Icon, title, desc }) => (
+        {/* Action cards */}
+        <Link
+          to="/unternehmen"
+          className="group rounded-2xl border border-border bg-card p-6 hover:border-primary/60 transition-colors"
+        >
+          <FileText className="h-6 w-6 text-primary" />
+          <h4 className="mt-4 font-display text-base font-semibold">Stammdaten</h4>
+          <p className="mt-1 text-sm text-secondary">Firma, Bank, GLN & GWG-Daten</p>
+          <div className="mt-3 h-1 rounded-full bg-popover overflow-hidden">
+            <div className="h-full bg-primary transition-all duration-500" style={{ width: `${stammdaten}%` }} />
+          </div>
+          <div className="mt-1 flex justify-between text-xs text-secondary">
+            <span>{stammdaten}% abgeschlossen</span>
+            <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+          </div>
+        </Link>
+
+        <Link
+          to="/upload-center"
+          className="group rounded-2xl border border-border bg-card p-6 hover:border-primary/60 transition-colors"
+        >
+          <FolderUp className="h-6 w-6 text-primary" />
+          <h4 className="mt-4 font-display text-base font-semibold">Dokumente</h4>
+          <p className="mt-1 text-sm text-secondary">Pflichtdokumente für Ihre Rechtsform</p>
+          <div className="mt-3 h-1 rounded-full bg-popover overflow-hidden">
+            <div className="h-full bg-primary/70 transition-all duration-500" style={{ width: `${uploads}%` }} />
+          </div>
+          <div className="mt-1 flex justify-between text-xs text-secondary">
+            <span>{uploads}% hochgeladen</span>
+            <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+          </div>
+        </Link>
+
+        {/* Signaturen card – locked until 75% */}
+        {signaturesUnlocked ? (
           <Link
-            key={to}
-            to={to}
+            to="/signaturen"
             className="group rounded-2xl border border-border bg-card p-6 hover:border-primary/60 transition-colors"
           >
-            <Icon className="h-6 w-6 text-primary" />
-            <h4 className="mt-4 font-display text-base font-semibold">{title}</h4>
-            <p className="mt-1 text-sm text-secondary">{desc}</p>
-            <span className="mt-4 inline-flex items-center gap-1 text-sm text-primary">
-              Öffnen <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-            </span>
+            <PenLine className="h-6 w-6 text-primary" />
+            <h4 className="mt-4 font-display text-base font-semibold">Signaturen</h4>
+            <p className="mt-1 text-sm text-secondary">Verträge digital unterzeichnen</p>
+            <div className="mt-3 h-1 rounded-full bg-popover overflow-hidden">
+              <div className="h-full bg-primary/40 transition-all duration-500" style={{ width: `${signaturen}%` }} />
+            </div>
+            <div className="mt-1 flex justify-between text-xs text-secondary">
+              <span>{signaturen}% signiert</span>
+              <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+            </div>
           </Link>
-        ))}
+        ) : (
+          <div className="rounded-2xl border border-border bg-card/50 p-6 opacity-60 cursor-not-allowed">
+            <div className="flex items-center gap-2">
+              <Lock className="h-5 w-5 text-muted" />
+              <PenLine className="h-5 w-5 text-muted" />
+            </div>
+            <h4 className="mt-4 font-display text-base font-semibold text-secondary">Signaturen</h4>
+            <p className="mt-1 text-sm text-muted">Erst ab 75% Gesamtfortschritt verfügbar</p>
+            <p className="mt-3 text-xs text-muted">Aktuell: {total}% – noch {75 - total}% fehlend</p>
+          </div>
+        )}
+
       </div>
     </AppShell>
   );

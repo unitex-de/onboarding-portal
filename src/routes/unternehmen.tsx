@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Check, Info, Plus, Trash2 } from "lucide-react";
+import { Check, Info, Lock, Plus, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { FormSection, Field, inputClass } from "@/components/forms/FormSection";
-import { useOnboarding, type ContractType, type LegalForm } from "@/lib/onboarding-state";
+import { useOnboarding, type LegalForm } from "@/lib/onboarding-state";
 
 export const Route = createFileRoute("/unternehmen")({
   head: () => ({ meta: [{ title: "Unternehmen | unitex Onboarding" }] }),
@@ -11,39 +11,31 @@ export const Route = createFileRoute("/unternehmen")({
 });
 
 const LEGAL_FORMS: { value: LegalForm; label: string }[] = [
-  { value: "eK", label: "e.K. (Einzelkaufmann)" },
-  { value: "GbR", label: "GbR" },
-  { value: "GmbH", label: "GmbH" },
+  { value: "eK",       label: "e.K. (Einzelkaufmann)" },
+  { value: "GbR",      label: "GbR" },
+  { value: "GmbH",     label: "GmbH" },
   { value: "GmbHCoKG", label: "GmbH & Co. KG" },
-  { value: "KG", label: "KG" },
-  { value: "OHG", label: "OHG" },
+  { value: "KG",       label: "KG" },
+  { value: "OHG",      label: "OHG" },
 ];
 
-const CONTRACT_OPTIONS: {
-  value: ContractType;
-  title: string;
-  price: string;
-  desc: string;
-  highlight?: boolean;
-}[] = [
-  { value: "probe", title: "Probe-Vertrag", price: "Kostenlos", desc: "Keine Laufzeit, keine Gebühren während der Testphase." },
-  { value: "3jahre", title: "3 Jahre Laufzeit", price: "€45 / Monat", desc: "Volle Boni, Standardlaufzeit.", highlight: true },
-  { value: "5jahre", title: "5 Jahre Laufzeit", price: "€45 / Monat", desc: "Identische Boni, langfristige Konditionssicherheit." },
-];
-
+/** GWG section shown for these forms */
 const SHOWS_GWG: LegalForm[] = ["GmbH", "GmbHCoKG", "KG", "OHG", "GbR"];
 
 function UnternehmenPage() {
   const { state, update } = useOnboarding();
   const legalForm: LegalForm = state.legalForm ?? "GmbH";
 
-  // Local form state (real impl would use react-hook-form + auto-save).
+  // Local form state
   const [shareholders, setShareholders] = useState([
     { name: "", capital: "", voting: "", pep: false },
   ]);
   const [branches, setBranches] = useState([{ name: "", street: "", zip: "", city: "", gln: "" }]);
   const [hasGln, setHasGln] = useState(true);
-  const [partnerCheck, setPartnerCheck] = useState(false);
+
+  const handleSoliver = (checked: boolean) => {
+    update({ hasSoliver: checked });
+  };
 
   return (
     <AppShell
@@ -51,65 +43,41 @@ function UnternehmenPage() {
       subtitle="Stammdaten, Bankdaten, GLN & Filialen, Geschäftsdaten — jederzeit zwischenspeicherbar."
     >
       <div className="space-y-6 max-w-4xl">
-        {/* Vertragsart */}
-        <FormSection
-          id="vertragsart"
-          letter="0"
-          title="Vertragsart wählen"
-          description="Bestimmt Laufzeit, Boni und Gebühren Ihrer Mitgliedschaft."
-        >
-          <div className="grid md:grid-cols-3 gap-3">
-            {CONTRACT_OPTIONS.map((c) => {
-              const active = state.contractType === c.value;
-              return (
-                <button
-                  key={c.value}
-                  type="button"
-                  onClick={() => update({ contractType: c.value })}
-                  className={[
-                    "relative rounded-xl border p-5 text-left transition-all",
-                    active
-                      ? "border-primary bg-upload-active"
-                      : "border-border bg-popover hover:border-primary/40",
-                  ].join(" ")}
-                >
-                  {c.highlight && !active && (
-                    <span className="absolute right-3 top-3 rounded-full bg-success-soft px-2 py-0.5 text-[10px] font-medium text-success">
-                      Empfohlen
-                    </span>
-                  )}
-                  {active && (
-                    <span className="absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                      <Check className="h-3 w-3" strokeWidth={3} />
-                    </span>
-                  )}
-                  <h4 className="font-display text-base font-semibold">{c.title}</h4>
-                  <p className="mt-1 text-sm text-primary">{c.price}</p>
-                  <p className="mt-2 text-xs text-secondary">{c.desc}</p>
-                </button>
-              );
-            })}
-          </div>
-        </FormSection>
 
-        {/* Sektion A */}
+        {/* SECTION 1 – Grunddaten */}
         <FormSection id="grunddaten" letter="1" title="Grunddaten" description="Firmensitz und Rechtsform Ihres Unternehmens.">
           <div className="grid md:grid-cols-2 gap-4">
             <Field label="Firmenname">
-              <input className={inputClass} defaultValue={state.companyName} />
+              <input className={inputClass} defaultValue={state.companyName}
+                onChange={(e) => update({ companyName: e.target.value })} />
             </Field>
+
+            {/* Rechtsform – locked if set by admin */}
             <Field label="Rechtsform">
-              <select
-                className={inputClass}
-                value={legalForm}
-                onChange={(e) => update({ legalForm: e.target.value as LegalForm })}
-              >
-                {LEGAL_FORMS.map((f) => (
-                  <option key={f.value} value={f.value}>{f.label}</option>
-                ))}
-              </select>
+              {state.legalFormLockedByAdmin ? (
+                <div className="flex items-center gap-2 rounded-md border border-border bg-popover/50 px-3 py-2.5">
+                  <Lock className="h-4 w-4 text-muted shrink-0" />
+                  <span className="text-sm text-foreground">
+                    {LEGAL_FORMS.find((f) => f.value === legalForm)?.label ?? legalForm}
+                  </span>
+                  <span className="ml-auto text-[10px] text-muted">Vom Admin festgelegt</span>
+                </div>
+              ) : (
+                <select
+                  className={inputClass}
+                  value={legalForm}
+                  onChange={(e) => update({ legalForm: e.target.value as LegalForm })}
+                >
+                  {LEGAL_FORMS.map((f) => (
+                    <option key={f.value} value={f.value}>{f.label}</option>
+                  ))}
+                </select>
+              )}
             </Field>
-            <Field label="Straße & Hausnummer"><input className={inputClass} placeholder="Musterstraße 12" /></Field>
+
+            <Field label="Straße & Hausnummer">
+              <input className={inputClass} placeholder="Musterstraße 12" />
+            </Field>
             <Field label="PLZ / Ort">
               <div className="grid grid-cols-[100px_1fr] gap-2">
                 <input className={inputClass} placeholder="12345" />
@@ -117,10 +85,11 @@ function UnternehmenPage() {
               </div>
             </Field>
           </div>
+
         </FormSection>
 
-        {/* Sektion B */}
-        <FormSection id="kontakt" letter="2" title="Kontakt" description="Geschäftsführung und Buchhaltung.">
+        {/* SECTION 2 – Kontakt */}
+        <FormSection id="kontakt" letter="2" title="Kontaktinformationen" description="Geschäftsführung und Buchhaltung.">
           <p className="text-xs font-medium uppercase tracking-wide text-secondary">Geschäftsführung</p>
           <div className="grid md:grid-cols-3 gap-4">
             <Field label="Name"><input className={inputClass} /></Field>
@@ -128,7 +97,6 @@ function UnternehmenPage() {
             <Field label="Telefon"><input type="tel" className={inputClass} /></Field>
           </div>
           <Checkbox label="GF ist gleichzeitig Inhaber" />
-
           <p className="mt-4 text-xs font-medium uppercase tracking-wide text-secondary">Buchhaltung</p>
           <Checkbox label="Identisch mit Geschäftsführung" />
           <div className="grid md:grid-cols-3 gap-4">
@@ -136,9 +104,10 @@ function UnternehmenPage() {
             <Field label="E-Mail"><input type="email" className={inputClass} /></Field>
             <Field label="Telefon"><input type="tel" className={inputClass} /></Field>
           </div>
+
         </FormSection>
 
-        {/* Sektion C */}
+        {/* SECTION 3 – Bankdaten */}
         <FormSection id="bankdaten" letter="3" title="Bankdaten" description="Konto- und Steuerinformationen.">
           <div className="grid md:grid-cols-2 gap-4">
             <Field label="Bankname"><input className={inputClass} /></Field>
@@ -149,10 +118,11 @@ function UnternehmenPage() {
             <Field label="Steuernummer"><input className={inputClass} /></Field>
             <Field label="USt-IdNr."><input className={inputClass} placeholder="DE123456789" /></Field>
           </div>
+
         </FormSection>
 
-        {/* Sektion D */}
-        <FormSection id="gln" letter="4" title="GLN & Filialen" description="Global Location Number und Filialstruktur.">
+        {/* SECTION 4 – GLN & Filialen */}
+        <FormSection id="gln_filialen" letter="4" title="GLN & Filialen" description="Global Location Number und Filialstruktur.">
           <div className="rounded-lg bg-popover p-4">
             <p className="text-sm font-medium text-foreground mb-3">Haben Sie bereits eine GLN-Nummer?</p>
             <div className="flex gap-3">
@@ -163,7 +133,9 @@ function UnternehmenPage() {
                   onClick={() => setHasGln(v)}
                   className={[
                     "rounded-md px-4 py-1.5 text-sm font-medium transition-colors",
-                    hasGln === v ? "bg-primary text-primary-foreground" : "bg-background text-secondary hover:text-foreground",
+                    hasGln === v
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-background text-secondary hover:text-foreground",
                   ].join(" ")}
                 >
                   {v ? "Ja" : "Nein"}
@@ -171,7 +143,7 @@ function UnternehmenPage() {
               ))}
             </div>
             {!hasGln && (
-              <div className="mt-3 flex items-start gap-2 rounded-md bg-success-soft p-3 text-sm text-success">
+              <div className="mt-3 flex items-start gap-2 rounded-md bg-primary/10 p-3 text-sm text-primary">
                 <Info className="h-4 w-4 mt-0.5" />
                 Wir beantragen Ihre GLN-Nummer automatisch für Sie.
               </div>
@@ -233,10 +205,11 @@ function UnternehmenPage() {
               </table>
             </div>
           </div>
+
         </FormSection>
 
-        {/* Sektion E */}
-        <FormSection id="geschaeft" letter="5" title="Geschäftsdaten" description="Umsatz, Mitarbeiter, Sortimentsschwerpunkte.">
+        {/* SECTION 5 – Geschäftsdaten */}
+        <FormSection id="geschaeftsdaten" letter="5" title="Geschäftsdaten" description="Umsatz, Mitarbeiter, Sortimentsschwerpunkte.">
           <div className="grid md:grid-cols-3 gap-4">
             <Field label="Geschätzter Jahresumsatz">
               <select className={inputClass}>
@@ -259,12 +232,14 @@ function UnternehmenPage() {
           <Field label="Wichtige Marken" hint="Komma-getrennt">
             <input className={inputClass} placeholder="z.B. Tommy Hilfiger, Marc O'Polo" />
           </Field>
+
+          {/* S.Oliver toggle */}
           <div className="rounded-lg bg-popover p-4">
             <label className="flex items-start gap-3 cursor-pointer">
               <input
                 type="checkbox"
-                checked={partnerCheck}
-                onChange={(e) => setPartnerCheck(e.target.checked)}
+                checked={state.hasSoliver}
+                onChange={(e) => handleSoliver(e.target.checked)}
                 className="mt-0.5 h-4 w-4 accent-primary"
               />
               <div>
@@ -272,19 +247,20 @@ function UnternehmenPage() {
                 <p className="text-xs text-secondary">Aktiviert ein Sonderformular in der Signatur-Sektion.</p>
               </div>
             </label>
-            {partnerCheck && (
+            {state.hasSoliver && (
               <div className="mt-3 flex items-start gap-2 rounded-md bg-primary/10 p-3 text-sm text-primary">
                 <Info className="h-4 w-4 mt-0.5" />
-                Sonderformular Zentralregulierung erforderlich – wird automatisch zur Signatur hinzugefügt.
+                Sonderformular Zentralregulierung wird automatisch zur Signatur hinzugefügt.
               </div>
             )}
           </div>
+
         </FormSection>
 
-        {/* Sektion F – conditional */}
+        {/* SECTION 6 – GWG (conditional) */}
         {SHOWS_GWG.includes(legalForm) && (
           <FormSection
-            id="gwg"
+            id="gwg_daten"
             letter="6"
             title="GWG-Daten"
             description="Geldwäschegesetz – wirtschaftlich Berechtigte und Gesellschafterstruktur."
@@ -299,7 +275,7 @@ function UnternehmenPage() {
                   onClick={() => setShareholders([...shareholders, { name: "", capital: "", voting: "", pep: false }])}
                   className="inline-flex items-center gap-1 text-xs text-primary hover:underline disabled:opacity-40"
                 >
-                  <Plus className="h-3.5 w-3.5" /> Gesellschafter hinzufügen
+                  <Plus className="h-3.5 w-3.5" /> Hinzufügen
                 </button>
               </div>
               <div className="overflow-hidden rounded-lg border border-border">
@@ -307,50 +283,29 @@ function UnternehmenPage() {
                   <thead className="bg-popover text-xs uppercase tracking-wide text-secondary">
                     <tr>
                       <th className="text-left p-2 font-medium">Name</th>
-                      <th className="text-left p-2 font-medium w-32">Kapital %</th>
-                      <th className="text-left p-2 font-medium w-32">Stimmrecht %</th>
-                      <th className="text-left p-2 font-medium w-20">PEP</th>
+                      <th className="text-left p-2 font-medium w-28">Kapital %</th>
+                      <th className="text-left p-2 font-medium w-28">Stimmrecht %</th>
+                      <th className="text-left p-2 font-medium w-16">PEP</th>
                       <th className="w-10" />
                     </tr>
                   </thead>
                   <tbody>
                     {shareholders.map((s, i) => (
                       <tr key={i} className="border-t border-border">
-                        <td className="p-1.5">
-                          <input
-                            value={s.name}
-                            onChange={(e) => {
-                              const n = [...shareholders];
-                              n[i] = { ...n[i], name: e.target.value };
-                              setShareholders(n);
-                            }}
-                            className="w-full rounded bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                          />
-                        </td>
-                        <td className="p-1.5">
-                          <input
-                            value={s.capital}
-                            onChange={(e) => {
-                              const n = [...shareholders];
-                              n[i] = { ...n[i], capital: e.target.value };
-                              setShareholders(n);
-                            }}
-                            className="w-full rounded bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                            placeholder="50"
-                          />
-                        </td>
-                        <td className="p-1.5">
-                          <input
-                            value={s.voting}
-                            onChange={(e) => {
-                              const n = [...shareholders];
-                              n[i] = { ...n[i], voting: e.target.value };
-                              setShareholders(n);
-                            }}
-                            className="w-full rounded bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                            placeholder="50"
-                          />
-                        </td>
+                        {(["name", "capital", "voting"] as const).map((k) => (
+                          <td key={k} className="p-1.5">
+                            <input
+                              value={s[k]}
+                              onChange={(e) => {
+                                const n = [...shareholders];
+                                n[i] = { ...n[i], [k]: e.target.value };
+                                setShareholders(n);
+                              }}
+                              className="w-full rounded bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                              placeholder={k !== "name" ? "50" : ""}
+                            />
+                          </td>
+                        ))}
                         <td className="p-1.5 text-center">
                           <input
                             type="checkbox"
@@ -379,10 +334,38 @@ function UnternehmenPage() {
                 </table>
               </div>
             </div>
+
           </FormSection>
         )}
       </div>
     </AppShell>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Helper components
+// ---------------------------------------------------------------------------
+
+function SaveButton({ onSave, done }: { onSave: () => void; done: boolean }) {
+  return (
+    <div className="flex justify-end pt-2">
+      <button
+        type="button"
+        onClick={onSave}
+        className={[
+          "inline-flex items-center gap-2 rounded-md px-5 py-2 text-sm font-semibold transition-colors",
+          done
+            ? "bg-primary/20 text-primary border border-primary/30 cursor-default"
+            : "bg-primary text-primary-foreground hover:bg-primary/90",
+        ].join(" ")}
+      >
+        {done ? (
+          <><Check className="h-4 w-4" /> Gespeichert</>
+        ) : (
+          "Speichern"
+        )}
+      </button>
+    </div>
   );
 }
 

@@ -44,18 +44,25 @@ function UploadCenterPage() {
             {completed} von {docs.length} hochgeladen · Laden Sie alle erforderlichen Dokumente hoch.
           </p>
         </div>
-        <label className="flex items-center gap-3 text-sm text-secondary">
+        <div className="flex items-center gap-3 text-sm text-secondary">
           Rechtsform
-          <select
-            value={legalForm}
-            onChange={(e) => update({ legalForm: e.target.value as LegalForm })}
-            className="rounded-md border border-border bg-popover px-3 py-1.5 text-sm text-foreground focus:border-primary focus:outline-none"
-          >
-            {LEGAL_FORMS.map((f) => (
-              <option key={f.value} value={f.value}>{f.label}</option>
-            ))}
-          </select>
-        </label>
+          {state.legalFormLockedByAdmin ? (
+            <div className="flex items-center gap-2 rounded-md border border-border bg-popover/50 px-3 py-1.5 text-sm text-foreground">
+              <span>{LEGAL_FORMS.find((f) => f.value === legalForm)?.label ?? legalForm}</span>
+              <span className="text-[10px] text-muted ml-1">gesperrt</span>
+            </div>
+          ) : (
+            <select
+              value={legalForm}
+              onChange={(e) => update({ legalForm: e.target.value as LegalForm })}
+              className="rounded-md border border-border bg-popover px-3 py-1.5 text-sm text-foreground focus:border-primary focus:outline-none"
+            >
+              {LEGAL_FORMS.map((f) => (
+                <option key={f.value} value={f.value}>{f.label}</option>
+              ))}
+            </select>
+          )}
+        </div>
       </div>
 
       <div className="space-y-3">

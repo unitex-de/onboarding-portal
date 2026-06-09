@@ -1,55 +1,93 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowRight, Mail, ShieldCheck, CheckCircle2 } from "lucide-react";
-import { useOnboarding, type MemberType } from "@/lib/onboarding-state";
+import { ArrowRight, Mail, ShieldCheck, CheckCircle2, UserCog, User } from "lucide-react";
+import { useOnboarding, type MemberType, type LegalForm, type UserRole } from "@/lib/onboarding-state";
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/")(({
   head: () => ({
     meta: [
       { title: "unitex Onboarding Portal" },
       { name: "description", content: "Werden Sie Mitglied bei unitex – dem Verband für Textileinkauf. Starten Sie Ihr Onboarding in wenigen Minuten." },
-      { property: "og:title", content: "unitex Onboarding Portal" },
-      { property: "og:description", content: "Werden Sie Mitglied bei unitex – dem Verband für Textileinkauf." },
     ],
   }),
   component: Index,
-});
+}));
+
+const LEGAL_FORMS: { value: LegalForm; label: string }[] = [
+  { value: "eK",       label: "e.K. (Einzelkaufmann)" },
+  { value: "GbR",      label: "GbR" },
+  { value: "GmbH",     label: "GmbH" },
+  { value: "GmbHCoKG", label: "GmbH & Co. KG" },
+  { value: "KG",       label: "KG" },
+  { value: "OHG",      label: "OHG" },
+];
 
 function Index() {
   const navigate = useNavigate();
   const { state, update } = useOnboarding();
-  const [email, setEmail] = useState(state.email ?? "");
-  const [memberType, setMemberType] = useState<MemberType>(state.memberType ?? "händler");
-  const [sent, setSent] = useState(false);
 
-  const onSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const [role, setRole] = useState<UserRole>("kunde");
+  const [email, setEmail] = useState(state.email ?? "");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [memberType, setMemberType] = useState<MemberType>(state.memberType ?? "händler");
+  const [legalForm, setLegalForm] = useState<LegalForm>(state.legalForm ?? "GmbH");
+  const [sent, setSent] = useState(false);
+  const [verifyCode, setVerifyCode] = useState("");
+  const [codeError, setCodeError] = useState(false);
+
+  const onAdminSubmit = () => {
+    if (!email.includes("@") || !firstName || !lastName) return;
+    update({
+      email,
+      memberType,
+      legalForm,
+      legalFormLockedByAdmin: true,
+      userName: `${firstName} ${lastName}`,
+      role: "admin",
+      signedIn: true,
+    });
+    navigate({ to: "/dashboard" });
+  };
+
+  const onKundeRequest = () => {
     if (!email.includes("@")) return;
     update({ email, memberType });
     setSent(true);
   };
 
-  const onContinue = () => {
-    update({ signedIn: true });
-    navigate({ to: "/dashboard" });
+  const onVerify = () => {
+    // Demo: any 6-digit code works
+    if (verifyCode.length === 6) {
+      update({ signedIn: true, role: "kunde" });
+      navigate({ to: "/dashboard" });
+    } else {
+      setCodeError(true);
+    }
   };
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
+      {/* Header */}
       <header className="px-10 py-8 flex items-center justify-between">
-        <div className="flex items-end gap-2">
-          <span className="font-display text-2xl font-bold">unitex</span>
-          <span className="text-[11px] leading-tight text-secondary hidden sm:block">
-            Vertrauen. Kompetenz. Innovation.
+        <div className="flex flex-col items-start">
+          <span className="font-display text-2xl font-bold leading-tight">unitex</span>
+          <span className="text-[10px] leading-tight text-secondary">
+            Vertrauen.<br />Kompetenz.<br />Innovation.
           </span>
         </div>
-        <a href="mailto:onboarding@unitex.de" className="text-sm text-secondary hover:text-foreground">
+        <a
+          href="https://unitex.de/kontakt/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-sm text-secondary hover:text-foreground"
+        >
           Hilfe benötigt?
         </a>
       </header>
 
       <main className="flex-1 grid lg:grid-cols-2 gap-12 px-10 pb-16 max-w-7xl w-full mx-auto items-center">
+        {/* Left: Marketing */}
         <section className="space-y-6">
           <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs text-secondary">
             <ShieldCheck className="h-3.5 w-3.5 text-primary" />
@@ -71,29 +109,88 @@ function Index() {
               "Digital signieren via PandaDoc",
             ].map((t) => (
               <li key={t} className="flex items-center gap-3 text-sm text-secondary">
-                <CheckCircle2 className="h-4 w-4 text-success" />
+                <CheckCircle2 className="h-4 w-4 text-primary" />
                 {t}
               </li>
             ))}
           </ul>
         </section>
 
+        {/* Right: Login Card */}
         <section className="w-full max-w-md justify-self-end">
           <div className="rounded-2xl border border-border bg-card p-8 shadow-2xl">
-            {!sent ? (
-              <form onSubmit={onSubmit} className="space-y-6">
+            {/* Role switcher */}
+            <div className="mb-6">
+              <label className="text-xs font-medium text-secondary uppercase tracking-wide">Ich bin</label>
+              <div className="mt-2 grid grid-cols-2 gap-2 p-1 rounded-lg bg-popover">
+                {([
+                  { value: "kunde" as UserRole, label: "Kunde", icon: User },
+                  { value: "admin" as UserRole, label: "Admin (unitex)", icon: UserCog },
+                ]).map(({ value, label, icon: Icon }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setRole(value)}
+                    className={[
+                      "flex items-center justify-center gap-2 rounded-md py-2 text-sm font-medium transition-colors",
+                      role === value
+                        ? "bg-primary text-primary-foreground"
+                        : "text-secondary hover:text-foreground",
+                    ].join(" ")}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {role === "admin" ? (
+              /* ---- ADMIN FORM ---- */
+              <div className="space-y-5">
                 <div>
-                  <h2 className="font-display text-xl font-semibold">Jetzt starten</h2>
-                  <p className="mt-1 text-sm text-secondary">
-                    Geben Sie Ihre geschäftliche E-Mail-Adresse ein. Wir senden Ihnen einen
-                    sicheren Anmelde-Link.
-                  </p>
+                  <h2 className="font-display text-xl font-semibold">Kunden anlegen</h2>
+                  <p className="mt-1 text-sm text-secondary">Felder ausfüllen und Magic Link generieren.</p>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-secondary uppercase tracking-wide">
-                    Ich bin
-                  </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-xs text-secondary uppercase tracking-wide">Vorname</label>
+                    <input
+                      className="w-full rounded-md border border-border bg-popover px-3 py-2 text-sm focus:border-primary focus:outline-none"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      placeholder="Max"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs text-secondary uppercase tracking-wide">Nachname</label>
+                    <input
+                      className="w-full rounded-md border border-border bg-popover px-3 py-2 text-sm focus:border-primary focus:outline-none"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      placeholder="Mustermann"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs text-secondary uppercase tracking-wide">E-Mail (bekannt)</label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
+                    <input
+                      type="email"
+                      className="w-full rounded-md border border-border bg-popover pl-9 pr-3 py-2.5 text-sm focus:border-primary focus:outline-none"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="name@firma.de"
+                    />
+                  </div>
+                </div>
+
+                {/* Händler/Lieferant */}
+                <div className="space-y-1">
+                  <label className="text-xs text-secondary uppercase tracking-wide">Typ</label>
                   <div className="grid grid-cols-2 gap-2 p-1 rounded-lg bg-popover">
                     {(["händler", "lieferant"] as MemberType[]).map((t) => (
                       <button
@@ -102,9 +199,7 @@ function Index() {
                         onClick={() => setMemberType(t)}
                         className={[
                           "rounded-md py-2 text-sm font-medium capitalize transition-colors",
-                          memberType === t
-                            ? "bg-primary text-primary-foreground"
-                            : "text-secondary hover:text-foreground",
+                          memberType === t ? "bg-primary text-primary-foreground" : "text-secondary hover:text-foreground",
                         ].join(" ")}
                       >
                         {t === "händler" ? "Händler" : "Lieferant"}
@@ -113,14 +208,45 @@ function Index() {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <label htmlFor="email" className="text-xs font-medium text-secondary uppercase tracking-wide">
-                    E-Mail-Adresse
-                  </label>
+                {/* Rechtsform – locked after admin sets it */}
+                <div className="space-y-1">
+                  <label className="text-xs text-secondary uppercase tracking-wide">Rechtsform</label>
+                  <select
+                    value={legalForm}
+                    onChange={(e) => setLegalForm(e.target.value as LegalForm)}
+                    className="w-full rounded-md border border-border bg-popover px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
+                  >
+                    {LEGAL_FORMS.map((f) => (
+                      <option key={f.value} value={f.value}>{f.label}</option>
+                    ))}
+                  </select>
+                  <p className="text-[11px] text-muted">Nach Anlage nicht mehr änderbar.</p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={onAdminSubmit}
+                  disabled={!email.includes("@") || !firstName || !lastName}
+                  className="group inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Magic Link generieren & Senden
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                </button>
+              </div>
+            ) : !sent ? (
+              /* ---- KUNDE: E-Mail eingeben ---- */
+              <div className="space-y-5">
+                <div>
+                  <h2 className="font-display text-xl font-semibold">Anmelden</h2>
+                  <p className="mt-1 text-sm text-secondary">
+                    Geben Sie Ihre geschäftliche E-Mail-Adresse ein. Wir senden Ihnen einen sicheren Anmelde-Link.
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-secondary uppercase tracking-wide">E-Mail-Adresse</label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
                     <input
-                      id="email"
                       type="email"
                       required
                       value={email}
@@ -130,45 +256,64 @@ function Index() {
                     />
                   </div>
                 </div>
-
                 <button
-                  type="submit"
-                  className="group inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90"
+                  type="button"
+                  onClick={onKundeRequest}
+                  disabled={!email.includes("@")}
+                  className="group inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Magic Link anfordern
                   <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                 </button>
-
                 <p className="text-[11px] text-muted text-center">
                   Mit dem Fortfahren akzeptieren Sie unsere Datenschutzbestimmungen.
                 </p>
-              </form>
+              </div>
             ) : (
+              /* ---- KUNDE: Code-Verifizierung ---- */
               <div className="space-y-6 text-center">
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-success-soft">
-                  <Mail className="h-6 w-6 text-success" />
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-card border border-border">
+                  <Mail className="h-6 w-6 text-primary" />
                 </div>
                 <div>
                   <h2 className="font-display text-xl font-semibold">Prüfen Sie Ihr Postfach</h2>
                   <p className="mt-2 text-sm text-secondary">
-                    Wir haben einen Anmelde-Link an
-                    <br />
+                    Wir haben einen 6-stelligen Code an{" "}
                     <span className="text-foreground font-medium">{email}</span> gesendet.
                   </p>
                 </div>
+                <div className="space-y-2 text-left">
+                  <label className="text-xs text-secondary uppercase tracking-wide">Verifizierungscode</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={verifyCode}
+                    onChange={(e) => { setVerifyCode(e.target.value.replace(/\D/g, "")); setCodeError(false); }}
+                    placeholder="123456"
+                    className={[
+                      "w-full rounded-md border bg-popover px-3 py-2.5 text-center text-xl tracking-[0.5em] focus:outline-none focus:ring-1",
+                      codeError ? "border-destructive focus:ring-destructive" : "border-border focus:border-primary focus:ring-primary",
+                    ].join(" ")}
+                  />
+                  {codeError && <p className="text-xs text-destructive">Ungültiger Code. Bitte 6 Ziffern eingeben.</p>}
+                </div>
                 <button
-                  onClick={onContinue}
+                  type="button"
+                  onClick={onVerify}
                   className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
                 >
-                  Demo: Direkt fortfahren
+                  Bestätigen
                   <ArrowRight className="h-4 w-4" />
                 </button>
                 <button
-                  onClick={() => setSent(false)}
+                  type="button"
+                  onClick={() => { setSent(false); setVerifyCode(""); setCodeError(false); }}
                   className="text-xs text-secondary hover:text-foreground underline underline-offset-4"
                 >
                   Andere E-Mail verwenden
                 </button>
+                <p className="text-[11px] text-muted">(Demo: beliebiger 6-stelliger Code funktioniert)</p>
               </div>
             )}
           </div>

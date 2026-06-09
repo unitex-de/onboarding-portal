@@ -8,7 +8,9 @@ export default defineConfig({
   // Wir zwingen das integrierte Tailwind-Plugin, unsere neue Datei zu lesen
   plugins: [
     tailwindcss({
-      base: "src/unitex.css",
-    }),
+      config: {
+        content: ["src/unitex.css"],
+      },
+    } as any),
   ],
 });
