@@ -71,14 +71,19 @@ function Index() {
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       {/* Header */}
       <header className="px-10 py-8 flex items-center justify-between">
-        <div className="flex flex-col items-start gap-2">
-          <div className="bg-white px-1 pt-10 pb-1.5 shadow-sm flex items-end justify-center">
-            <UnitexLogo className="h-4 w-[60px] text-slate-900" />
-          </div>
-          <span className="text-[10px] leading-tight text-slate-400 mt-1">
-            VERTRAUEN.<br />KOMPETENZ.<br />INNOVATION.
-          </span>
+        <div className="flex flex-row items-end gap-3 p-1">
+  
+        {/* Der weiße Hintergrund-Kasten mit dem Logo */}
+        <div className="bg-white px-0.5 pt-10 pb-0.5 shadow-sm flex items-end justify-center shrink-0">
+          <UnitexLogo className="h-4 w-[60px] text-slate-900" />
         </div>
+        
+        {/* ÄNDERUNG HIER: pb-1.5 zieht den Slogan auf die exakt gleiche Grundlinie wie das Logo */}
+        <span className="text-[10px] leading-tight  font-medium">
+          VERTRAUEN.<br />KOMPETENZ.<br />INNOVATION.
+        </span>
+        
+      </div>
         
         <a
           href="https://unitex.de/kontakt/"
@@ -103,13 +108,11 @@ function Index() {
             <span className="text-primary">unitex Onboarding Portal.</span>
           </h1>
           <p className="text-base text-secondary max-w-md">
-            Schließen Sie Ihre ZR-Mitgliedschaft in wenigen Schritten ab –
-            flexibel, sicher und ohne Papierkram.
+            Schließen Sie Ihre ZR-Mitgliedschaft in wenigen Schritten ab. <br />Flexibel, sicher und ohne Papierkram.
           </p>
           <ul className="space-y-3 pt-2">
             {[
-              "Frei navigierbar – kein starrer Wizard",
-              "Auto-Save auf jedem Feld",
+              "Frei navigierbar",
               "Digital signieren via PandaDoc",
             ].map((t) => (
               <li key={t} className="flex items-center gap-3 text-sm text-secondary">
