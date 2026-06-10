@@ -79,6 +79,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charset: 'utf-8' },
       { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+      { title: 'unitex B2B Onboarding Portal' },
+      { name: 'description', content: 'Digitales Onboarding-Portal für neue Mitglieder der unitex GmbH – Unterlagen einreichen, Signaturen vorbereiten und ZR-Start aktivieren.' },
+      { property: 'og:title', content: 'unitex B2B Onboarding Portal' },
+      { property: 'og:description', content: 'Digitales Onboarding-Portal für neue Mitglieder der unitex GmbH.' },
+      { property: 'og:type', content: 'website' },
+      { property: 'og:site_name', content: 'unitex GmbH' },
+      { name: 'twitter:card', content: 'summary' },
+      { name: 'twitter:title', content: 'unitex B2B Onboarding Portal' },
+      { name: 'twitter:description', content: 'Digitales Onboarding-Portal für neue Mitglieder der unitex GmbH.' },
     ],
     links: [
       { rel: 'stylesheet', href: appCss },
