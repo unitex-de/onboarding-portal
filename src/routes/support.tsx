@@ -15,19 +15,23 @@ const FAQS = [
   },
   {
     q: "Wie lange dauert das Onboarding insgesamt?",
-    a: "Nach vollständiger Einreichung Ihrer Unterlagen erfolgt der ZR-Start in der Regel innerhalb von 10 Werktagen. Die GLN-Beantragung und RSB-Anmeldung laufen parallel im Hintergrund.",
+    a: "Nach vollständiger Einreichung Ihrer Unterlagen startet die Zentralregulierung (ZR) in der Regel innerhalb von 10 Werktagen (jeweils zum 01. des Folgemonats). Nach der Unterzeichnung erhalten Sie alle Dokumente vorab per PDF-Mail, danach meldet sich das Onboarding-Team persönlich für die nächsten Schritte.",
   },
   {
     q: "Welche Dokumente werden zwingend benötigt?",
-    a: "Die Pflichtdokumente hängen von Ihrer Rechtsform ab. Eine vollständige Liste finden Sie im Upload-Center. GmbHs benötigen beispielsweise Handelsregisterauszug, Gesellschaftsvertrag und Gesellschafterliste.",
+    a: "Die Pflichtdokumente hängen von Ihrer Rechtsform ab. Eine vollständige Liste finden Sie im Upload-Center.",
   },
   {
-    q: "Was passiert nach dem Unterschreiben der Verträge?",
-    a: "Sie erhalten eine Bestätigungsmail mit allen Vertragsdokumenten als PDF. Unser Onboarding-Team meldet sich anschließend persönlich bei Ihnen, um die nächsten Schritte zu besprechen.",
+    q: "Was ist die bankgesicherte Zentralregulierung (ZR) der unitex?",
+    a: "Die ZR ist das Herzstück der unitex-FashionCommunity. Über ein bankgesichertes Abrechnungssystem (in Kooperation mit der RSB Retail+Service Bank GmbH) werden alle Rechnungen, Gutschriften und Zahlungsströme zwischen Händlern und Lieferanten über ein zentrales Warenkonto abgewickelt.",
   },
   {
-    q: "Kann ich meinen Vertrag später ändern (z.B. 3J → 5J)?",
-    a: "Ja. Wechsel auf eine längere Laufzeit sind jederzeit möglich und werden mit besseren Konditionen belohnt. Sprechen Sie uns einfach an.",
+    q: "Was ist das unitex-Rechnungsportal und wie erhalte ich Zugang?",
+    a: "Das Rechnungsportal (technisch bereitgestellt durch GRÜN RAW) ist die 100 % digitale Plattform für Ihr Belegmanagement. Nach erfolgreichem Onboarding erhalten Sie Ihre Zugangsdaten per E-Mail. Sie registrieren sich online unter Angabe Ihrer zugewiesenen Mitglieds- oder Lieferantennummer. Eine Softwareinstallation ist nicht nötig – ein Internetzugang genügt.",
+  },
+  {
+    q: "Wie und wann erhalte ich meine Abrechnungen?",
+    a: "Die Abrechnung erfolgt in sogenannten Dekaden. Rechnungen und Gutschriften werden dreimal im Monat zusammengezogen und saldiert (jeweils zum 5., 15. und 25. eines Monats). Sie erhalten eine übersichtliche ZR-Abrechnung (Kontoauszug und Buchungsaufstellung) direkt in Ihrem RSB-Webportal.",
   },
 ];
 
