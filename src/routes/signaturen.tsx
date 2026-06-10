@@ -92,10 +92,9 @@ function SignaturenPage() {
     {
       id: "sepa",
       title: "SEPA Firmenlastschrift-Mandat",
-      desc: "Ermächtigt unitex zum Einzug fälliger Beträge.",
+      desc: "Ermächtigt die RSB zum Einzug fälliger Beträge.",
       tokens: [
         { label: "Firmenname",   value: state.companyName },
-        { label: "Gläubiger-ID", value: CREDITOR_ID },
       ],
     },
     {
