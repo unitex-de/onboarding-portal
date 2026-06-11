@@ -6,10 +6,14 @@ import {
   isChecklistItemDone,
   useOnboarding,
 } from "@/lib/onboarding-state";
+import { Button } from "@/components/ui/button";
 
 export function RightChecklist() {
   const { state } = useOnboarding();
   const { stammdaten, uploads, signaturen, total } = getProgressBreakdown(state);
+  const pdfHref = state.memberType === "lieferant"
+    ? "/lieferant-zr-onboarding-checkliste.pdf"
+    : "/haendler-zr-onboarding-checkliste.pdf";
 
   // Color logic matching the main progress bar
   const barColor = total === 100
@@ -57,24 +61,37 @@ export function RightChecklist() {
               <ul className="space-y-1.5">
                 {visibleItems.map((item) => {
                   const checked = isChecklistItemDone(item, state);
+                  const isHashLink = item.href.includes("#");
+                  const content = (
+                    <>
+                      <span aria-hidden
+                        className={[
+                          "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-all",
+                          checked ? "bg-primary border-primary" : "border-muted/60 bg-transparent",
+                        ].join(" ")}
+                      >
+                        {checked && <Check className="h-3 w-3 text-primary-foreground" strokeWidth={3} />}
+                      </span>
+                      <span className={[
+                        "text-sm group-hover:text-card-foreground transition-colors",
+                        checked ? "text-card-foreground" : "text-secondary",
+                      ].join(" ")}>
+                        {item.label}
+                      </span>
+                    </>
+                  );
+
                   return (
                     <li key={item.id}>
-                      <Link to={item.href as any} className="flex items-center gap-3 group">
-                        <span aria-hidden
-                          className={[
-                            "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-all",
-                            checked ? "bg-primary border-primary" : "border-muted/60 bg-transparent",
-                          ].join(" ")}
-                        >
-                          {checked && <Check className="h-3 w-3 text-primary-foreground" strokeWidth={3} />}
-                        </span>
-                        <span className={[
-                          "text-sm group-hover:text-card-foreground transition-colors",
-                          checked ? "text-card-foreground" : "text-secondary",
-                        ].join(" ")}>
-                          {item.label}
-                        </span>
-                      </Link>
+                      {isHashLink ? (
+                        <a href={item.href} className="flex items-center gap-3 group">
+                          {content}
+                        </a>
+                      ) : (
+                        <Link to={item.href as any} className="flex items-center gap-3 group">
+                          {content}
+                        </Link>
+                      )}
                     </li>
                   );
                 })}
@@ -82,6 +99,14 @@ export function RightChecklist() {
             </div>
           );
         })}
+
+        <div className="pt-4 border-t border-border">
+          <Button asChild variant="secondary" className="w-full bg-[#FACBBA] text-[#0D1B2A] hover:bg-[#f8b9ac]">
+            <a href={pdfHref} download>
+              Checkliste herunterladen
+            </a>
+          </Button>
+        </div>
       </div>
     </aside>
   );

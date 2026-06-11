@@ -35,6 +35,7 @@ function UnternehmenPage() {
   const [strasse, setStrasse] = useState("");
   const [plz, setPlz] = useState("");
   const [ort, setOrt] = useState("");
+  const [land, setLand] = useState("DE");
 
   // Kontakt state
   const [gfName, setGfName] = useState("");
@@ -137,12 +138,14 @@ function UnternehmenPage() {
               <input className={inputClass} placeholder="Musterstraße 12"
                 value={strasse} onChange={(e) => setStrasse(e.target.value)} />
             </Field>
-            <Field label="PLZ / Ort">
-              <div className="grid grid-cols-[100px_1fr] gap-2">
+            <Field label="PLZ / Ort / Land">
+              <div className="grid grid-cols-[100px_1fr_60px] gap-2">
                 <input className={inputClass} placeholder="12345"
                   value={plz} onChange={(e) => setPlz(e.target.value)} />
                 <input className={inputClass} placeholder="Musterstadt"
                   value={ort} onChange={(e) => setOrt(e.target.value)} />
+                <input className={inputClass} placeholder="DE"
+                  value={land} onChange={(e) => setLand(e.target.value)} />
               </div>
             </Field>
           </div>
