@@ -4,10 +4,10 @@ import { UnitexLogo } from "../ui/UnitexLogo";
 
 const items = [
   { to: "/dashboard",     label: "Dashboard",     icon: Home },
-  { to: "/unternehmen",   label: "Unternehmen",   icon: Building2 },
-  { to: "/upload-center", label: "Upload-Center", icon: FolderUp },
+  { to: "/unternehmen",   label: "Ihr Unternehmen",   icon: Building2 },
+  { to: "/upload-center", label: "Dokumente-Center", icon: FolderUp },
   { to: "/signaturen",    label: "Signaturen",    icon: PenLine },
-  { to: "/support",       label: "Support",       icon: MessageCircleQuestion },
+  { to: "/support",       label: "Hilfe & Kontakt",       icon: MessageCircleQuestion },
 ] as const;
 
 export function LeftSidebar() {
@@ -23,8 +23,10 @@ export function LeftSidebar() {
         </div>
         
         {/* ÄNDERUNG HIER: pb-1.5 zieht den Slogan auf die exakt gleiche Grundlinie wie das Logo */}
-        <span className="text-[10px] leading-tight  font-medium">
-          VERTRAUEN.<br />KOMPETENZ.<br />INNOVATION.
+        <span className="text-[10px] leading-tight font-medium">
+          VERTRAUEN.<br />
+          KOMPETENZ.<br />
+          <span className="text-[#FACBBA]">INNOVATION.</span>
         </span>
         
       </div>

@@ -1,9 +1,9 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useRef, useState } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useMemo, useRef, useState, useEffect } from "react";
 import { CloudUpload, FileCheck2, FileText, MoreVertical, Trash2, RefreshCcw, Download } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
-import { useOnboarding, type LegalForm } from "@/lib/onboarding-state";
-import { REQUIRED_DOCS, formatBytes } from "@/lib/required-docs";
+import { useOnboarding, type LegalForm, getProgressBreakdown } from "@/lib/onboarding-state";
+import { REQUIRED_DOCS, REQUIRED_DOCS_LIEFERANT, formatBytes } from "@/lib/required-docs";
 
 const LEGAL_FORMS: { value: LegalForm; label: string }[] = [
   { value: "eK", label: "e.K." },
@@ -20,9 +20,21 @@ export const Route = createFileRoute("/upload-center")({
 });
 
 function UploadCenterPage() {
+  const navigate = useNavigate();
   const { state, update, uploadDoc, removeDoc } = useOnboarding();
   const legalForm: LegalForm = state.legalForm ?? "GmbH";
-  const docs = REQUIRED_DOCS[legalForm];
+  const isLieferant = state.memberType === "lieferant";
+  const docs = isLieferant ? REQUIRED_DOCS_LIEFERANT : REQUIRED_DOCS[legalForm];
+
+  // Auto-navigate to signaturen when uploads hit 100% (and stammdaten also done)
+  const { uploads, stammdaten } = getProgressBreakdown(state);
+  const prevUploads = useRef(uploads);
+  useEffect(() => {
+    if (prevUploads.current < 100 && uploads === 100 && stammdaten >= 100) {
+      setTimeout(() => navigate({ to: "/signaturen" }), 800);
+    }
+    prevUploads.current = uploads;
+  }, [uploads, stammdaten]);
 
   // First pending doc becomes the active drop target.
   const firstPending = useMemo(() => docs.find((d) => !state.uploadedDocs[d.id])?.id, [docs, state.uploadedDocs]);
@@ -30,11 +42,12 @@ function UploadCenterPage() {
   const effectiveActive = activeId && docs.some((d) => d.id === activeId) ? activeId : firstPending ?? null;
 
   const completed = docs.filter((d) => state.uploadedDocs[d.id]).length;
+  const isLieferantView = isLieferant;
 
   return (
     <AppShell
       title="Dokumenten-Upload"
-      subtitle={`${state.companyName} · Pflichtdokumente für Ihren ZR-Beitritt`}
+      subtitle={`${state.companyName} · ${isLieferantView ? "Pflichtdokument für Lieferanten" : "Pflichtdokumente für Ihren ZR-Beitritt"}`}
     >
       {/* Header strip */}
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
@@ -44,25 +57,27 @@ function UploadCenterPage() {
             {completed} von {docs.length} hochgeladen · Laden Sie alle erforderlichen Dokumente hoch.
           </p>
         </div>
-        <div className="flex items-center gap-3 text-sm text-secondary">
-          Rechtsform
-          {state.legalFormLockedByAdmin ? (
-            <div className="flex items-center gap-2 rounded-md border border-border bg-popover/50 px-3 py-1.5 text-sm text-foreground">
-              <span>{LEGAL_FORMS.find((f) => f.value === legalForm)?.label ?? legalForm}</span>
-              <span className="text-[10px] text-muted ml-1">gesperrt</span>
-            </div>
-          ) : (
-            <select
-              value={legalForm}
-              onChange={(e) => update({ legalForm: e.target.value as LegalForm })}
-              className="rounded-md border border-border bg-popover px-3 py-1.5 text-sm text-foreground focus:border-primary focus:outline-none"
-            >
-              {LEGAL_FORMS.map((f) => (
-                <option key={f.value} value={f.value}>{f.label}</option>
-              ))}
-            </select>
-          )}
-        </div>
+        {!isLieferantView && (
+          <div className="flex items-center gap-3 text-sm text-secondary">
+            Rechtsform
+            {state.legalFormLockedByAdmin ? (
+              <div className="flex items-center gap-2 rounded-md border border-border bg-popover/50 px-3 py-1.5 text-sm text-foreground">
+                <span>{LEGAL_FORMS.find((f) => f.value === legalForm)?.label ?? legalForm}</span>
+                <span className="text-[10px] text-muted ml-1">gesperrt</span>
+              </div>
+            ) : (
+              <select
+                value={legalForm}
+                onChange={(e) => update({ legalForm: e.target.value as LegalForm })}
+                className="rounded-md border border-border bg-popover px-3 py-1.5 text-sm text-foreground focus:border-primary focus:outline-none"
+              >
+                {LEGAL_FORMS.map((f) => (
+                  <option key={f.value} value={f.value}>{f.label}</option>
+                ))}
+              </select>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="space-y-3">

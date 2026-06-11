@@ -73,15 +73,35 @@ function SupportPage() {
                   t.lemke@unitex.de
                 </a>
               </li>
-              <li className="flex items-center gap-3 text-secondary">
-                <Clock className="h-4 w-4 text-primary" />
-                Mo–Fr · 08:30 – 17:00 Uhr
+            </ul>
+          </aside>
+
+          {/* Contact card AH*/}
+          <aside className="rounded-2xl border border-border bg-card p-6">
+            <div className="flex items-center gap-4">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/20 font-display text-base font-semibold text-primary">
+                AH
+              </div>
+              <div>
+                <p className="font-display text-base font-semibold">Annemarie Hutter</p>
+                <p className="text-xs text-secondary">Kundenservice Zentrale</p>
+              </div>
+            </div>
+
+            <ul className="mt-6 space-y-3 text-sm">
+              <li className="flex items-center gap-3">
+                <Phone className="h-4 w-4 text-primary" />
+                <a href="tel:+49731707940" className="text-foreground hover:underline">
+                  +49 731 707 94 0
+                </a>
+              </li>
+              <li className="flex items-center gap-3">
+                <Mail className="h-4 w-4 text-primary" />
+                <a href="mailto:a.hutter@unitex.de" className="text-foreground hover:underline">
+                  a.hutter@unitex.de
+                </a>
               </li>
             </ul>
-
-            <p className="mt-6 rounded-lg bg-popover p-3 text-xs text-secondary">
-              Antwortzeit innerhalb von 24 Stunden an Werktagen.
-            </p>
           </aside>
 
           {/* Contact card SS*/}
@@ -109,15 +129,7 @@ function SupportPage() {
                   s.steinhardt@unitex.de
                 </a>
               </li>
-              <li className="flex items-center gap-3 text-secondary">
-                <Clock className="h-4 w-4 text-primary" />
-                Mo–Fr · 08:30 – 17:00 Uhr
-              </li>
             </ul>
-
-            <p className="mt-6 rounded-lg bg-popover p-3 text-xs text-secondary">
-              Antwortzeit innerhalb von 24 Stunden an Werktagen.
-            </p>
           </aside>
 
           {/* Contact card OB*/}
@@ -145,15 +157,7 @@ function SupportPage() {
                   o.borggrefe@unitex.de
                 </a>
               </li>
-              <li className="flex items-center gap-3 text-secondary">
-                <Clock className="h-4 w-4 text-primary" />
-                Mo–Fr · 08:30 – 17:00 Uhr
-              </li>
             </ul>
-
-            <p className="mt-6 rounded-lg bg-popover p-3 text-xs text-secondary">
-              Antwortzeit innerhalb von 24 Stunden an Werktagen.
-            </p>
           </aside>
 
           {/* Contact card TR*/}
@@ -164,7 +168,7 @@ function SupportPage() {
               </div>
               <div>
                 <p className="font-display text-base font-semibold">Thomas Römer</p>
-                <p className="text-xs text-secondary">Mitgliederservice Süd-West</p>
+                <p className="text-xs text-secondary">Mitgliederservice Süd-West, CH & AT</p>
               </div>
             </div>
 
@@ -181,15 +185,7 @@ function SupportPage() {
                   t.roemer@unitex.de
                 </a>
               </li>
-              <li className="flex items-center gap-3 text-secondary">
-                <Clock className="h-4 w-4 text-primary" />
-                Mo–Fr · 08:30 – 17:00 Uhr
-              </li>
             </ul>
-
-            <p className="mt-6 rounded-lg bg-popover p-3 text-xs text-secondary">
-              Antwortzeit innerhalb von 24 Stunden an Werktagen.
-            </p>
           </aside>
         </div>
 

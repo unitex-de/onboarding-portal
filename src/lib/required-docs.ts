@@ -54,3 +54,8 @@ export function formatBytes(bytes: number): string {
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
+
+// Lieferant: only HR-Auszug
+export const REQUIRED_DOCS_LIEFERANT = [
+  { id: "hr_auszug_lieferant", label: "Auszug Handelsregister (aktuell)", hint: "Nicht älter als 3 Monate", required: true },
+];

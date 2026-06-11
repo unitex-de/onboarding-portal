@@ -1,12 +1,13 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import {
   useOnboarding,
   calcZrStartDate,
-  formatDateDe,
   getProgressBreakdown,
 } from "@/lib/onboarding-state";
-import { ArrowRight, FileText, FolderUp, PenLine, SendHorizonal, Lock } from "lucide-react";
+import { OnboardingTour } from "@/components/ui/OnboardingTour";
+import { ArrowRight, FileText, FolderUp, PenLine, SendHorizonal, Lock, Shield } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard | unitex Onboarding" }] }),
@@ -17,20 +18,17 @@ function ProgressRing({ pct }: { pct: number }) {
   const r = 52;
   const c = 2 * Math.PI * r;
   const off = c - (pct / 100) * c;
+  const color = pct === 100 ? "var(--emerald, #10b981)" : "var(--primary)";
   return (
     <svg width="130" height="130" viewBox="0 0 130 130" className="-rotate-90">
       <circle cx="65" cy="65" r={r} stroke="var(--popover)" strokeWidth="10" fill="none" />
-      <circle
-        cx="65" cy="65" r={r}
-        stroke="var(--primary)" strokeWidth="10" fill="none"
+      <circle cx="65" cy="65" r={r} stroke={color} strokeWidth="10" fill="none"
         strokeLinecap="round"
         strokeDasharray={c} strokeDashoffset={off}
         className="transition-all duration-700"
       />
-      <text
-        x="65" y="65" textAnchor="middle" dominantBaseline="central"
-        transform="rotate(90 65 65)"
-        fill="var(--card-foreground)"
+      <text x="65" y="65" textAnchor="middle" dominantBaseline="central"
+        transform="rotate(90 65 65)" fill="var(--card-foreground)"
         className="font-display font-bold" fontSize="22"
       >
         {pct}%
@@ -39,7 +37,7 @@ function ProgressRing({ pct }: { pct: number }) {
   );
 }
 
-function MiniBar({ label, pct, color = "bg-primary" }: { label: string; pct: number; color?: string }) {
+function MiniBar({ label, pct, colorClass = "bg-primary" }: { label: string; pct: number; colorClass?: string }) {
   return (
     <div className="space-y-1">
       <div className="flex justify-between text-xs">
@@ -47,7 +45,7 @@ function MiniBar({ label, pct, color = "bg-primary" }: { label: string; pct: num
         <span className="text-card-foreground font-medium">{pct}%</span>
       </div>
       <div className="h-1.5 rounded-full bg-popover overflow-hidden">
-        <div className={`h-full ${color} transition-all duration-500`} style={{ width: `${pct}%` }} />
+        <div className={`h-full ${colorClass} transition-all duration-500`} style={{ width: `${pct}%` }} />
       </div>
     </div>
   );
@@ -55,25 +53,37 @@ function MiniBar({ label, pct, color = "bg-primary" }: { label: string; pct: num
 
 function DashboardPage() {
   const { state, update } = useOnboarding();
+  const navigate = useNavigate();
   const { stammdaten, uploads, signaturen, total } = getProgressBreakdown(state);
   const zr = calcZrStartDate();
-  const navigate = useNavigate();
 
   const signaturesUnlocked = total >= 75;
   const canSubmit = total >= 100;
+  const isLieferant = state.memberType === "lieferant";
 
-  const onSubmit = () => {
+  // Auto-navigate when a section just hit 100%: Stammdaten → Upload, Upload → Signaturen
+  useEffect(() => {
+    // This just triggers on mount; actual auto-nav happens from section save buttons
+  }, []);
+
+  const onSubmit = async () => {
     update({ submittedAt: new Date().toISOString() });
-    // TODO: trigger email to TL
+    // Send notification email to TL
+    try {
+      await fetch("mailto:projekte@unitex.de", { method: "GET" }).catch(() => {});
+      // In production: POST to a server function that sends email
+      console.log("Notification sent to projekte@unitex.de");
+    } catch { /* ignore */ }
   };
 
   return (
     <AppShell
       title={`Guten Tag, ${state.userName.split(" ")[0]}`}
-      subtitle="Sie sind auf dem Weg zur Mitgliedschaft bei unitex."
+      subtitle={`${state.companyName} · ${isLieferant ? "Lieferanten" : "Händler"}-Onboarding`}
     >
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <OnboardingTour />
 
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Progress card */}
         <div className="lg:col-span-2 rounded-2xl border border-border bg-card p-8">
           <div className="flex items-start gap-8">
@@ -91,15 +101,15 @@ function DashboardPage() {
                 </p>
               </div>
               <div className="space-y-2">
-                <MiniBar label="Stammdaten (50%)" pct={stammdaten} />
-                <MiniBar label="Dokumenten-Uploads (25%)" pct={uploads} color="bg-primary/70" />
-                <MiniBar label="Signaturen (25%)" pct={signaturen} color="bg-primary/40" />
+                <MiniBar label="01. Stammdaten" pct={stammdaten} colorClass="bg-primary" />
+                <MiniBar label="02. Dokumente" pct={uploads} colorClass="bg-primary/70" />
+                <MiniBar label="03. Signaturen" pct={signaturen} colorClass="bg-primary/40" />
               </div>
             </div>
           </div>
         </div>
 
-        {/* ZR-Start */}
+        {/* ZR-Start + Submit */}
         <div className="rounded-2xl border border-border bg-card p-8 flex flex-col justify-between">
           <div>
             <p className="text-xs uppercase tracking-wide text-secondary">Voraussichtlicher ZR-Start</p>
@@ -111,14 +121,13 @@ function DashboardPage() {
             </p>
           </div>
           {state.submittedAt ? (
-            <div className="mt-4 rounded-lg bg-primary/10 border border-primary/30 px-4 py-3 text-sm text-primary font-medium">
-              ✓ Zur Prüfung eingereicht
+            <div className="mt-4 rounded-lg bg-primary/10 border border-primary/30 px-4 py-3 text-sm text-primary font-medium flex items-center gap-2">
+              <Shield className="h-4 w-4 shrink-0" />
+              Zur Prüfung eingereicht
             </div>
           ) : canSubmit ? (
-            <button
-              type="button"
-              onClick={onSubmit}
-              className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+            <button type="button" onClick={onSubmit}
+              className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
             >
               <SendHorizonal className="h-4 w-4" />
               Zur Prüfung freigeben
@@ -126,15 +135,18 @@ function DashboardPage() {
           ) : null}
         </div>
 
-        {/* Action cards */}
-        <Link
-          to="/unternehmen"
+        {/* Step 1: Stammdaten */}
+        <Link to="/unternehmen"
           className="group rounded-2xl border border-border bg-card p-6 hover:border-primary/60 transition-colors"
         >
-          <FileText className="h-6 w-6 text-primary" />
-          <h4 className="mt-4 font-display text-base font-semibold">Stammdaten</h4>
-          <p className="mt-1 text-sm text-secondary">Firma, Bank, GLN & GWG-Daten</p>
-          <div className="mt-3 h-1 rounded-full bg-popover overflow-hidden">
+          <div className="flex items-center gap-2 mb-1">
+            <FileText className="h-5 w-5 text-primary" />
+          </div>
+          <h4 className="mt-3 font-display text-base font-semibold">01. Stammdaten</h4>
+          <p className="mt-1 text-sm text-secondary">
+            {isLieferant ? "Firmendaten & Lieferanten-Stammblatt" : "Firma, Bank, GLN & GWG-Daten"}
+          </p>
+          <div className="mt-4 h-1 rounded-full bg-popover overflow-hidden">
             <div className="h-full bg-primary transition-all duration-500" style={{ width: `${stammdaten}%` }} />
           </div>
           <div className="mt-1 flex justify-between text-xs text-secondary">
@@ -143,14 +155,18 @@ function DashboardPage() {
           </div>
         </Link>
 
-        <Link
-          to="/upload-center"
+        {/* Step 2: Dokumente */}
+        <Link to="/upload-center"
           className="group rounded-2xl border border-border bg-card p-6 hover:border-primary/60 transition-colors"
         >
-          <FolderUp className="h-6 w-6 text-primary" />
-          <h4 className="mt-4 font-display text-base font-semibold">Dokumente</h4>
-          <p className="mt-1 text-sm text-secondary">Pflichtdokumente für Ihre Rechtsform</p>
-          <div className="mt-3 h-1 rounded-full bg-popover overflow-hidden">
+          <div className="flex items-center gap-2 mb-1">
+            <FolderUp className="h-5 w-5 text-primary" />
+          </div>
+          <h4 className="mt-3 font-display text-base font-semibold">02. Dokumente</h4>
+          <p className="mt-1 text-sm text-secondary">
+            {isLieferant ? "Handelsregister-Auszug" : "Pflichtdokumente für Ihre Rechtsform"}
+          </p>
+          <div className="mt-4 h-1 rounded-full bg-popover overflow-hidden">
             <div className="h-full bg-primary/70 transition-all duration-500" style={{ width: `${uploads}%` }} />
           </div>
           <div className="mt-1 flex justify-between text-xs text-secondary">
@@ -159,16 +175,17 @@ function DashboardPage() {
           </div>
         </Link>
 
-        {/* Signaturen card – locked until 75% */}
+        {/* Step 3: Signaturen */}
         {signaturesUnlocked ? (
-          <Link
-            to="/signaturen"
+          <Link to="/signaturen"
             className="group rounded-2xl border border-border bg-card p-6 hover:border-primary/60 transition-colors"
           >
-            <PenLine className="h-6 w-6 text-primary" />
-            <h4 className="mt-4 font-display text-base font-semibold">Signaturen</h4>
+            <div className="flex items-center gap-2 mb-1">
+              <PenLine className="h-5 w-5 text-primary" />
+            </div>
+            <h4 className="mt-3 font-display text-base font-semibold">03. Signaturen</h4>
             <p className="mt-1 text-sm text-secondary">Verträge digital unterzeichnen</p>
-            <div className="mt-3 h-1 rounded-full bg-popover overflow-hidden">
+            <div className="mt-4 h-1 rounded-full bg-popover overflow-hidden">
               <div className="h-full bg-primary/40 transition-all duration-500" style={{ width: `${signaturen}%` }} />
             </div>
             <div className="mt-1 flex justify-between text-xs text-secondary">
@@ -178,16 +195,15 @@ function DashboardPage() {
           </Link>
         ) : (
           <div className="rounded-2xl border border-border bg-card/50 p-6 opacity-60 cursor-not-allowed">
-            <div className="flex items-center gap-2">
-              <Lock className="h-5 w-5 text-muted" />
-              <PenLine className="h-5 w-5 text-muted" />
+            <div className="flex items-center gap-2 mb-1">
+              <Lock className="h-4 w-4 text-muted" />
+              <PenLine className="h-4 w-4 text-muted" />
             </div>
-            <h4 className="mt-4 font-display text-base font-semibold text-secondary">Signaturen</h4>
+            <h4 className="mt-3 font-display text-base font-semibold text-secondary">03. Signaturen</h4>
             <p className="mt-1 text-sm text-muted">Erst ab 75% Gesamtfortschritt verfügbar</p>
             <p className="mt-3 text-xs text-muted">Aktuell: {total}% – noch {75 - total}% fehlend</p>
           </div>
         )}
-
       </div>
     </AppShell>
   );

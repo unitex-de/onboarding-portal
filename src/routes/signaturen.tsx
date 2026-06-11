@@ -88,44 +88,63 @@ function SignaturenPage() {
     : state.contractType === "probe" ? "Probe-Vertrag"
     : "Wird nach Auswahl angezeigt";
 
-  const packages: Package[] = [
+  const isLieferant = state.memberType === "lieferant";
+
+  const haendlerPackages: Package[] = [
     {
       id: "sepa",
       title: "SEPA Firmenlastschrift-Mandat",
       desc: "Ermächtigt die RSB zum Einzug fälliger Beträge.",
-      tokens: [
-        { label: "Firmenname",   value: state.companyName },
-      ],
+      tokens: [{ label: "Firmenname", value: state.companyName }],
     },
     {
       id: "anschluss",
       title: "Mitgliedsvertrag unitex",
       desc: "Hauptvertrag Ihrer Mitgliedschaft bei unitex.",
       tokens: [
-        { label: "Firmenname",  value: state.companyName },
-        { label: "GF-Name",     value: state.userName },
-        { label: "Vertragsart", value: contractLabel },
-        { label: "ZR-Start",    value: "Automatisch nach Einreichung" },
+        { label: "Firmenname", value: state.companyName },
+        { label: "GF-Name", value: state.userName },
       ],
     },
   ];
-
-  // Sonderformular nur wenn hasSoliver
   if (state.hasSoliver) {
-    packages.push({
+    haendlerPackages.push({
       id: "sonder",
       title: "Sonderformular Zentralregulierung",
-      desc: "Erforderlich bei Zusammenarbeit mit S.Oliver / Comma / Isco.",
+      desc: "Erforderlich bei Zusammenarbeit mit s.Oliver / COMMA / Gebr. Amman (ISCO).",
       tokens: [{ label: "Firmenname", value: state.companyName }],
     });
   }
+
+  const lieferantPackages: Package[] = [
+    {
+      id: "zr_vertrag",
+      title: "ZR-Vertrag",
+      desc: "Zentralregulierungsvertrag zwischen Lieferant und unitex.",
+      tokens: [{ label: "Firmenname", value: state.companyName }],
+    },
+    {
+      id: "gruen_vertrag",
+      title: "Vertrag GRÜN raw",
+      desc: "Rechnungsportalvertrag mit der GRÜN raw GmbH.",
+      tokens: [{ label: "Firmenname", value: state.companyName }],
+    },
+    {
+      id: "sepa_gruen",
+      title: "SEPA-Mandat GRÜN raw",
+      desc: "SEPA-Lastschriftmandat für das GRÜN raw Rechnungsportal.",
+      tokens: [{ label: "Firmenname", value: state.companyName }],
+    },
+  ];
+
+  const packages: Package[] = isLieferant ? lieferantPackages : haendlerPackages;
 
   const [signing, setSigning] = useState<Package | null>(null);
 
   return (
     <AppShell
       title="Signaturen"
-      subtitle="Verträge digital unterschreiben — sicher und rechtsverbindlich via PandaDoc."
+      subtitle="Verträge einfach hier digital unterschreiben - sicher und rechtsverbindlich via PandaDoc."
     >
       {/* Status banner */}
       <div
