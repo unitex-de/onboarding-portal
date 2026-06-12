@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { Check, Info, Lock, Plus, Trash2, HelpCircle } from "lucide-react";
+import { Info, Lock, Plus, Trash2, HelpCircle } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { FormSection, Field, inputClass } from "@/components/forms/FormSection";
 import { useOnboarding, type LegalForm, getProgressBreakdown } from "@/lib/onboarding-state";
@@ -50,6 +50,16 @@ function UnternehmenPage() {
   useEffect(() => {
     update({ buchungIdentischGF: buchungIdent });
   }, [buchungIdent]);
+
+  // Auto-sync main address to first branch (Straße, PLZ, Ort only)
+  useEffect(() => {
+    setBranches((prev) => {
+      if (prev.length === 0) return prev;
+      const next = [...prev];
+      next[0] = { ...next[0], street: strasse, zip: plz, city: ort };
+      return next;
+    });
+  }, [strasse, plz, ort]);
 
   // Shareholders + branches
   const [shareholders, setShareholders] = useState([{ name: "", capital: "", voting: "", pep: false }]);
@@ -112,7 +122,7 @@ function UnternehmenPage() {
       <div className="space-y-6 max-w-4xl">
 
         {/* SECTION 1 – Grunddaten */}
-        <FormSection id="grunddaten" letter="1" title="Grunddaten" description="Geben Sie hier den offiziellen Sitz Ihres Unternehmens an.">
+        <FormSection id="grunddaten" onSave={handleSaveGrunddaten} letter="1" title="Grunddaten" description="Geben Sie hier den offiziellen Sitz Ihres Unternehmens an.">
           <div className="grid md:grid-cols-2 gap-4">
             <Field label="Firmenname">
               <input className={inputClass} value={firmenname}
@@ -149,11 +159,10 @@ function UnternehmenPage() {
               </div>
             </Field>
           </div>
-          <SaveButton onSave={handleSaveGrunddaten} done={!!state.completedSections["grunddaten"]} />
         </FormSection>
 
         {/* SECTION 2 – Kontakt */}
-        <FormSection id="kontakt" letter="2" title="Kontaktinformationen" description="Ansprechpartner für die Geschäftsführung und Ihre Buchhaltung.">
+        <FormSection id="kontakt" onSave={handleSaveKontakt} letter="2" title="Kontaktinformationen" description="Ansprechpartner für die Geschäftsführung und Ihre Buchhaltung.">
           <p className="text-xs font-medium uppercase tracking-wide text-secondary">Geschäftsführung</p>
           <div className="grid md:grid-cols-3 gap-4">
             <Field label="Name"><input className={inputClass} value={gfName} onChange={(e) => setGfName(e.target.value)} /></Field>
@@ -182,11 +191,10 @@ function UnternehmenPage() {
               </div>
             </div>
           )}
-          <SaveButton onSave={handleSaveKontakt} done={!!state.completedSections["kontakt"]} />
         </FormSection>
 
         {/* SECTION 3 – Bankdaten */}
-        <FormSection id="bankdaten" letter="3" title="Bankdaten" description="Konto- und Steuerinformationen.">
+        <FormSection id="bankdaten" onSave={handleSaveBankdaten} letter="3" title="Bankdaten" description="Konto- und Steuerinformationen.">
           <div className="grid md:grid-cols-2 gap-4">
             <Field label="Bankname"><input className={inputClass} /></Field>
             <Field label="BIC"><input className={inputClass} placeholder="GENODEM1XXX" /></Field>
@@ -196,12 +204,11 @@ function UnternehmenPage() {
             <Field label="Steuernummer"><input className={inputClass} /></Field>
             <Field label="USt-IdNr."><input className={inputClass} placeholder="DE123456789" /></Field>
           </div>
-          <SaveButton onSave={handleSaveBankdaten} done={!!state.completedSections["bankdaten"]} />
         </FormSection>
 
         {/* LIEFERANT: Stammblatt statt GLN/Geschäftsdaten/GWG */}
         {isLieferant ? (
-          <FormSection id="lieferant_stamm" letter="4" title="Lieferanten-Stammblatt" description="Sortiment, Marken und Ansprechpartner.">
+          <FormSection id="lieferant_stamm" onSave={handleSaveLieferantStamm} letter="4" title="Lieferanten-Stammblatt" description="Sortiment, Marken und Ansprechpartner.">
             <div className="grid md:grid-cols-2 gap-4">
               <Field label="Sortimentsschwerpunkte">
                 <input className={inputClass} placeholder="z.B. Damenmode, Herrenmode"
@@ -216,12 +223,11 @@ function UnternehmenPage() {
                   value={liefAnsprechpartner} onChange={(e) => setLiefAnsprechpartner(e.target.value)} />
               </Field>
             </div>
-            <SaveButton onSave={handleSaveLieferantStamm} done={!!state.completedSections["lieferant_stamm"]} />
           </FormSection>
         ) : (
           <>
             {/* SECTION 4 – GLN & Filialen */}
-            <FormSection id="gln_filialen" letter="4" title="GLN & Filialen" description="Global Location Number und Filialstruktur.">
+            <FormSection id="gln_filialen" onSave={handleSaveGln} letter="4" title="GLN & Filialen" description="Global Location Number und Filialstruktur.">
               <div className="rounded-lg bg-popover p-4">
                 <p className="text-sm font-medium text-foreground mb-3">Haben Sie bereits eine GLN-Nummer?</p>
                 <div className="flex gap-3">
@@ -299,11 +305,10 @@ function UnternehmenPage() {
                   Ihre Hauptadresse (aus Schritt 1) haben wir bereits als erste Filiale für Sie angelegt. Sie können diese bei Bedarf anpassen.
                 </p>
               </div>
-              <SaveButton onSave={handleSaveGln} done={!!state.completedSections["gln_filialen"]} />
             </FormSection>
 
             {/* SECTION 5 – Geschäftsdaten */}
-            <FormSection id="geschaeftsdaten" letter="5" title="Geschäftsdaten" description="Umsatz, Mitarbeiter, Sortimentsschwerpunkte.">
+            <FormSection id="geschaeftsdaten" onSave={handleSaveGeschaeft} letter="5" title="Geschäftsdaten" description="Umsatz, Mitarbeiter, Sortimentsschwerpunkte.">
               <div className="grid md:grid-cols-3 gap-4">
                 <Field label="Geschätzter Jahresumsatz" hint="Auf 100.000 € gerundet">
                   <input className={inputClass} placeholder="z.B. 800.000" />
@@ -367,12 +372,11 @@ function UnternehmenPage() {
                   </div>
                 )}
               </div>
-              <SaveButton onSave={handleSaveGeschaeft} done={!!state.completedSections["geschaeftsdaten"]} />
             </FormSection>
 
             {/* SECTION 6 – GWG */}
             {SHOWS_GWG.includes(legalForm) && (
-              <FormSection id="gwg_daten" letter="6" title="GWG-Daten"
+              <FormSection id="gwg_daten" onSave={handleSaveGwg} letter="6" title="GWG-Daten"
                 description="Gesetzliche Pflichtangaben nach dem Geldwäschegesetz (GwG).">
                 <Checkbox label="Besteht eine wirtschaftliche Abhängigkeit zu einem einzelnen Lieferanten (mehr als 50% des Gesamtumsatzes)?" />
                 <div className="space-y-2">
@@ -459,7 +463,6 @@ function UnternehmenPage() {
                     * PEP = Politisch exponierte Person gem. § 1 Abs. 11 GwG. Hover auf <HelpCircle className="inline h-3 w-3" /> für mehr Informationen.
                   </p>
                 </div>
-                <SaveButton onSave={handleSaveGwg} done={!!state.completedSections["gwg_daten"]} />
               </FormSection>
             )}
           </>
@@ -472,23 +475,6 @@ function UnternehmenPage() {
 // ---------------------------------------------------------------------------
 // Helper components
 // ---------------------------------------------------------------------------
-
-function SaveButton({ onSave, done }: { onSave: () => void; done: boolean }) {
-  return (
-    <div className="flex justify-end pt-2">
-      <button type="button" onClick={onSave}
-        className={[
-          "inline-flex items-center gap-2 rounded-md px-5 py-2 text-sm font-semibold transition-colors",
-          done
-            ? "bg-primary/20 text-primary border border-primary/30 cursor-default"
-            : "bg-primary text-primary-foreground hover:bg-primary/90",
-        ].join(" ")}
-      >
-        {done ? (<><Check className="h-4 w-4" /> Gespeichert</>) : "Speichern"}
-      </button>
-    </div>
-  );
-}
 
 function Checkbox({ label }: { label: string }) {
   return (

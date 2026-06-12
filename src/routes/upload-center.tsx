@@ -90,6 +90,7 @@ function UploadCenterPage() {
                 docId={doc.id}
                 label={doc.label}
                 hint={doc.hint}
+                description={doc.description}
                 required={doc.required}
                 uploaded={uploaded}
                 isActive={isActive && !uploaded}
@@ -111,6 +112,7 @@ function DocumentRow({
   docId,
   label,
   hint,
+  description,
   required,
   uploaded,
   isActive,
@@ -120,6 +122,7 @@ function DocumentRow({
   docId: string;
   label: string;
   hint?: string;
+  description?: string;
   required: boolean;
   uploaded?: { fileName: string; size: number; uploadedAt: string };
   isActive: boolean;
@@ -158,6 +161,9 @@ function DocumentRow({
 
       <div className="flex-1 min-w-0">
         <p className="font-medium text-foreground truncate">{label}</p>
+        {description && !uploaded && (
+          <p className="text-xs text-secondary/80 mt-0.5 line-clamp-2">{description}</p>
+        )}
         <p className="text-xs text-secondary truncate">
           {uploaded ? (
             <>

@@ -83,6 +83,18 @@ function DashboardPage() {
     >
       <OnboardingTour />
 
+      {/* Admin mode: hint to customer about pre-filled fields */}
+      {state.role === "admin" && (
+        <div className="mb-4 flex items-start gap-3 rounded-xl border border-primary/30 bg-primary/5 px-5 py-4 text-sm">
+          <span className="shrink-0 text-primary font-bold">Admin-Ansicht</span>
+          <p className="text-secondary">
+            Sie befüllen diesen Account als Admin. Wenn Sie fertig sind, kehren Sie zur{" "}
+            <a href="/admin" className="text-primary underline underline-offset-4 hover:no-underline">Kontoübersicht</a>{" "}
+            zurück und senden Sie dort den Magic Link an den Kunden.
+          </p>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Progress card */}
         <div className="lg:col-span-2 rounded-2xl border border-border bg-card p-8">

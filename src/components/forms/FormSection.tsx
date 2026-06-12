@@ -8,12 +8,15 @@ export function FormSection({
   letter,
   title,
   description,
+  onSave,
   children,
 }: {
   id: string;
   letter: string;
   title: string;
   description?: string;
+  /** Optional callback fired BEFORE the section is marked complete */
+  onSave?: () => void;
   children: ReactNode;
 }) {
   const { state, update } = useOnboarding();
@@ -21,6 +24,7 @@ export function FormSection({
   const [justSaved, setJustSaved] = useState(false);
 
   const save = () => {
+    if (onSave) onSave();
     update({ completedSections: { ...state.completedSections, [id]: true } });
     setJustSaved(true);
     setTimeout(() => setJustSaved(false), 2000);
@@ -59,7 +63,7 @@ export function FormSection({
           className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
         >
           <Save className="h-4 w-4" />
-          Sektion speichern
+          Speichern
         </button>
       </div>
     </section>

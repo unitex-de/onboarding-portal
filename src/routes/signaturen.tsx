@@ -18,6 +18,7 @@ interface Package {
   title: string;
   desc: string;
   tokens: { label: string; value: string }[];
+  optional?: boolean;
 }
 
 interface ServerFnInput {
@@ -94,8 +95,9 @@ function SignaturenPage() {
     {
       id: "sepa",
       title: "SEPA Firmenlastschrift-Mandat",
-      desc: "Ermächtigt die RSB zum Einzug fälliger Beträge.",
+      desc: "Ermächtigt die RSB zum Einzug fälliger Beträge. Sie können der SEPA-Lastschrift jederzeit widersprechen.",
       tokens: [{ label: "Firmenname", value: state.companyName }],
+      optional: true,
     },
     {
       id: "anschluss",
@@ -132,8 +134,9 @@ function SignaturenPage() {
     {
       id: "sepa_gruen",
       title: "SEPA-Mandat GRÜN raw",
-      desc: "SEPA-Lastschriftmandat für das GRÜN raw Rechnungsportal.",
+      desc: "SEPA-Lastschriftmandat für das GRÜN raw Rechnungsportal. Kann jederzeit widerrufen werden.",
       tokens: [{ label: "Firmenname", value: state.companyName }],
+      optional: true,
     },
   ];
 
@@ -190,11 +193,18 @@ function SignaturenPage() {
                     ? <Check className="h-5 w-5" strokeWidth={2.5} />
                     : <FileSignature className="h-5 w-5" />}
                 </div>
-                {signed && (
-                  <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-medium text-primary">
-                    Unterschrieben
-                  </span>
-                )}
+                <div className="flex items-center gap-1.5">
+                  {p.optional && !signed && (
+                    <span className="rounded-full bg-border px-2 py-0.5 text-[10px] font-medium text-secondary">
+                      Optional
+                    </span>
+                  )}
+                  {signed && (
+                    <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-medium text-primary">
+                      Unterschrieben
+                    </span>
+                  )}
+                </div>
               </div>
               <h3 className="mt-4 font-display text-base font-semibold">{p.title}</h3>
               <p className="mt-1 text-sm text-secondary">{p.desc}</p>
@@ -319,6 +329,11 @@ function SigningModal({
                   <span className="text-foreground font-medium">{t.value}</span>
                 </div>
               ))}
+            </div>
+            {/* DSGVO / Datenschutz-Hinweis */}
+            <div className="rounded-md bg-popover border border-border px-4 py-3 text-xs text-secondary leading-relaxed">
+              <span className="font-semibold text-foreground">Datenschutzhinweis:</span> Ihre Angaben werden gemäß der DSGVO verarbeitet und ausschließlich zur Abwicklung Ihrer Mitgliedschaft bei unitex GmbH verwendet. Weitere Informationen entnehmen Sie unserer{" "}
+              <a href="https://unitex.de/datenschutz/" target="_blank" rel="noopener noreferrer" className="underline text-primary hover:text-primary/80">Datenschutzerklärung</a>.
             </div>
             <div className="flex items-center justify-between gap-3">
               <span className="text-xs text-muted">
