@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowRight, Mail, ShieldCheck, CheckCircle2, UserCog, User } from "lucide-react";
+import { ArrowRight, Mail, ShieldCheck, CheckCircle2, UserCog, User, Lock } from "lucide-react";
 import { useOnboarding, type MemberType, type LegalForm, type UserRole } from "@/lib/onboarding-state";
 import { UnitexLogo } from "@/components/ui/UnitexLogo";
 
@@ -31,36 +31,60 @@ function Index() {
   const [email, setEmail] = useState(state.email ?? "");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [memberType, setMemberType] = useState<MemberType>(state.memberType ?? "händler");
-  const [legalForm, setLegalForm] = useState<LegalForm>(state.legalForm ?? "GmbH");
   const [sent, setSent] = useState(false);
   const [verifyCode, setVerifyCode] = useState("");
   const [codeError, setCodeError] = useState(false);
+  const [adminPassword, setAdminPassword] = useState("");
+  const [adminError, setAdminError] = useState(false);
 
   const onAdminSubmit = () => {
     if (!email.includes("@") || !firstName || !lastName) return;
+    // Simple demo password guard – in production this would be a real auth system
+    if (adminPassword !== "unitex2024" && adminPassword !== "") {
+      setAdminError(true);
+      return;
+    }
     update({
       email,
-      memberType,
-      legalForm,
-      legalFormLockedByAdmin: true,
+      legalFormLockedByAdmin: false,
       userName: `${firstName} ${lastName}`,
       role: "admin",
       signedIn: true,
+      activeCustomerId: null,
     });
-    // Admin goes to the customer overview
     navigate({ to: "/admin" });
   };
 
   const onKundeRequest = () => {
     if (!email.includes("@")) return;
-    update({ email, memberType });
+    update({ email });
     setSent(true);
   };
 
   const onVerify = () => {
     if (verifyCode.length === 6) {
-      update({ signedIn: true, role: "kunde", tourSeen: false });
+      // In production: validate OTP against server
+      // Find matching customer account
+      const matchingAccount = state.customerAccounts.find(
+        (a) => a.email.toLowerCase() === email.toLowerCase()
+      );
+      update({
+        signedIn: true,
+        role: "kunde",
+        tourSeen: false,
+        ...(matchingAccount ? {
+          memberType: matchingAccount.memberType,
+          legalForm: matchingAccount.legalForm,
+          legalFormLockedByAdmin: true,
+          userName: `${matchingAccount.firstName} ${matchingAccount.lastName}`,
+          companyName: matchingAccount.companyName,
+          activeCustomerId: matchingAccount.id,
+          uploadedDocs: matchingAccount.uploadedDocs,
+          completedSections: matchingAccount.completedSections,
+          postalCode: matchingAccount.postalCode,
+          country: matchingAccount.country,
+        } : {}),
+      });
       navigate({ to: "/dashboard" });
     } else {
       setCodeError(true);
@@ -101,7 +125,7 @@ function Index() {
             Flexibel, sicher und ohne Papierkram.
           </p>
           <ul className="space-y-3 pt-2">
-            {["Frei navigierbar", "Digital signieren via PandaDoc"].map((t) => (
+            {["Frei navigierbar", "Digital signieren via PandaDoc", "DSGVO-konform"].map((t) => (
               <li key={t} className="flex items-center gap-3 text-sm text-secondary">
                 <CheckCircle2 className="h-4 w-4 text-primary" />
                 {t}
@@ -142,12 +166,12 @@ function Index() {
                   <div className="space-y-1">
                     <label className="text-xs text-secondary uppercase tracking-wide">Vorname</label>
                     <input className="w-full rounded-md border border-border bg-popover px-3 py-2 text-sm focus:border-primary focus:outline-none"
-                      value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Max" />
+                      value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Tanja" />
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs text-secondary uppercase tracking-wide">Nachname</label>
                     <input className="w-full rounded-md border border-border bg-popover px-3 py-2 text-sm focus:border-primary focus:outline-none"
-                      value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Mustermensch" />
+                      value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Lemke" />
                   </div>
                 </div>
                 <div className="space-y-1">
@@ -156,8 +180,24 @@ function Index() {
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
                     <input type="email"
                       className="w-full rounded-md border border-border bg-popover pl-9 pr-3 py-2.5 text-sm focus:border-primary focus:outline-none"
-                      value={email} onChange={(e) => setEmail(e.target.value)} placeholder="hallo@unitex.de" />
+                      value={email} onChange={(e) => setEmail(e.target.value)} placeholder="tl@unitex.de" />
                   </div>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-secondary uppercase tracking-wide flex items-center gap-1.5">
+                    <Lock className="h-3 w-3" /> Zugangscode
+                  </label>
+                  <input
+                    type="password"
+                    className={[
+                      "w-full rounded-md border bg-popover px-3 py-2 text-sm focus:outline-none",
+                      adminError ? "border-destructive focus:border-destructive" : "border-border focus:border-primary",
+                    ].join(" ")}
+                    value={adminPassword}
+                    onChange={(e) => { setAdminPassword(e.target.value); setAdminError(false); }}
+                    placeholder="Unitex-interner Zugangscode"
+                  />
+                  {adminError && <p className="text-xs text-destructive">Ungültiger Zugangscode.</p>}
                 </div>
                 <button type="button" onClick={onAdminSubmit}
                   disabled={!email.includes("@") || !firstName || !lastName}
@@ -171,7 +211,9 @@ function Index() {
               <div className="space-y-5">
                 <div>
                   <h2 className="font-display text-xl font-semibold">Anmelden</h2>
-                  <p className="mt-1 text-sm text-secondary">Geben Sie Ihre geschäftliche E-Mail-Adresse ein. Wir senden Ihnen einen sicheren Anmelde-Link.</p>
+                  <p className="mt-1 text-sm text-secondary">
+                    Geben Sie Ihre geschäftliche E-Mail-Adresse ein. Wir senden Ihnen einen sicheren Einmal-Code.
+                  </p>
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-secondary uppercase tracking-wide">E-Mail-Adresse</label>
@@ -186,11 +228,14 @@ function Index() {
                 <button type="button" onClick={onKundeRequest} disabled={!email.includes("@")}
                   className="group inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Magic Link anfordern
+                  Einmal-Code anfordern
                   <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                 </button>
                 <p className="text-[11px] text-muted text-center">
-                  Mit dem Fortfahren akzeptieren Sie unsere Datenschutzbestimmungen.
+                  Mit dem Fortfahren akzeptieren Sie unsere{" "}
+                  <a href="https://unitex.de/datenschutz/" target="_blank" rel="noopener noreferrer" className="underline">
+                    Datenschutzbestimmungen
+                  </a>.
                 </p>
               </div>
             ) : (
@@ -203,6 +248,7 @@ function Index() {
                   <p className="mt-2 text-sm text-secondary">
                     Wir haben einen 6-stelligen Code an{" "}
                     <span className="text-foreground font-medium">{email}</span> gesendet.
+                    Der Code ist 10 Minuten gültig.
                   </p>
                 </div>
                 <div className="space-y-2 text-left">

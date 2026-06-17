@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useRef, useState, useEffect } from "react";
-import { CloudUpload, FileCheck2, FileText, MoreVertical, Trash2, RefreshCcw, Download } from "lucide-react";
+import { CloudUpload, FileCheck2, FileText, MoreVertical, Trash2, RefreshCcw, Download, Shield } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { useOnboarding, type LegalForm, getProgressBreakdown } from "@/lib/onboarding-state";
 import { REQUIRED_DOCS, REQUIRED_DOCS_LIEFERANT, formatBytes } from "@/lib/required-docs";
@@ -49,6 +49,19 @@ function UploadCenterPage() {
       title="Dokumenten-Upload"
       subtitle={`${state.companyName} · ${isLieferantView ? "Pflichtdokument für Lieferanten" : "Pflichtdokumente für Ihren ZR-Beitritt"}`}
     >
+      {/* DSGVO Hinweis */}
+      <div className="mb-6 rounded-xl border border-border bg-card p-4 flex items-start gap-3">
+        <Shield className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+        <div className="text-xs text-secondary leading-relaxed">
+          <span className="font-semibold text-foreground">Datenschutz & DSGVO:</span>{" "}
+          Alle hochgeladenen Dokumente werden DSGVO-konform verarbeitet und ausschließlich zur Prüfung Ihrer Mitgliedschaft bei unitex verwendet.
+          Unbefugte Dritte haben keinen Zugriff. Mehr Informationen in unserer{" "}
+          <a href="https://unitex.de/datenschutz/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+            Datenschutzerklärung
+          </a>.
+        </div>
+      </div>
+
       {/* Header strip */}
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
@@ -63,6 +76,7 @@ function UploadCenterPage() {
             {state.legalFormLockedByAdmin ? (
               <div className="flex items-center gap-2 rounded-md border border-border bg-popover/50 px-3 py-1.5 text-sm text-foreground">
                 <span>{LEGAL_FORMS.find((f) => f.value === legalForm)?.label ?? legalForm}</span>
+                <span className="text-[10px] text-muted ml-1">gesperrt</span>
               </div>
             ) : (
               <select
@@ -89,7 +103,6 @@ function UploadCenterPage() {
                 docId={doc.id}
                 label={doc.label}
                 hint={doc.hint}
-                description={doc.description}
                 required={doc.required}
                 uploaded={uploaded}
                 isActive={isActive && !uploaded}
@@ -111,7 +124,6 @@ function DocumentRow({
   docId,
   label,
   hint,
-  description,
   required,
   uploaded,
   isActive,
@@ -121,7 +133,6 @@ function DocumentRow({
   docId: string;
   label: string;
   hint?: string;
-  description?: string;
   required: boolean;
   uploaded?: { fileName: string; size: number; uploadedAt: string };
   isActive: boolean;
@@ -160,9 +171,6 @@ function DocumentRow({
 
       <div className="flex-1 min-w-0">
         <p className="font-medium text-foreground truncate">{label}</p>
-        {description && !uploaded && (
-          <p className="text-xs text-secondary/80 mt-0.5 line-clamp-2">{description}</p>
-        )}
         <p className="text-xs text-secondary truncate">
           {uploaded ? (
             <>

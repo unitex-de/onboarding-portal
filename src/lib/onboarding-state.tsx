@@ -4,6 +4,7 @@ export type MemberType = "händler" | "lieferant";
 export type LegalForm = "eK" | "GbR" | "GmbH" | "GmbHCoKG" | "KG" | "OHG";
 export type ContractType = "probe" | "3jahre" | "5jahre";
 export type UserRole = "admin" | "kunde";
+export type CustomerStatus = "Entwurf" | "Link gesendet" | "Signiert";
 
 export interface UploadedDoc {
   fileName: string;
@@ -21,6 +22,15 @@ export interface CustomerAccount {
   legalForm: LegalForm;
   createdAt: string;
   magicLinkSent: boolean;
+  magicToken: string;
+  status: CustomerStatus;
+  linkSentAt: string | null;
+  /** PLZ des Kunden für Mitarbeiter-Zuweisung */
+  postalCode?: string;
+  /** Land des Kunden (z.B. "AT", "CH", "DE") */
+  country?: string;
+  uploadedDocs: Record<string, UploadedDoc>;
+  completedSections: Record<string, boolean>;
 }
 
 export interface OnboardingState {
@@ -48,9 +58,13 @@ export interface OnboardingState {
   tourSeen: boolean;
   /** Accountant is different from Geschäftsführer */
   buchungIdentischGF: boolean;
+  /** PLZ des Kunden */
+  postalCode?: string;
+  /** Land des Kunden */
+  country?: string;
 }
 
-const STORAGE_KEY = "unitex_onboarding_state_v3";
+const STORAGE_KEY = "unitex_onboarding_state_v4";
 
 const DEFAULT_STATE: OnboardingState = {
   email: null,
@@ -70,7 +84,22 @@ const DEFAULT_STATE: OnboardingState = {
   activeCustomerId: null,
   tourSeen: false,
   buchungIdentischGF: true,
+  postalCode: "",
+  country: "DE",
 };
+
+/** Generates a secure random magic token */
+export function generateMagicToken(): string {
+  const arr = new Uint8Array(32);
+  crypto.getRandomValues(arr);
+  return Array.from(arr, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/** Builds the magic link URL */
+export function buildMagicLink(token: string, email: string): string {
+  const encoded = encodeURIComponent(email);
+  return `https://onboarding.unitex.de/verify?token=${token}&email=${encoded}`;
+}
 
 interface Ctx {
   state: OnboardingState;
@@ -78,7 +107,9 @@ interface Ctx {
   uploadDoc: (id: string, file: { name: string; size: number }) => void;
   removeDoc: (id: string) => void;
   completeSection: (id: string) => void;
-  addCustomerAccount: (acc: Omit<CustomerAccount, "id" | "createdAt" | "magicLinkSent">) => CustomerAccount;
+  addCustomerAccount: (acc: Omit<CustomerAccount, "id" | "createdAt" | "magicLinkSent" | "magicToken" | "status" | "linkSentAt" | "uploadedDocs" | "completedSections">) => CustomerAccount;
+  updateCustomerAccount: (id: string, patch: Partial<CustomerAccount>) => void;
+  sendMagicLink: (id: string) => void;
   reset: () => void;
 }
 
@@ -124,11 +155,17 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
           completedSections: { ...s.completedSections, [id]: true },
         })),
       addCustomerAccount: (acc) => {
+        const token = generateMagicToken();
         const newAcc: CustomerAccount = {
           ...acc,
           id: `cust_${Date.now()}`,
           createdAt: new Date().toISOString(),
           magicLinkSent: false,
+          magicToken: token,
+          status: "Entwurf",
+          linkSentAt: null,
+          uploadedDocs: {},
+          completedSections: {},
         };
         setState((s) => ({
           ...s,
@@ -136,6 +173,22 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         }));
         return newAcc;
       },
+      updateCustomerAccount: (id, patch) =>
+        setState((s) => ({
+          ...s,
+          customerAccounts: s.customerAccounts.map((a) =>
+            a.id === id ? { ...a, ...patch } : a
+          ),
+        })),
+      sendMagicLink: (id) =>
+        setState((s) => ({
+          ...s,
+          customerAccounts: s.customerAccounts.map((a) =>
+            a.id === id
+              ? { ...a, magicLinkSent: true, status: "Link gesendet", linkSentAt: new Date().toISOString() }
+              : a
+          ),
+        })),
       reset: () => setState(DEFAULT_STATE),
     }),
     [state],
@@ -245,6 +298,117 @@ export function getRequiredDocIds(legalForm: LegalForm | null, memberType?: Memb
     default:
       return [];
   }
+}
+
+// ---------------------------------------------------------------------------
+// Support contact resolution by PLZ / Kundentyp
+// ---------------------------------------------------------------------------
+export interface SupportContact {
+  name: string;
+  initials: string;
+  role: string;
+  phone: string;
+  email: string;
+}
+
+export const SUPPORT_TANJA: SupportContact = {
+  name: "Tanja Lemke",
+  initials: "TL",
+  role: "Vertragswesen",
+  phone: "+49 731 707 94 52",
+  email: "t.lemke@unitex.de",
+};
+
+export const SUPPORT_ANNE: SupportContact = {
+  name: "Anne Hutter",
+  initials: "AH",
+  role: "Kundenservice Zentrale",
+  phone: "+49 731 707 94 0",
+  email: "a.hutter@unitex.de",
+};
+
+export const SUPPORT_KERSTIN: SupportContact = {
+  name: "Kerstin Bier",
+  initials: "KB",
+  role: "Wachstumsmanagement",
+  phone: "+49 172 287 85 81",
+  email: "k.bier@unitex.de",
+};
+
+export const SUPPORT_OLIVER: SupportContact = {
+  name: "Oliver Borggrefe",
+  initials: "OB",
+  role: "Mitgliederservice Mitte-Nord",
+  phone: "+49 172 438 75 63",
+  email: "o.borggrefe@unitex.de",
+};
+
+export const SUPPORT_THOMAS: SupportContact = {
+  name: "Thomas Römer",
+  initials: "TR",
+  role: "Mitgliederservice Süd-West & AT & CH",
+  phone: "+49 172 637 56 06",
+  email: "t.roemer@unitex.de",
+};
+
+export const SUPPORT_SABINE: SupportContact = {
+  name: "Sabine Steinhardt",
+  initials: "SS",
+  role: "Mitgliederservice Süd-Ost",
+  phone: "+49 1511 851 54 27",
+  email: "s.steinhardt@unitex.de",
+};
+
+/**
+ * Determine the responsible admin contact based on customer type and PLZ.
+ * Lieferant → Kerstin Bier
+ * Händler →
+ *   PLZ starts 17-19, 2, 30-33, 37-39, 4, 58-59 → Oliver Borggrefe
+ *   PLZ starts 34-36, 50-57, 6, 7 or AT/CH        → Thomas Römer
+ *   PLZ starts 0, 10-16, 8, 9                      → Sabine Steinhardt
+ */
+export function getResponsibleAdmin(
+  memberType: MemberType | null,
+  postalCode: string | undefined,
+  country: string | undefined
+): SupportContact {
+  if (memberType === "lieferant") return SUPPORT_KERSTIN;
+
+  // Check for AT/CH
+  const c = (country ?? "DE").toUpperCase();
+  if (c === "AT" || c === "CH") return SUPPORT_THOMAS;
+
+  const plz = (postalCode ?? "").trim();
+  if (!plz) return SUPPORT_SABINE; // fallback
+
+  const num = parseInt(plz.slice(0, 5), 10);
+  const twoDigit = parseInt(plz.slice(0, 2), 10);
+  const oneDigit = parseInt(plz[0] ?? "0", 10);
+
+  // Oliver: 17-19, 2x, 30-33, 37-39, 4x, 58-59
+  if (
+    (twoDigit >= 17 && twoDigit <= 19) ||
+    oneDigit === 2 ||
+    (twoDigit >= 30 && twoDigit <= 33) ||
+    (twoDigit >= 37 && twoDigit <= 39) ||
+    oneDigit === 4 ||
+    (twoDigit >= 58 && twoDigit <= 59)
+  ) {
+    return SUPPORT_OLIVER;
+  }
+
+  // Thomas: 34-36, 50-57, 6x, 7x
+  if (
+    (twoDigit >= 34 && twoDigit <= 36) ||
+    (twoDigit >= 50 && twoDigit <= 57) ||
+    oneDigit === 6 ||
+    oneDigit === 7
+  ) {
+    return SUPPORT_THOMAS;
+  }
+
+  // Sabine: 0x, 10-16, 8x, 9x
+  return SUPPORT_SABINE;
 }
 
 // ---------------------------------------------------------------------------

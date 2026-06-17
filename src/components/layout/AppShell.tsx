@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import { LeftSidebar } from "./LeftSidebar";
 import { RightChecklist } from "./RightChecklist";
 import { TopHeader } from "./TopHeader";
-import { TourRestartButton } from "@/components/ui/OnboardingTour";
 
 export function AppShell({
   title,
@@ -21,7 +20,6 @@ export function AppShell({
         <div className="flex-1 px-10 pb-12">{children}</div>
       </main>
       <RightChecklist />
-      <TourRestartButton />
     </div>
   );
 }

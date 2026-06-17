@@ -1,7 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Mail, Phone, Clock } from "lucide-react";
+import { Mail, Phone } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import {
+  useOnboarding,
+  getResponsibleAdmin,
+  SUPPORT_TANJA,
+  SUPPORT_ANNE,
+  type SupportContact,
+} from "@/lib/onboarding-state";
 
 export const Route = createFileRoute("/support")({
   head: () => ({ meta: [{ title: "Support | unitex Onboarding" }] }),
@@ -35,75 +42,83 @@ const FAQS = [
   },
 ];
 
+function ContactCard({ contact }: { contact: SupportContact }) {
+  return (
+    <aside className="rounded-2xl border border-border bg-card p-6">
+      <div className="flex items-center gap-4">
+        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/20 font-display text-base font-semibold text-primary shrink-0">
+          {contact.initials}
+        </div>
+        <div>
+          <p className="font-display text-base font-semibold">{contact.name}</p>
+          <p className="text-xs text-secondary">{contact.role}</p>
+        </div>
+      </div>
+      <ul className="mt-6 space-y-3 text-sm">
+        <li className="flex items-center gap-3">
+          <Phone className="h-4 w-4 text-primary shrink-0" />
+          <a href={`tel:${contact.phone.replace(/\s/g, "")}`} className="text-foreground hover:underline">
+            {contact.phone}
+          </a>
+        </li>
+        <li className="flex items-center gap-3">
+          <Mail className="h-4 w-4 text-primary shrink-0" />
+          <a href={`mailto:${contact.email}`} className="text-foreground hover:underline">
+            {contact.email}
+          </a>
+        </li>
+      </ul>
+    </aside>
+  );
+}
+
 function SupportPage() {
+  const { state } = useOnboarding();
+
+  // Dynamic responsible admin based on memberType + PLZ
+  const responsibleAdmin = getResponsibleAdmin(
+    state.memberType,
+    state.postalCode,
+    state.country
+  );
+
+  // Always show: Tanja, Anne, + responsible admin (deduplicate if same person)
+  const alwaysShown: SupportContact[] = [SUPPORT_TANJA, SUPPORT_ANNE];
+  const contacts: SupportContact[] = [
+    ...alwaysShown,
+    // Add admin only if different from always-shown
+    ...(alwaysShown.some((c) => c.email === responsibleAdmin.email) ? [] : [responsibleAdmin]),
+  ];
+
   return (
     <AppShell
       title="Support"
-      subtitle="Wir helfen Ihnen persönlich - telefonisch, per E-Mail oder über unsere FAQ."
+      subtitle="Wir helfen Ihnen persönlich – telefonisch, per E-Mail oder über unsere FAQ."
     >
       <div className="grid grid-cols-1 lg:grid-cols-[3fr_7fr] gap-6 items-start">
 
-        {/* LINKE SPALTE: Kontaktkarten */}
+        {/* LEFT: Contact cards */}
         <div className="flex flex-col gap-6">
+          {contacts.map((c) => (
+            <ContactCard key={c.email} contact={c} />
+          ))}
 
-          {/* Tanja Lemke */}
-          <aside className="rounded-2xl border border-border bg-card p-6">
-            <div className="flex items-center gap-4">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/20 font-display text-base font-semibold text-primary">
-                TL
-              </div>
-              <div>
-                <p className="font-display text-base font-semibold">Tanja Lemke</p>
-                <p className="text-xs text-secondary">Vertragswesen</p>
-              </div>
-            </div>
-            <ul className="mt-6 space-y-3 text-sm">
-              <li className="flex items-center gap-3">
-                <Phone className="h-4 w-4 text-primary" />
-                <a href="tel:+497317079452" className="text-foreground hover:underline">
-                  +49 731 707 94 52
-                </a>
-              </li>
-              <li className="flex items-center gap-3">
-                <Mail className="h-4 w-4 text-primary" />
-                <a href="mailto:t.lemke@unitex.de" className="text-foreground hover:underline">
-                  t.lemke@unitex.de
-                </a>
-              </li>
-            </ul>
-          </aside>
-
-          {/* Annemarie Hutter */}
-          <aside className="rounded-2xl border border-border bg-card p-6">
-            <div className="flex items-center gap-4">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/20 font-display text-base font-semibold text-primary">
-                AH
-              </div>
-              <div>
-                <p className="font-display text-base font-semibold">Anne-Marie Hutter</p>
-                <p className="text-xs text-secondary">Kundenservice Zentrale</p>
-              </div>
-            </div>
-            <ul className="mt-6 space-y-3 text-sm">
-              <li className="flex items-center gap-3">
-                <Phone className="h-4 w-4 text-primary" />
-                <a href="tel:+49 731 707 94 0" className="text-foreground hover:underline">
-                  +49 731 707 94 0
-                </a>
-              </li>
-              <li className="flex items-center gap-3">
-                <Mail className="h-4 w-4 text-primary" />
-                <a href="mailto:a.hutter@unitex.de" className="text-foreground hover:underline">
-                  a.hutter@unitex.de
-                </a>
-              </li>
-            </ul>
-          </aside>
-
+          {/* Zuständiger Admin info box */}
+          <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-xs text-secondary">
+            <p className="font-medium text-foreground mb-1">Ihr zuständiger Ansprechpartner</p>
+            <p>
+              {state.memberType === "lieferant"
+                ? "Als Lieferant ist Kerstin Bier (Wachstumsmanagement) Ihr direkter Kontakt."
+                : state.country === "AT" || state.country === "CH"
+                ? `Für ${state.country === "AT" ? "Österreich" : "die Schweiz"} ist Thomas Römer zuständig.`
+                : state.postalCode
+                ? `Basierend auf Ihrer PLZ ${state.postalCode} ist ${responsibleAdmin.name} Ihr Ansprechpartner.`
+                : "Bitte tragen Sie Ihre PLZ in den Stammdaten ein, um den zuständigen Ansprechpartner zu ermitteln."}
+            </p>
+          </div>
         </div>
-        {/* END LINKE SPALTE */}
 
-        {/* RECHTE SPALTE: FAQs */}
+        {/* RIGHT: FAQs */}
         <section className="rounded-2xl border border-border bg-card p-8 lg:sticky lg:top-6">
           <h3 className="font-display text-lg font-semibold">Häufige Fragen</h3>
           <p className="mt-1 text-sm text-secondary">Die wichtigsten Antworten rund um Ihr Onboarding bei unitex.</p>

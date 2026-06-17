@@ -15,7 +15,7 @@ export function FormSection({
   letter: string;
   title: string;
   description?: string;
-  /** Optional callback fired BEFORE the section is marked complete */
+  /** Wenn übergeben, wird dieser Handler beim Speichern zusätzlich aufgerufen. */
   onSave?: () => void;
   children: ReactNode;
 }) {
@@ -23,11 +23,11 @@ export function FormSection({
   const saved = !!state.completedSections[id];
   const [justSaved, setJustSaved] = useState(false);
 
-  const save = () => {
-    if (onSave) onSave();
+  const handleSave = () => {
     update({ completedSections: { ...state.completedSections, [id]: true } });
     setJustSaved(true);
     setTimeout(() => setJustSaved(false), 2000);
+    onSave?.();
   };
 
   return (
@@ -59,7 +59,7 @@ export function FormSection({
         )}
         <button
           type="button"
-          onClick={save}
+          onClick={handleSave}
           className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
         >
           <Save className="h-4 w-4" />
@@ -74,16 +74,23 @@ export function Field({
   label,
   children,
   hint,
+  required,
   className,
 }: {
   label: string;
   children: ReactNode;
   hint?: string;
+  required?: boolean;
   className?: string;
 }) {
   return (
     <label className={["block space-y-1.5", className].filter(Boolean).join(" ")}>
-      <span className="block text-xs font-medium uppercase tracking-wide text-secondary">{label}</span>
+      <span className="block text-xs font-medium uppercase tracking-wide text-secondary">
+        {label}
+        {required !== false && (
+          <span className="ml-0.5 text-primary" aria-hidden="true"> *</span>
+        )}
+      </span>
       {children}
       {hint && <span className="block text-xs text-muted">{hint}</span>}
     </label>
