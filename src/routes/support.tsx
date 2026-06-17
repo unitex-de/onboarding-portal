@@ -34,21 +34,38 @@ const FAQS = [
   },
   {
     q: "Was ist das unitex-Rechnungsportal und wie erhalte ich Zugang?",
-    a: "Das Rechnungsportal (technisch bereitgestellt durch GRÜN RAW) ist die 100 % digitale Plattform für Ihr Belegmanagement. Nach erfolgreichem Onboarding erhalten Sie Ihre Zugangsdaten per E-Mail. Sie registrieren sich online unter Angabe Ihrer zugewiesenen Mitglieds- oder Lieferantennummer. Eine Softwareinstallation ist nicht nötig – ein Internetzugang genügt.",
+    a: "Das Rechnungsportal (technisch bereitgestellt durch GRÜN RAW) ist die 100 % digitale Plattform für Ihr Belegmanagement. Nach erfolgreichem Onboarding erhalten Sie Ihre Zugangsdaten per E-Mail.",
   },
   {
     q: "Wie und wann erhalte ich meine Abrechnungen?",
-    a: "Die Abrechnung erfolgt in sogenannten Dekaden. Rechnungen und Gutschriften werden dreimal im Monat zusammengezogen und saldiert (jeweils zum 5., 15. und 25. eines Monats). Sie erhalten eine übersichtliche ZR-Abrechnung (Kontoauszug und Buchungsaufstellung) direkt in Ihrem RSB-Webportal.",
+    a: "Die Abrechnung erfolgt in sogenannten Dekaden. Rechnungen und Gutschriften werden dreimal im Monat zusammengezogen und saldiert (jeweils zum 5., 15. und 25. eines Monats).",
   },
 ];
 
-function ContactCard({ contact }: { contact: SupportContact }) {
+/** Avatar: Foto wenn vorhanden, sonst Initialen */
+function Avatar({ src, initials }: { src?: string; initials: string }) {
+  if (src) {
+    return (
+      <img
+        src={src}
+        alt={initials}
+        className="h-14 w-14 rounded-full object-cover object-top shrink-0"
+        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+      />
+    );
+  }
+  return (
+    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/20 font-display text-base font-semibold text-primary shrink-0">
+      {initials}
+    </div>
+  );
+}
+
+function ContactCard({ contact }: { contact: SupportContact & { photoUrl?: string } }) {
   return (
     <aside className="rounded-2xl border border-border bg-card p-6">
       <div className="flex items-center gap-4">
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/20 font-display text-base font-semibold text-primary shrink-0">
-          {contact.initials}
-        </div>
+        <Avatar src={contact.photoUrl} initials={contact.initials} />
         <div>
           <p className="font-display text-base font-semibold">{contact.name}</p>
           <p className="text-xs text-secondary">{contact.role}</p>
@@ -72,23 +89,30 @@ function ContactCard({ contact }: { contact: SupportContact }) {
   );
 }
 
+/** Map initials → photo path */
+const PHOTO_MAP: Record<string, string> = {
+  TL: "/team/tl.png",
+  AH: "/team/ah.png",
+  SS: "/team/ss.png",
+  OB: "/team/ob.png",
+  TR: "/team/tr.png",
+  KB: "/team/kb.png",
+};
+
 function SupportPage() {
   const { state } = useOnboarding();
 
-  // Dynamic responsible admin based on memberType + PLZ
   const responsibleAdmin = getResponsibleAdmin(
     state.memberType,
     state.postalCode,
     state.country
   );
 
-  // Always show: Tanja, Anne, + responsible admin (deduplicate if same person)
   const alwaysShown: SupportContact[] = [SUPPORT_TANJA, SUPPORT_ANNE];
-  const contacts: SupportContact[] = [
+  const contacts = [
     ...alwaysShown,
-    // Add admin only if different from always-shown
     ...(alwaysShown.some((c) => c.email === responsibleAdmin.email) ? [] : [responsibleAdmin]),
-  ];
+  ].map((c) => ({ ...c, photoUrl: PHOTO_MAP[c.initials] }));
 
   return (
     <AppShell
@@ -96,33 +120,15 @@ function SupportPage() {
       subtitle="Wir helfen Ihnen persönlich – telefonisch, per E-Mail oder über unsere FAQ."
     >
       <div className="grid grid-cols-1 lg:grid-cols-[3fr_7fr] gap-6 items-start">
-
-        {/* LEFT: Contact cards */}
         <div className="flex flex-col gap-6">
           {contacts.map((c) => (
             <ContactCard key={c.email} contact={c} />
           ))}
-
-          {/* Zuständiger Admin info box */}
-          <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-xs text-secondary">
-            <p className="font-medium text-foreground mb-1">Ihr zuständiger Ansprechpartner</p>
-            <p>
-              {state.memberType === "lieferant"
-                ? "Als Lieferant ist Kerstin Bier (Wachstumsmanagement) Ihr direkter Kontakt."
-                : state.country === "AT" || state.country === "CH"
-                ? `Für ${state.country === "AT" ? "Österreich" : "die Schweiz"} ist Thomas Römer zuständig.`
-                : state.postalCode
-                ? `Basierend auf Ihrer PLZ ${state.postalCode} ist ${responsibleAdmin.name} Ihr Ansprechpartner.`
-                : "Bitte tragen Sie Ihre PLZ in den Stammdaten ein, um den zuständigen Ansprechpartner zu ermitteln."}
-            </p>
-          </div>
         </div>
 
-        {/* RIGHT: FAQs */}
         <section className="rounded-2xl border border-border bg-card p-8 lg:sticky lg:top-6">
           <h3 className="font-display text-lg font-semibold">Häufige Fragen</h3>
           <p className="mt-1 text-sm text-secondary">Die wichtigsten Antworten rund um Ihr Onboarding bei unitex.</p>
-
           <Accordion type="single" collapsible className="mt-6">
             {FAQS.map((f, i) => (
               <AccordionItem key={i} value={`item-${i}`} className="border-border">
@@ -136,7 +142,6 @@ function SupportPage() {
             ))}
           </Accordion>
         </section>
-
       </div>
     </AppShell>
   );

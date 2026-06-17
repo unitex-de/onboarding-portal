@@ -23,7 +23,7 @@ export function RightChecklist() {
     : "bg-primary";
 
   return (
-    <aside className="hidden xl:flex w-[300px] shrink-0 flex-col gap-4 p-6 sticky top-0 h-screen overflow-y-auto">
+    <aside data-tour="right-checklist" className="hidden xl:flex w-[300px] shrink-0 flex-col gap-4 p-6 sticky top-0 h-screen overflow-y-auto">
       <div className="rounded-xl border border-border bg-card/40 p-5 space-y-5">
         {/* Overall progress */}
         <div>
@@ -102,7 +102,7 @@ export function RightChecklist() {
 
         <div className="pt-4 border-t border-border">
           <Button asChild variant="secondary" className="w-full bg-[#FACBBA] text-[#0D1B2A] hover:bg-[#f8b9ac]">
-            <a href={pdfHref} download>
+            <a href={pdfHref} download data-tour="checklist-download">
               Checkliste herunterladen
             </a>
           </Button>

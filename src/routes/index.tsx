@@ -14,40 +14,44 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-const LEGAL_FORMS: { value: LegalForm; label: string }[] = [
-  { value: "eK", label: "e.K. (Einzelkaufmann)" },
-  { value: "GbR", label: "GbR" },
-  { value: "GmbH", label: "GmbH" },
-  { value: "GmbHCoKG", label: "GmbH & Co. KG" },
-  { value: "KG", label: "KG" },
-  { value: "OHG", label: "OHG" },
-];
-
 function Index() {
   const navigate = useNavigate();
   const { state, update } = useOnboarding();
 
   const [role, setRole] = useState<UserRole>("kunde");
   const [email, setEmail] = useState(state.email ?? "");
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
   const [sent, setSent] = useState(false);
   const [verifyCode, setVerifyCode] = useState("");
   const [codeError, setCodeError] = useState(false);
+
+  // Admin fields
+  const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
-  const [adminError, setAdminError] = useState(false);
+  const [adminEmailError, setAdminEmailError] = useState("");
+  const [adminPassError, setAdminPassError] = useState(false);
+
+  const ADMIN_PASSWORD = "unitex2026";
+
+  const validateAdminEmail = (val: string) => {
+    if (!val.includes("@")) return "Bitte eine gültige E-Mail eingeben.";
+    if (!val.toLowerCase().endsWith("@unitex.de")) return "Nur @unitex.de E-Mail-Adressen sind erlaubt.";
+    return "";
+  };
 
   const onAdminSubmit = () => {
-    if (!email.includes("@") || !firstName || !lastName) return;
-    // Simple demo password guard – in production this would be a real auth system
-    if (adminPassword !== "unitex2024" && adminPassword !== "") {
-      setAdminError(true);
-      return;
-    }
+    const emailErr = validateAdminEmail(adminEmail);
+    if (emailErr) { setAdminEmailError(emailErr); return; }
+    if (adminPassword !== ADMIN_PASSWORD) { setAdminPassError(true); return; }
+
+    // Derive name from email prefix (e.g. t.lemke → T. Lemke)
+    const prefix = adminEmail.split("@")[0];
+    const parts = prefix.split(".");
+    const userName = parts.map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(" ");
+
     update({
-      email,
+      email: adminEmail,
       legalFormLockedByAdmin: false,
-      userName: `${firstName} ${lastName}`,
+      userName,
       role: "admin",
       signedIn: true,
       activeCustomerId: null,
@@ -63,8 +67,6 @@ function Index() {
 
   const onVerify = () => {
     if (verifyCode.length === 6) {
-      // In production: validate OTP against server
-      // Find matching customer account
       const matchingAccount = state.customerAccounts.find(
         (a) => a.email.toLowerCase() === email.toLowerCase()
       );
@@ -157,53 +159,56 @@ function Index() {
             </div>
 
             {role === "admin" ? (
-              <div className="space-y-5">
+              <div className="space-y-4">
                 <div>
                   <h2 className="font-display text-xl font-semibold">Admin-Anmeldung</h2>
-                  <p className="mt-1 text-sm text-secondary">Melden Sie sich an, um zur Kunden-Übersicht zu gelangen.</p>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label className="text-xs text-secondary uppercase tracking-wide">Vorname</label>
-                    <input className="w-full rounded-md border border-border bg-popover px-3 py-2 text-sm focus:border-primary focus:outline-none"
-                      value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Tanja" />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs text-secondary uppercase tracking-wide">Nachname</label>
-                    <input className="w-full rounded-md border border-border bg-popover px-3 py-2 text-sm focus:border-primary focus:outline-none"
-                      value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Lemke" />
-                  </div>
+                  <p className="mt-1 text-sm text-secondary">Nur für unitex-Mitarbeiter.</p>
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs text-secondary uppercase tracking-wide">E-Mail</label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
-                    <input type="email"
-                      className="w-full rounded-md border border-border bg-popover pl-9 pr-3 py-2.5 text-sm focus:border-primary focus:outline-none"
-                      value={email} onChange={(e) => setEmail(e.target.value)} placeholder="tl@unitex.de" />
+                    <input
+                      type="email"
+                      className={[
+                        "w-full rounded-md border bg-popover pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:ring-1",
+                        adminEmailError
+                          ? "border-destructive focus:ring-destructive"
+                          : "border-border focus:border-primary focus:ring-primary",
+                      ].join(" ")}
+                      value={adminEmail}
+                      onChange={(e) => { setAdminEmail(e.target.value); setAdminEmailError(""); }}
+                      placeholder="name@unitex.de"
+                    />
                   </div>
+                  {adminEmailError && <p className="text-xs text-destructive">{adminEmailError}</p>}
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs text-secondary uppercase tracking-wide flex items-center gap-1.5">
-                    <Lock className="h-3 w-3" /> Zugangscode
+                    <Lock className="h-3 w-3" /> Passwort
                   </label>
                   <input
                     type="password"
                     className={[
-                      "w-full rounded-md border bg-popover px-3 py-2 text-sm focus:outline-none",
-                      adminError ? "border-destructive focus:border-destructive" : "border-border focus:border-primary",
+                      "w-full rounded-md border bg-popover px-3 py-2.5 text-sm focus:outline-none focus:ring-1",
+                      adminPassError
+                        ? "border-destructive focus:ring-destructive"
+                        : "border-border focus:border-primary focus:ring-primary",
                     ].join(" ")}
                     value={adminPassword}
-                    onChange={(e) => { setAdminPassword(e.target.value); setAdminError(false); }}
-                    placeholder="Unitex-interner Zugangscode"
+                    onChange={(e) => { setAdminPassword(e.target.value); setAdminPassError(false); }}
+                    placeholder="••••••••"
+                    onKeyDown={(e) => { if (e.key === "Enter") onAdminSubmit(); }}
                   />
-                  {adminError && <p className="text-xs text-destructive">Ungültiger Zugangscode.</p>}
+                  {adminPassError && <p className="text-xs text-destructive">Falsches Passwort.</p>}
                 </div>
-                <button type="button" onClick={onAdminSubmit}
-                  disabled={!email.includes("@") || !firstName || !lastName}
+                <button
+                  type="button"
+                  onClick={onAdminSubmit}
+                  disabled={!adminEmail || !adminPassword}
                   className="group inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Zur Kunden-Übersicht
+                  Anmelden
                   <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                 </button>
               </div>
@@ -222,6 +227,7 @@ function Index() {
                     <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
                       placeholder="name@firma.de"
                       className="w-full rounded-md border border-border bg-popover pl-9 pr-3 py-2.5 text-sm placeholder:text-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                      onKeyDown={(e) => { if (e.key === "Enter") onKundeRequest(); }}
                     />
                   </div>
                 </div>
