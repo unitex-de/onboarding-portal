@@ -120,7 +120,7 @@ function DashboardPage() {
   };
 
   return (
-    <CoachmarkTour steps={TOUR_STEPS}>
+    <CoachmarkTour steps={TOUR_STEPS} autoStart>
       <AppShell
         title={`Guten Tag, ${state.userName.split(" ")[0]}`}
         subtitle={`${state.companyName} · ${isLieferant ? "Lieferanten" : "Händler"}-Onboarding`}
