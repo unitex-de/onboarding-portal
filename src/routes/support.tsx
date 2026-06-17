@@ -73,27 +73,29 @@ function SupportPage() {
             </ul>
           </aside>
 
-          {/* unitex Onboarding-Team */}
+          {/* Annemarie Hutter */}
           <aside className="rounded-2xl border border-border bg-card p-6">
             <div className="flex items-center gap-4">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/20 font-display text-sm font-semibold text-primary leading-tight text-center">
-                <span>uni<br />tex</span>
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/20 font-display text-base font-semibold text-primary">
+                AH
               </div>
               <div>
-                <p className="font-display text-base font-semibold">unitex Onboarding-Team</p>
-                <p className="text-xs text-secondary">Allgemeiner Support</p>
+                <p className="font-display text-base font-semibold">Anne-Marie Hutter</p>
+                <p className="text-xs text-secondary">Kundenservice Zentrale</p>
               </div>
             </div>
             <ul className="mt-6 space-y-3 text-sm">
               <li className="flex items-center gap-3">
-                <Mail className="h-4 w-4 text-primary" />
-                <a href="mailto:projekte@unitex.de" className="text-foreground hover:underline">
-                  projekte@unitex.de
+                <Phone className="h-4 w-4 text-primary" />
+                <a href="tel:+49 731 707 94 0" className="text-foreground hover:underline">
+                  +49 731 707 94 0
                 </a>
               </li>
               <li className="flex items-center gap-3">
-                <Clock className="h-4 w-4 text-primary" />
-                <span className="text-foreground">Mo–Fr, 09:00–17:00 Uhr</span>
+                <Mail className="h-4 w-4 text-primary" />
+                <a href="mailto:a.hutter@unitex.de" className="text-foreground hover:underline">
+                  a.hutter@unitex.de
+                </a>
               </li>
             </ul>
           </aside>

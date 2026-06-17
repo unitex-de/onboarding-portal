@@ -142,12 +142,12 @@ function Index() {
                   <div className="space-y-1">
                     <label className="text-xs text-secondary uppercase tracking-wide">Vorname</label>
                     <input className="w-full rounded-md border border-border bg-popover px-3 py-2 text-sm focus:border-primary focus:outline-none"
-                      value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Tanja" />
+                      value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Max" />
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs text-secondary uppercase tracking-wide">Nachname</label>
                     <input className="w-full rounded-md border border-border bg-popover px-3 py-2 text-sm focus:border-primary focus:outline-none"
-                      value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Lemke" />
+                      value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Mustermensch" />
                   </div>
                 </div>
                 <div className="space-y-1">
@@ -156,7 +156,7 @@ function Index() {
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
                     <input type="email"
                       className="w-full rounded-md border border-border bg-popover pl-9 pr-3 py-2.5 text-sm focus:border-primary focus:outline-none"
-                      value={email} onChange={(e) => setEmail(e.target.value)} placeholder="tl@unitex.de" />
+                      value={email} onChange={(e) => setEmail(e.target.value)} placeholder="hallo@unitex.de" />
                   </div>
                 </div>
                 <button type="button" onClick={onAdminSubmit}

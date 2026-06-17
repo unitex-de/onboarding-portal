@@ -63,7 +63,6 @@ function UploadCenterPage() {
             {state.legalFormLockedByAdmin ? (
               <div className="flex items-center gap-2 rounded-md border border-border bg-popover/50 px-3 py-1.5 text-sm text-foreground">
                 <span>{LEGAL_FORMS.find((f) => f.value === legalForm)?.label ?? legalForm}</span>
-                <span className="text-[10px] text-muted ml-1">gesperrt</span>
               </div>
             ) : (
               <select
