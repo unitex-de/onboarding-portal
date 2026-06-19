@@ -5,8 +5,8 @@ import { useOnboarding } from "@/lib/onboarding-state";
 
 const NAV_ITEMS = [
   { to: "/dashboard",     label: "Dashboard",         icon: Home },
-  { to: "/unternehmen",   label: "Ihr Unternehmen",   icon: Building2 },
-  { to: "/upload-center", label: "Dokumente-Center",  icon: FolderUp },
+  { to: "/unternehmen",   label: "Unternehmensdaten",   icon: Building2 },
+  { to: "/upload-center", label: "Dokumente",  icon: FolderUp },
   { to: "/signaturen",    label: "Signaturen",         icon: PenLine },
   { to: "/support",       label: "Hilfe & Kontakt",   icon: MessageCircleQuestion },
 ] as const;

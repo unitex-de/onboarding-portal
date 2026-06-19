@@ -446,7 +446,7 @@ export const CHECKLIST_GROUPS: ChecklistGroup[] = [
     ],
   },
   {
-    title: "Dokumenten-Uploads",
+    title: "Dokumente",
     items: [
       { id: "cl_ausweiskopie",       label: "Ausweiskopie",                             href: "/upload-center", source: { kind: "upload", docId: "ausweiskopie_gf" }, memberTypes: ["händler"] },
       { id: "cl_ausw_kommanditisten",label: "Ausweiskopie aller Kommanditisten",        href: "/upload-center", source: { kind: "upload", docId: "ausweiskopie_kommanditisten" }, legalForms: ["GmbHCoKG", "KG", "OHG"], memberTypes: ["händler"] },
@@ -457,7 +457,7 @@ export const CHECKLIST_GROUPS: ChecklistGroup[] = [
     ],
   },
   {
-    title: "Verträge & Signaturen",
+    title: "Signaturen",
     items: [
       // Händler
       { id: "cl_sepa",       label: "SEPA-Lastschriftmandat",          href: "/signaturen", source: { kind: "signature", sigId: "sepa" }, memberTypes: ["händler"] },

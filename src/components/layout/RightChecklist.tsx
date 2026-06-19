@@ -42,8 +42,8 @@ export function RightChecklist() {
         {/* Sub-progress bars — same color family as main bar */}
         <div className="space-y-2 text-xs text-secondary">
           <SubBar label="01. Unternehmensdaten" pct={stammdaten} colorClass="bg-primary" />
-          <SubBar label="02. Dokumenten-Uploads" pct={uploads} colorClass="bg-primary/70" />
-          <SubBar label="03. Verträge & Signaturen" pct={signaturen} colorClass="bg-primary/40" />
+          <SubBar label="02. Dokumente" pct={uploads} colorClass="bg-primary/70" />
+          <SubBar label="03. Signaturen" pct={signaturen} colorClass="bg-primary/40" />
         </div>
 
         {/* Checklist groups */}

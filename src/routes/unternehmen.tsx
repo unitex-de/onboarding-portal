@@ -24,7 +24,7 @@ const SHOWS_GWG: LegalForm[] = ["GmbH", "GmbHCoKG", "KG", "OHG", "GbR"];
 const PEP_TOOLTIP =
   "Im Sinne der geldwäscherechtlichen Vorschriften (z. B. § 1 Abs. 11 GwG) bezeichnet eine politisch exponierte Person (PEP) Einzelpersonen, die wichtige öffentliche Ämter ausüben oder ausgeübt haben (z. B. Staatschefs, Regierungsmitglieder, Abgeordnete). Aufgrund gesetzlicher Vorgaben zur Geldwäscheprävention unterliegen Geschäftsbeziehungen mit PEPs erweiterten Sorgfaltspflichten.";
 const SONDER_TOOLTIP =
-  "Diese Firmen benötigen eine aktive Bestätigung um gesondert über die Zentralregulierung abgewickelt zu werden.";
+  "Diese Firmen benötigen eine aktive Bestätigung zur Zentralregulierung über unitex.";
 
 function UnternehmenPage() {
   const navigate = useNavigate();
@@ -214,8 +214,8 @@ function UnternehmenPage() {
         <FormSection
           id="bankdaten"
           letter="3"
-          title="Bankdaten"
-          description="Konto- und Steuerinformationen."
+          title="Konto- und Steuerinformationen."
+          description=""
         >
           <div className="grid md:grid-cols-2 gap-4">
             <Field label="Bankname">
@@ -364,7 +364,7 @@ function UnternehmenPage() {
               description="Umsatz, Mitarbeiter, Sortimentsschwerpunkte."
             >
               <div className="grid md:grid-cols-3 gap-4">
-                <Field label="Geschätzter Jahresumsatz" hint="Auf 100.000 € gerundet">
+                <Field label="Geschätzter Jahresumsatz">
                   <input className={inputClass} placeholder="z.B. 800.000"
                     value={umsatz} onChange={(e) => setUmsatz(e.target.value)} required />
                 </Field>
@@ -384,10 +384,6 @@ function UnternehmenPage() {
                   ))}
                 </div>
               </Field>
-              <Field label="Ihre wichtigsten Marken" hint="Komma-getrennt">
-                <input className={inputClass} placeholder="z.B. StreetOne, Cecil, Opus"
-                  value={marken} onChange={(e) => setMarken(e.target.value)} required />
-              </Field>
 
               {/* S.Oliver toggle */}
               <div className="rounded-lg bg-popover p-4">
@@ -397,7 +393,7 @@ function UnternehmenPage() {
                     className="mt-0.5 h-4 w-4 accent-primary" />
                   <div className="flex-1">
                     <div className="flex items-center gap-1.5">
-                      <p className="text-sm font-medium">Zusammenarbeit mit s.Oliver / COMMA / Gebr. Amman (ISCO)?</p>
+                      <p className="text-sm font-medium">Zusammenarbeit mit s.Oliver / Gebr. Amman (ISCO)?</p>
                       <div className="relative inline-block">
                         <button type="button"
                           className="text-muted hover:text-primary transition-colors flex items-center"
@@ -523,9 +519,6 @@ function UnternehmenPage() {
                       </tbody>
                     </table>
                   </div>
-                  <p className="text-[11px] text-muted">
-                    * PEP = Politisch exponierte Person gem. § 1 Abs. 11 GwG.
-                  </p>
                 </div>
               </FormSection>
             )}

@@ -20,8 +20,8 @@ const TOUR_STEPS: TourStep[] = [
   },
   {
     target: "step-stammdaten",
-    title: "Schritt 1 · Stammdaten",
-    body: "Zuerst füllen Sie das Stammdaten-Formular aus mit den grundlegendsten Daten die wir für die ZR, sowie Ihre Verträge benötigen. Ihre Angaben befüllen automatisch die Verträge in Schritt 3.",
+    title: "Schritt 1 · Unternehmensdaten",
+    body: "Zuerst füllen Sie das Unternehmensdaten-Formular aus mit den grundlegendsten Daten die wir für die ZR, sowie Ihre Verträge benötigen. Ihre Angaben befüllen automatisch die Verträge in Schritt 3.",
     placement: "top",
   },
   {
@@ -158,14 +158,14 @@ function DashboardPage() {
                   <h3 className="mt-1 font-display text-2xl font-semibold">{total}% abgeschlossen</h3>
                   <p className="mt-1 text-sm text-secondary">
                     {total < 75
-                      ? "Stammdaten und Dokumente vervollständigen, um Signaturen freizuschalten."
+                      ? "Unternehmensdaten und Dokumente vervollständigen, um Signaturen freizuschalten."
                       : total < 100
                       ? "Fast geschafft! Verträge jetzt unterschreiben."
                       : "Alles vollständig – bereit zur Einreichung."}
                   </p>
                 </div>
                 <div className="space-y-2">
-                  <MiniBar label="01. Stammdaten" pct={stammdaten} colorClass="bg-primary" />
+                  <MiniBar label="01. Unternehmensdaten" pct={stammdaten} colorClass="bg-primary" />
                   <MiniBar label="02. Dokumente" pct={uploads} colorClass="bg-primary/70" />
                   <MiniBar label="03. Signaturen" pct={signaturen} colorClass="bg-primary/40" />
                 </div>
@@ -197,11 +197,11 @@ function DashboardPage() {
             ) : null}
           </div>
 
-          {/* Step 1: Stammdaten */}
+          {/* Step 1: Unternehmensdaten */}
           <Link to="/unternehmen" data-tour="step-stammdaten"
             className="group rounded-2xl border border-border bg-card p-6 hover:border-primary/60 transition-colors">
             <FileText className="h-5 w-5 text-primary" />
-            <h4 className="mt-3 font-display text-base font-semibold">01. Stammdaten</h4>
+            <h4 className="mt-3 font-display text-base font-semibold">01. Unternehmensdaten</h4>
             <p className="mt-1 text-sm text-secondary">
               {isLieferant ? "Firmendaten & Lieferanten-Stammblatt" : "Firma, Bank, GLN & GWG-Daten"}
             </p>

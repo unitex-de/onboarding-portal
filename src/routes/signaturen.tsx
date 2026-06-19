@@ -143,7 +143,7 @@ function SignaturenPage() {
     haendlerPackages.push({
       id: "sonder",
       title: "Sonderformular Zentralregulierung",
-      desc: "Erforderlich bei Zusammenarbeit mit s.Oliver / COMMA / Gebr. Amman (ISCO).",
+      desc: "Erforderlich bei Zusammenarbeit mit s.Oliver / Gebr. Amman (ISCO).",
       tokens: [{ label: "Firmenname", value: state.companyName }],
     });
   }
@@ -224,8 +224,8 @@ function SignaturenPage() {
           </p>
           <p className="text-sm text-secondary mt-1">
             {unlocked
-              ? "Stammdaten und Dokumente sind vollständig. Sie können jetzt digital signieren."
-              : `Mindestens 75% Gesamtfortschritt erforderlich (Stammdaten + Dokumente). Aktuell: ${total}%.`}
+              ? "Unternehmensadten und Dokumente sind vollständig. Sie können jetzt digital signieren."
+              : `Mindestens 75% Gesamtfortschritt erforderlich (Unternehmensadten + Dokumente). Aktuell: ${total}%.`}
           </p>
         </div>
         {!unlocked && (
@@ -233,7 +233,7 @@ function SignaturenPage() {
             to="/unternehmen"
             className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:border-primary shrink-0"
           >
-            Stammdaten vervollständigen
+            Unternehmensadten vervollständigen
           </Link>
         )}
       </div>
