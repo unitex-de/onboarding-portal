@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
-import { ArrowRight, Mail, ShieldCheck, CheckCircle2, UserCog, User, Lock } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { ArrowRight, Mail, ShieldCheck, CheckCircle2, UserCog, User, Lock, Sparkles } from "lucide-react";
 import { useOnboarding, type MemberType, type LegalForm, type UserRole } from "@/lib/onboarding-state";
 import { UnitexLogo } from "@/components/ui/UnitexLogo";
 
@@ -14,6 +14,70 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
+// ── Typewriter helper ──────────────────────────────────────────────────────────
+function useTypewriter(text: string, speed = 40, startDelay = 0) {
+  const [displayed, setDisplayed] = useState("");
+  const [done, setDone] = useState(false);
+  useEffect(() => {
+    setDisplayed("");
+    setDone(false);
+    let i = 0;
+    const startTimer = setTimeout(() => {
+      const interval = setInterval(() => {
+        i++;
+        setDisplayed(text.slice(0, i));
+        if (i >= text.length) {
+          clearInterval(interval);
+          setDone(true);
+        }
+      }, speed);
+      return () => clearInterval(interval);
+    }, startDelay);
+    return () => clearTimeout(startTimer);
+  }, [text, speed, startDelay]);
+  return { displayed, done };
+}
+
+// ── Welcome screen after verification ─────────────────────────────────────────
+function WelcomeScreen({ onContinue }: { onContinue: () => void }) {
+  const WELCOME_TEXT = "Willkommen im Onboarding von unitex ZR! Wir begleiten Sie durch den Prozess Mitglied unserer FashionCommunity zu werden!";
+  const { displayed, done } = useTypewriter(WELCOME_TEXT, 30, 300);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">
+      <div className="max-w-lg px-8 text-center space-y-6">
+        <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-primary/15 border border-primary/30 animate-pulse">
+          <Sparkles className="h-10 w-10 text-primary" />
+        </div>
+        <p className="font-display text-2xl font-semibold text-foreground leading-relaxed min-h-[5rem]">
+          {displayed}
+          {!done && <span className="inline-block w-0.5 h-6 bg-primary ml-1 animate-pulse" />}
+        </p>
+        <div className="flex flex-col items-center gap-3 min-h-[2.5rem]">
+          {done && (
+            <button
+              type="button"
+              onClick={onContinue}
+              className="inline-flex items-center gap-2 rounded-md bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-all animate-in fade-in duration-500"
+            >
+              Los geht's <ArrowRight className="h-4 w-4" />
+            </button>
+          )}
+          {!done && (
+            <button
+              type="button"
+              onClick={onContinue}
+              className="text-xs text-muted hover:text-secondary underline underline-offset-4 transition-colors"
+            >
+              Überspringen
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Index() {
   const navigate = useNavigate();
   const { state, update } = useOnboarding();
@@ -23,6 +87,8 @@ function Index() {
   const [sent, setSent] = useState(false);
   const [verifyCode, setVerifyCode] = useState("");
   const [codeError, setCodeError] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
+  const pendingNav = useRef<() => void>(() => {});
 
   // Admin fields
   const [adminEmail, setAdminEmail] = useState("");
@@ -43,7 +109,6 @@ function Index() {
     if (emailErr) { setAdminEmailError(emailErr); return; }
     if (adminPassword !== ADMIN_PASSWORD) { setAdminPassError(true); return; }
 
-    // Derive name from email prefix (e.g. t.lemke → T. Lemke)
     const prefix = adminEmail.split("@")[0];
     const parts = prefix.split(".");
     const userName = parts.map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(" ");
@@ -87,11 +152,17 @@ function Index() {
           country: matchingAccount.country,
         } : {}),
       });
-      navigate({ to: "/dashboard" });
+      // Show welcome animation, then navigate
+      pendingNav.current = () => navigate({ to: "/dashboard" });
+      setShowWelcome(true);
     } else {
       setCodeError(true);
     }
   };
+
+  if (showWelcome) {
+    return <WelcomeScreen onContinue={() => { setShowWelcome(false); pendingNav.current(); }} />;
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
@@ -261,8 +332,40 @@ function Index() {
                   <label className="text-xs text-secondary uppercase tracking-wide">Verifizierungscode</label>
                   <input type="text" inputMode="numeric" maxLength={6}
                     value={verifyCode}
-                    onChange={(e) => { setVerifyCode(e.target.value.replace(/\D/g, "")); setCodeError(false); }}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, "");
+                      setVerifyCode(val);
+                      setCodeError(false);
+                      // Auto-verify on 6 digits
+                      if (val.length === 6) {
+                        setTimeout(() => {
+                          const matchingAccount = state.customerAccounts.find(
+                            (a) => a.email.toLowerCase() === email.toLowerCase()
+                          );
+                          update({
+                            signedIn: true,
+                            role: "kunde",
+                            tourSeen: false,
+                            ...(matchingAccount ? {
+                              memberType: matchingAccount.memberType,
+                              legalForm: matchingAccount.legalForm,
+                              legalFormLockedByAdmin: true,
+                              userName: `${matchingAccount.firstName} ${matchingAccount.lastName}`,
+                              companyName: matchingAccount.companyName,
+                              activeCustomerId: matchingAccount.id,
+                              uploadedDocs: matchingAccount.uploadedDocs,
+                              completedSections: matchingAccount.completedSections,
+                              postalCode: matchingAccount.postalCode,
+                              country: matchingAccount.country,
+                            } : {}),
+                          });
+                          pendingNav.current = () => navigate({ to: "/dashboard" });
+                          setShowWelcome(true);
+                        }, 300);
+                      }
+                    }}
                     placeholder="123456"
+                    autoFocus
                     className={[
                       "w-full rounded-md border bg-popover px-3 py-2.5 text-center text-xl tracking-[0.5em] focus:outline-none focus:ring-1",
                       codeError ? "border-destructive focus:ring-destructive" : "border-border focus:border-primary focus:ring-primary",

@@ -2,8 +2,8 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { Check, Info, Lock, Plus, Trash2, HelpCircle } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
-import { FormSection, Field, inputClass } from "@/components/forms/FormSection";
-import { useOnboarding, type LegalForm, getProgressBreakdown } from "@/lib/onboarding-state";
+import { FormSection, Field, AutoSaveInput, MaskedInput, inputClass } from "@/components/forms/FormSection";
+import { useOnboarding, type LegalForm, getProgressBreakdown, calcZrStartDate, formatDateDe } from "@/lib/onboarding-state";
 
 export const Route = createFileRoute("/unternehmen")({
   head: () => ({ meta: [{ title: "Unternehmen | unitex Onboarding" }] }),
@@ -25,6 +25,40 @@ const PEP_TOOLTIP =
   "Im Sinne der geldwäscherechtlichen Vorschriften (z. B. § 1 Abs. 11 GwG) bezeichnet eine politisch exponierte Person (PEP) Einzelpersonen, die wichtige öffentliche Ämter ausüben oder ausgeübt haben (z. B. Staatschefs, Regierungsmitglieder, Abgeordnete). Aufgrund gesetzlicher Vorgaben zur Geldwäscheprävention unterliegen Geschäftsbeziehungen mit PEPs erweiterten Sorgfaltspflichten.";
 const SONDER_TOOLTIP =
   "Diese Firmen benötigen eine aktive Bestätigung zur Zentralregulierung über unitex.";
+const UMSATZ_TOOLTIP =
+  "Bitte tragen Sie den Nettoumsatz des letzten abgeschlossenen Geschäftsjahres ein.";
+
+const JOB_TYPES = ["Inhaber", "Geschäftsführer", "Buchhaltung", "Vertrieb", "Marketing", "Sonstige"] as const;
+type JobType = typeof JOB_TYPES[number];
+
+interface ContactBlock {
+  id: string;
+  vorname: string;
+  nachname: string;
+  handy: string;
+  telefon: string;
+  email: string;
+  jobbezeichnung: JobType | "";
+  newsletterHandy: boolean;
+  newsletterEmail: boolean;
+  /** true = Geschäftsführer block, false = Buchhaltung block, null = extra */
+  kind: "gf" | "buchhaltung" | "extra";
+}
+
+function newContact(kind: ContactBlock["kind"]): ContactBlock {
+  return {
+    id: `c_${Date.now()}_${Math.random()}`,
+    vorname: "",
+    nachname: "",
+    handy: "",
+    telefon: "",
+    email: "",
+    jobbezeichnung: "",
+    newsletterHandy: false,
+    newsletterEmail: false,
+    kind,
+  };
+}
 
 function UnternehmenPage() {
   const navigate = useNavigate();
@@ -40,18 +74,22 @@ function UnternehmenPage() {
   const [land, setLand] = useState("DE");
 
   // ── Kontakt ─────────────────────────────────────────────────────────────────
-  const [gfName, setGfName] = useState("");
-  const [gfEmail, setGfEmail] = useState("");
-  const [gfTel, setGfTel] = useState("");
-  const [buchungIdent, setBuchungIdent] = useState(state.buchungIdentischGF ?? true);
-  const [buName, setBuName] = useState("");
-  const [buEmail, setBuEmail] = useState("");
-  const [buTel, setBuTel] = useState("");
+  const [contacts, setContacts] = useState<ContactBlock[]>([
+    newContact("gf"),
+    newContact("buchhaltung"),
+  ]);
 
-  // Sync buchungIdent to global state
-  useEffect(() => {
-    update({ buchungIdentischGF: buchungIdent });
-  }, [buchungIdent]);
+  const updateContact = (id: string, patch: Partial<ContactBlock>) => {
+    setContacts((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+  };
+
+  const addExtraContact = () => {
+    setContacts((prev) => [...prev, newContact("extra")]);
+  };
+
+  const removeContact = (id: string) => {
+    setContacts((prev) => prev.filter((c) => c.id !== id));
+  };
 
   // ── GLN & Filialen ──────────────────────────────────────────────────────────
   const [branches, setBranches] = useState([{ name: "", street: "", zip: "", city: "", gln: "" }]);
@@ -61,6 +99,8 @@ function UnternehmenPage() {
   const [shareholders, setShareholders] = useState([{ name: "", capital: "", voting: "", pep: false }]);
   const [pepTooltip, setPepTooltip] = useState(false);
   const [sonderTooltip, setSonderTooltip] = useState(false);
+  const [wirtschaftAbhaengig, setWirtschaftAbhaengig] = useState(false);
+  const [wirtschaftAbhaengigText, setWirtschaftAbhaengigText] = useState("");
 
   // ── Bankdaten ───────────────────────────────────────────────────────────────
   const [bankname, setBankname] = useState("");
@@ -74,6 +114,10 @@ function UnternehmenPage() {
   const [mitarbeiter, setMitarbeiter] = useState("");
   const [gruendung, setGruendung] = useState("");
   const [marken, setMarken] = useState("");
+  const [zrVolumen, setZrVolumen] = useState("");
+  const [bilanzsumme, setBilanzsumme] = useState("");
+  const [wkvDeckungsbeitrag, setWkvDeckungsbeitrag] = useState("");
+  const [umsatzTooltip, setUmsatzTooltip] = useState(false);
 
   // ── Lieferant Stammblatt ────────────────────────────────────────────────────
   const [liefSortiment, setLiefSortiment] = useState("");
@@ -89,15 +133,13 @@ function UnternehmenPage() {
     });
   };
 
-  // ── Save handlers (called by FormSection's onSave prop) ─────────────────────
+  // ── Save handlers ───────────────────────────────────────────────────────────
   const handleSaveGrunddaten = () => {
     update({ companyName: firmenname, postalCode: plz });
     syncAddressToBranch();
   };
 
-  const handleSaveLieferantStamm = () => {
-    // nothing extra needed
-  };
+  const handleSaveLieferantStamm = () => {};
 
   return (
     <AppShell
@@ -120,8 +162,12 @@ function UnternehmenPage() {
         >
           <div className="grid md:grid-cols-2 gap-4">
             <Field label="Firmenname">
-              <input className={inputClass} value={firmenname}
-                onChange={(e) => setFirmenname(e.target.value)} required />
+              <AutoSaveInput
+                className={inputClass}
+                value={firmenname}
+                onChange={(e) => setFirmenname(e.target.value)}
+                required
+              />
             </Field>
             <Field label="Rechtsform">
               {state.legalFormLockedByAdmin ? (
@@ -140,102 +186,151 @@ function UnternehmenPage() {
               )}
             </Field>
             <Field label="Straße & Hausnummer">
-              <input className={inputClass} placeholder="Musterstraße 12"
+              <AutoSaveInput className={inputClass} placeholder="Musterstraße 12"
                 value={strasse} onChange={(e) => setStrasse(e.target.value)} required />
             </Field>
             <Field label="PLZ / Ort / Land">
               <div className="grid grid-cols-[100px_1fr_60px] gap-2">
-                <input className={inputClass} placeholder="12345"
+                <AutoSaveInput className={inputClass} placeholder="12345"
                   value={plz} onChange={(e) => setPlz(e.target.value)} required />
-                <input className={inputClass} placeholder="Musterstadt"
+                <AutoSaveInput className={inputClass} placeholder="Musterstadt"
                   value={ort} onChange={(e) => setOrt(e.target.value)} required />
-                <input className={inputClass} placeholder="DE"
+                <AutoSaveInput className={inputClass} placeholder="DE"
                   value={land} onChange={(e) => setLand(e.target.value)} required />
               </div>
             </Field>
           </div>
         </FormSection>
 
-        {/* ── 2 · Kontakt ────────────────────────────────────────────────────── */}
+        {/* ── 2 · Kontaktinformationen ────────────────────────────────────────── */}
         <FormSection
           id="kontakt"
           letter="2"
           title="Kontaktinformationen"
           description="Ansprechpartner für die Geschäftsführung und Ihre Buchhaltung."
         >
-          <p className="text-xs font-medium uppercase tracking-wide text-secondary">Geschäftsführung</p>
-          <div className="grid md:grid-cols-3 gap-4">
-            <Field label="Name">
-              <input className={inputClass} value={gfName}
-                onChange={(e) => setGfName(e.target.value)} required />
-            </Field>
-            <Field label="E-Mail">
-              <input type="email" className={inputClass} value={gfEmail}
-                onChange={(e) => setGfEmail(e.target.value)} required />
-            </Field>
-            <Field label="Telefon">
-              <input type="tel" className={inputClass} value={gfTel}
-                onChange={(e) => setGfTel(e.target.value)} required />
-            </Field>
-          </div>
+          {contacts.map((c, idx) => {
+            const isGf = c.kind === "gf";
+            const isBu = c.kind === "buchhaltung";
+            const isExtra = c.kind === "extra";
+            const blockTitle = isGf
+              ? "Angaben Geschäftsführer"
+              : isBu
+              ? "Angaben Buchhaltung"
+              : "Weiterer Kontakt";
 
-          <div className="mt-3">
-            <p className="text-xs font-medium uppercase tracking-wide text-secondary mb-2">Buchhaltung</p>
-            <label className="flex items-center gap-2 cursor-pointer text-sm text-foreground">
-              <input type="checkbox" className="h-4 w-4 accent-primary"
-                checked={buchungIdent}
-                onChange={(e) => setBuchungIdent(e.target.checked)} />
-              Die Buchhaltung wird ebenfalls von der Geschäftsführung übernommen.
-            </label>
-          </div>
+            return (
+              <div key={c.id} className={[
+                "rounded-lg border p-4 space-y-4",
+                isGf ? "border-border" : "border-border bg-popover/20",
+              ].join(" ")}>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-secondary">{blockTitle}</p>
+                  {isExtra && (
+                    <button type="button" onClick={() => removeContact(c.id)}
+                      className="rounded p-1 text-muted hover:text-destructive" aria-label="Entfernen">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
 
-          {!buchungIdent && (
-            <div className="mt-3 rounded-lg border border-border bg-popover/30 p-4 space-y-4">
-              <p className="text-xs text-secondary">Kontakt der Buchhaltung (abweichend)</p>
-              <div className="grid md:grid-cols-3 gap-4">
-                <Field label="Name">
-                  <input className={inputClass} value={buName}
-                    onChange={(e) => setBuName(e.target.value)} required />
-                </Field>
-                <Field label="E-Mail">
-                  <input type="email" className={inputClass} value={buEmail}
-                    onChange={(e) => setBuEmail(e.target.value)} required />
-                </Field>
-                <Field label="Telefon">
-                  <input type="tel" className={inputClass} value={buTel}
-                    onChange={(e) => setBuTel(e.target.value)} required />
-                </Field>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <Field label="Vorname">
+                    <AutoSaveInput className={inputClass} value={c.vorname}
+                      onChange={(e) => updateContact(c.id, { vorname: e.target.value })} required />
+                  </Field>
+                  <Field label="Nachname">
+                    <AutoSaveInput className={inputClass} value={c.nachname}
+                      onChange={(e) => updateContact(c.id, { nachname: e.target.value })} required />
+                  </Field>
+                </div>
+
+                {isExtra && (
+                  <Field label="Jobbezeichnung">
+                    <select className={inputClass} value={c.jobbezeichnung}
+                      onChange={(e) => updateContact(c.id, { jobbezeichnung: e.target.value as JobType })}>
+                      <option value="">— bitte wählen —</option>
+                      {JOB_TYPES.map((j) => <option key={j} value={j}>{j}</option>)}
+                    </select>
+                  </Field>
+                )}
+
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Field label="Handynummer" required={false}>
+                      <MaskedInput mask="mobile" type="tel" className={inputClass} placeholder="+49 172 12345678"
+                        value={c.handy} onChange={(e) => updateContact(c.id, { handy: e.target.value })} />
+                    </Field>
+                    {c.handy && (
+                      <label className="flex items-start gap-2 cursor-pointer text-xs text-secondary pl-0.5">
+                        <input type="checkbox" className="mt-0.5 h-3.5 w-3.5 accent-primary"
+                          checked={c.newsletterHandy}
+                          onChange={(e) => updateContact(c.id, { newsletterHandy: e.target.checked })} />
+                        <span>Einwilligung zum Newsletter per SMS</span>
+                      </label>
+                    )}
+                  </div>
+                  <Field label="Telefonnummer" required={false}>
+                    <MaskedInput mask="phone" type="tel" className={inputClass} placeholder="0731 56789 (12)"
+                      value={c.telefon} onChange={(e) => updateContact(c.id, { telefon: e.target.value })} />
+                  </Field>
+                </div>
+
+                <div className="space-y-2">
+                  <Field label="E-Mail-Adresse">
+                    <AutoSaveInput type="email" className={inputClass} placeholder="name@firma.de"
+                      value={c.email} onChange={(e) => updateContact(c.id, { email: e.target.value })} required />
+                  </Field>
+                  {c.email && (
+                    <label className="flex items-start gap-2 cursor-pointer text-xs text-secondary pl-0.5">
+                      <input type="checkbox" className="mt-0.5 h-3.5 w-3.5 accent-primary"
+                        checked={c.newsletterEmail}
+                        onChange={(e) => updateContact(c.id, { newsletterEmail: e.target.checked })} />
+                      <span>Einwilligung zum Newsletter per E-Mail</span>
+                    </label>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })}
+
+          <button type="button" onClick={addExtraContact}
+            className="inline-flex items-center gap-2 text-sm text-primary hover:underline mt-2">
+            <Plus className="h-4 w-4" /> Weiteren Kontakt hinzufügen
+          </button>
+
+          <p className="text-[11px] text-muted mt-1">
+            * Pflichtfeld. <br />
+            Mit dem Setzen des Newsletter-Häkchens erteilen Sie die Einwilligung zur Kontaktaufnahme zu Neuigkeiten, Aktionen und Informationen von unitex per E-Mail bzw. SMS. Diese Einwilligung kann jederzeit widerrufen werden.
+          </p>
         </FormSection>
 
         {/* ── 3 · Bankdaten ──────────────────────────────────────────────────── */}
         <FormSection
           id="bankdaten"
           letter="3"
-          title="Konto- und Steuerinformationen."
+          title="Konto- und Steuerinformationen"
           description=""
         >
           <div className="grid md:grid-cols-2 gap-4">
             <Field label="Bankname">
-              <input className={inputClass} value={bankname}
+              <AutoSaveInput className={inputClass} value={bankname}
                 onChange={(e) => setBankname(e.target.value)} required />
             </Field>
             <Field label="BIC">
-              <input className={inputClass} placeholder="GENODEM1XXX"
+              <AutoSaveInput className={inputClass} placeholder="GENODEM1XXX"
                 value={bic} onChange={(e) => setBic(e.target.value)} required />
             </Field>
             <Field label="IBAN" className="md:col-span-2">
-              <input className={inputClass} placeholder="DE89 3704 0044 0532 0130 00"
+              <MaskedInput mask="iban" className={inputClass} placeholder="DE89 3704 0044 0532 0130 00"
                 value={iban} onChange={(e) => setIban(e.target.value)} required />
             </Field>
             <Field label="Steuernummer">
-              <input className={inputClass} value={steuernummer}
+              <AutoSaveInput className={inputClass} value={steuernummer}
                 onChange={(e) => setSteuernummer(e.target.value)} required />
             </Field>
             <Field label="USt-IdNr." required={false}>
-              <input className={inputClass} placeholder="DE123456789"
+              <AutoSaveInput className={inputClass} placeholder="DE123456789"
                 value={ustId} onChange={(e) => setUstId(e.target.value)} />
             </Field>
           </div>
@@ -252,15 +347,15 @@ function UnternehmenPage() {
           >
             <div className="grid md:grid-cols-2 gap-4">
               <Field label="Sortimentsschwerpunkte">
-                <input className={inputClass} placeholder="z.B. Damenmode, Herrenmode"
+                <AutoSaveInput className={inputClass} placeholder="z.B. Damenmode, Herrenmode"
                   value={liefSortiment} onChange={(e) => setLiefSortiment(e.target.value)} required />
               </Field>
               <Field label="Wichtigste Marken / Eigenmarken">
-                <input className={inputClass} placeholder="Komma-getrennt"
+                <AutoSaveInput className={inputClass} placeholder="Komma-getrennt"
                   value={liefMarken} onChange={(e) => setLiefMarken(e.target.value)} required />
               </Field>
               <Field label="Ansprechpartner unitex-Betreuung">
-                <input className={inputClass} placeholder="Name des Betreuers"
+                <AutoSaveInput className={inputClass} placeholder="Name des Betreuers"
                   value={liefAnsprechpartner} onChange={(e) => setLiefAnsprechpartner(e.target.value)} required />
               </Field>
             </div>
@@ -361,22 +456,73 @@ function UnternehmenPage() {
               id="geschaeftsdaten"
               letter="5"
               title="Geschäftsdaten"
-              description="Umsatz, Mitarbeiter, Sortimentsschwerpunkte."
+              description="Umsatz, Mitarbeiter, Sortimentsschwerpunkte und ZR-Kennzahlen."
             >
+              {/* Beginn ZR: voraussichtlicher ZR Start (read-only info) */}
+              <div className="rounded-lg bg-popover/60 border border-border px-4 py-3 flex items-center gap-3">
+                <Info className="h-4 w-4 text-primary shrink-0" />
+                <div className="text-sm text-secondary">
+                  <span className="font-medium text-foreground">Beginn ZR:</span>{" "}
+                  <span className="font-semibold text-primary">{formatDateDe(calcZrStartDate())}</span>
+                </div>
+              </div>
               <div className="grid md:grid-cols-3 gap-4">
-                <Field label="Geschätzter Jahresumsatz">
-                  <input className={inputClass} placeholder="z.B. 800.000"
+                {/* Jahresumsatz mit Tooltip */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-secondary">
+                    <span>
+                      Jahresumsatz (€) <span className="text-primary">*</span>
+                    </span>
+                    <div className="relative font-normal normal-case tracking-normal">
+                      <button type="button"
+                        className="text-muted hover:text-primary transition-colors"
+                        onMouseEnter={() => setUmsatzTooltip(true)}
+                        onMouseLeave={() => setUmsatzTooltip(false)}
+                        onClick={() => setUmsatzTooltip((v) => !v)}
+                        aria-label="Jahresumsatz erklären"
+                      >
+                        <HelpCircle className="h-3.5 w-3.5" />
+                      </button>
+                      {umsatzTooltip && (
+                        <div className="absolute left-6 top-1/2 -translate-y-1/2 z-30 w-64 rounded-xl border border-border bg-card p-3 text-xs text-secondary shadow-xl leading-relaxed">
+                          {UMSATZ_TOOLTIP}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <AutoSaveInput className={inputClass} placeholder="z.B. 800.000"
                     value={umsatz} onChange={(e) => setUmsatz(e.target.value)} required />
-                </Field>
+                </div>
+
                 <Field label="Mitarbeiterzahl">
-                  <input type="number" className={inputClass}
+                  <AutoSaveInput type="number" className={inputClass}
+                    placeholder="z.B. 50"
                     value={mitarbeiter} onChange={(e) => setMitarbeiter(e.target.value)} required />
                 </Field>
                 <Field label="Gründungsdatum">
-                  <input type="date" className={inputClass}
+                  <AutoSaveInput type="date" className={inputClass}
                     value={gruendung} onChange={(e) => setGruendung(e.target.value)} required />
                 </Field>
+
+                {/* ZR-Volumen */}
+                <Field label="ZR-Volumen (€)" required={false}>
+                  <AutoSaveInput type="number" className={inputClass} placeholder="z.B. 350.000"
+                    value={zrVolumen} onChange={(e) => setZrVolumen(e.target.value)} />
+                </Field>
+
+                {/* Bilanzsumme */}
+                <Field label="Bilanzsumme (€)" required={false}>
+                  <AutoSaveInput type="number" className={inputClass} placeholder="z.B. 860.000"
+                    value={bilanzsumme} onChange={(e) => setBilanzsumme(e.target.value)} />
+                </Field>
+
+                {/* WKV Deckungsbeitrag */}
+                <Field label="WKV Deckungsbeitrag (€)" required={false}>
+                  <AutoSaveInput type="number" className={inputClass} placeholder="z.B. 800.000"
+                    value={wkvDeckungsbeitrag} onChange={(e) => setWkvDeckungsbeitrag(e.target.value)} />
+                </Field>
               </div>
+
               <Field label="Sortimentsschwerpunkte">
                 <div className="flex flex-wrap gap-2">
                   {["DOB", "HAKA", "KIKO", "Schuhe", "Accessoires", "Wäsche"].map((c) => (
@@ -432,35 +578,41 @@ function UnternehmenPage() {
                 title="GWG-Daten"
                 description="Gesetzliche Pflichtangaben nach dem Geldwäschegesetz (GwG)."
               >
-                {/* Diese Checkbox ist bewusst optional (gesetzliche Frage, nicht Pflichtfeld) */}
-                <label className="flex items-center gap-2 cursor-pointer text-sm text-foreground">
-                  <input type="checkbox" className="h-4 w-4 accent-primary" />
-                  Besteht eine wirtschaftliche Abhängigkeit zu einem einzelnen Lieferanten (mehr als 50% des Gesamtumsatzes)?
-                </label>
+                {/* Wirtschaftliche Abhängigkeit */}
+                <div className="space-y-3">
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      className="mt-0.5 h-4 w-4 accent-primary"
+                      checked={wirtschaftAbhaengig}
+                      onChange={(e) => setWirtschaftAbhaengig(e.target.checked)} 
+                    />
+                    <span className="text-sm text-foreground leading-relaxed">
+                      Besteht eine wirtschaftliche Abhängigkeit zu einem einzelnen Lieferanten (mehr als 50% des Gesamtumsatzes)?
+                    </span>
+                  </label>
+                  {wirtschaftAbhaengig && (
+                    <div className="ml-7 animate-in fade-in slide-in-from-top-2 duration-200">
+                      <Field label="Bitte erläutern Sie die Abhängigkeit">
+                        <textarea
+                          className={[inputClass, "resize-none h-24"].join(" ")}
+                          value={wirtschaftAbhaengigText}
+                          onChange={(e) => setWirtschaftAbhaengigText(e.target.value)}
+                          placeholder="Bitte beschreiben Sie die wirtschaftliche Abhängigkeit…"
+                        />
+                      </Field>
+                    </div>
+                  )}
+                </div>
 
+                {/* Gesellschafter-Bereich */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium text-foreground">Gesellschafter</p>
-                      <div className="relative">
-                        <button type="button"
-                          className="text-muted hover:text-primary transition-colors"
-                          onMouseEnter={() => setPepTooltip(true)}
-                          onMouseLeave={() => setPepTooltip(false)}
-                          onClick={() => setPepTooltip((v) => !v)}
-                          aria-label="PEP erklären"
-                        >
-                          <HelpCircle className="h-4 w-4" />
-                        </button>
-                        {pepTooltip && (
-                          <div className="absolute left-6 top-0 z-30 w-80 rounded-xl border border-border bg-card p-4 text-xs text-secondary shadow-xl leading-relaxed">
-                            <p className="font-semibold text-foreground mb-1">PEP – Politisch exponierte Person *</p>
-                            {PEP_TOOLTIP}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <button type="button" disabled={shareholders.length >= 6}
+                    <p className="text-sm font-medium text-foreground">Gesellschafter</p>
+                    
+                    <button 
+                      type="button" 
+                      disabled={shareholders.length >= 6}
                       onClick={() => setShareholders([...shareholders, { name: "", capital: "", voting: "", pep: false }])}
                       className="inline-flex items-center gap-1 text-xs text-primary hover:underline disabled:opacity-40"
                     >
@@ -472,10 +624,17 @@ function UnternehmenPage() {
                     <table className="w-full text-sm">
                       <thead className="bg-popover text-xs uppercase tracking-wide text-secondary">
                         <tr>
-                          <th className="text-left p-2 font-medium">Name *</th>
-                          <th className="text-left p-2 font-medium w-28">Kapital % *</th>
-                          <th className="text-left p-2 font-medium w-28">Stimmrecht % *</th>
-                          <th className="text-left p-2 font-medium w-16">PEP *</th>
+                          <th className="text-left p-2 font-medium whitespace-nowrap">Name *</th>
+                          <th className="text-left p-2 font-medium w-28 whitespace-nowrap">Kapital % *</th>
+                          <th className="text-left p-2 font-medium w-28 whitespace-nowrap">Stimmrecht % *</th>
+                          
+                          {/* PEP Spaltenkopf mit integriertem Tooltip */}
+                          <th className="text-left p-2 font-medium w-24 whitespace-nowrap">
+                            <div className="flex items-center gap-1.5 normal-case tracking-normal">
+                              <span className="uppercase tracking-wide font-medium">PEP ¹</span>
+                              
+                            </div>
+                          </th>
                           <th className="w-10" />
                         </tr>
                       </thead>
@@ -484,7 +643,8 @@ function UnternehmenPage() {
                           <tr key={i} className="border-t border-border">
                             {(["name", "capital", "voting"] as const).map((k) => (
                               <td key={k} className="p-1.5">
-                                <input value={s[k]}
+                                <input 
+                                  value={s[k]}
                                   onChange={(e) => {
                                     const n = [...shareholders];
                                     n[i] = { ...n[i], [k]: e.target.value };
@@ -496,20 +656,25 @@ function UnternehmenPage() {
                                 />
                               </td>
                             ))}
-                            <td className="p-1.5 text-center">
-                              <input type="checkbox" checked={s.pep}
+                            <td className="p-1.5 pl-4">
+                              <input 
+                                type="checkbox" 
+                                checked={s.pep}
                                 onChange={(e) => {
                                   const n = [...shareholders];
                                   n[i] = { ...n[i], pep: e.target.checked };
                                   setShareholders(n);
                                 }}
                                 className="h-4 w-4 accent-primary"
+                                title="Politisch exponierte Person"
                               />
                             </td>
                             <td className="p-1.5">
-                              <button type="button"
+                              <button 
+                                type="button"
                                 onClick={() => setShareholders(shareholders.filter((_, j) => j !== i))}
-                                className="rounded p-1 text-muted hover:text-destructive" aria-label="Entfernen"
+                                className="rounded p-1 text-muted hover:text-destructive" 
+                                aria-label="Entfernen"
                               >
                                 <Trash2 className="h-4 w-4" />
                               </button>
@@ -519,7 +684,30 @@ function UnternehmenPage() {
                       </tbody>
                     </table>
                   </div>
-                </div>
+                  
+                  <p className="text-[11px] text-muted">
+                    ¹ PEP:&nbsp;
+                    <div className="relative inline-block">
+                      <button
+                        type="button"
+                        className="text-muted hover:text-primary transition-colors flex items-center"
+                        onMouseEnter={() => setPepTooltip(true)}
+                        onMouseLeave={() => setPepTooltip(false)}
+                        onClick={() => setPepTooltip((v) => !v)}
+                        aria-label="PEP erklären"
+                      >
+                        <HelpCircle className="h-3.5 w-3.5" />
+                      </button>
+                      {pepTooltip && (
+                        <div className="absolute left-0 bottom-6 z-30 w-120 rounded-xl border border-border bg-card p-4 text-xs text-secondary shadow-xl leading-relaxed normal-case tracking-normal">
+                          <p className="font-semibold text-foreground mb-1">PEP – Politisch exponierte Person</p>
+                          {PEP_TOOLTIP}
+                        </div>
+                      )}
+                    </div>
+                  </p>
+                </div>                  
+
               </FormSection>
             )}
           </>

@@ -12,6 +12,9 @@ export function TopHeader({ title, subtitle }: { title?: string; subtitle?: stri
 
   const isAdmin = state.role === "admin";
 
+  // "Guten Tag, Vorname Nachname" – show full name
+  const displayTitle = title ?? `Guten Tag, ${state.userName}`;
+
   return (
     <div>
       {/* Admin-Hinweis Banner – immer sichtbar für Admins */}

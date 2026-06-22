@@ -1,17 +1,17 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { Home, Building2, FolderUp, PenLine, MessageCircleQuestion, ShieldCheck, LogOut } from "lucide-react";
+import { Home, Building2, FolderUp, PenLine, MessageCircleQuestion, ShieldCheck, LogOut, UserPlus } from "lucide-react";
 import { UnitexLogo } from "../ui/UnitexLogo";
 import { useOnboarding } from "@/lib/onboarding-state";
 
 const NAV_ITEMS = [
   { to: "/dashboard",     label: "Dashboard",         icon: Home },
-  { to: "/unternehmen",   label: "Unternehmensdaten",   icon: Building2 },
-  { to: "/upload-center", label: "Dokumente",  icon: FolderUp },
+  { to: "/unternehmen",   label: "Unternehmensdaten",  icon: Building2 },
+  { to: "/upload-center", label: "Dokumente",          icon: FolderUp },
   { to: "/signaturen",    label: "Signaturen",         icon: PenLine },
   { to: "/support",       label: "Hilfe & Kontakt",   icon: MessageCircleQuestion },
 ] as const;
 
-export function LeftSidebar() {
+export function LeftSidebar({ onInviteClick }: { onInviteClick?: () => void }) {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const navigate = useNavigate();
   const { state, update } = useOnboarding();
@@ -80,6 +80,18 @@ export function LeftSidebar() {
             <ShieldCheck className="h-5 w-5" strokeWidth={1.75} />
             <span>Kunden-Übersicht</span>
           </Link>
+        )}
+
+        {/* Mitbearbeiter einladen – nur für Kunden sichtbar */}
+        {!isAdmin && onInviteClick && (
+          <button
+            type="button"
+            onClick={onInviteClick}
+            className="relative flex w-full items-center gap-3 rounded-md px-4 py-3 text-sm font-medium transition-colors text-secondary hover:text-card-foreground hover:bg-popover/50"
+          >
+            <UserPlus className="h-5 w-5" strokeWidth={1.75} />
+            <span>Mitbearbeiter einladen</span>
+          </button>
         )}
       </nav>
 

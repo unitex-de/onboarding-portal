@@ -1,5 +1,5 @@
 import { Check } from "lucide-react";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import {
   CHECKLIST_GROUPS,
   getProgressBreakdown,
@@ -10,17 +10,40 @@ import { Button } from "@/components/ui/button";
 
 export function RightChecklist() {
   const { state } = useOnboarding();
+  const navigate = useNavigate();
   const { stammdaten, uploads, signaturen, total } = getProgressBreakdown(state);
   const pdfHref = state.memberType === "lieferant"
     ? "/lieferant-zr-onboarding-checkliste.pdf"
     : "/haendler-zr-onboarding-checkliste.pdf";
 
-  // Color logic matching the main progress bar
-  const barColor = total === 100
-    ? "bg-emerald-500"
-    : total >= 75
-    ? "bg-primary"
-    : "bg-primary";
+  const barColor = total === 100 ? "bg-emerald-500" : "bg-primary";
+
+  /**
+   * Smart navigation: if the link has a hash (e.g. /unternehmen#kontakt),
+   * navigate to the route first, then scroll to the section.
+   */
+  const handleChecklistClick = (href: string) => {
+    const hashIdx = href.indexOf("#");
+    if (hashIdx === -1) {
+      navigate({ to: href as any });
+      return;
+    }
+    const routePath = href.slice(0, hashIdx);
+    const sectionId = href.slice(hashIdx + 1);
+
+    // Navigate, then scroll after paint
+    navigate({ to: routePath as any }).then(() => {
+      setTimeout(() => {
+        const el = document.getElementById(sectionId);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+          // Brief highlight
+          el.classList.add("ring-2", "ring-primary/40");
+          setTimeout(() => el.classList.remove("ring-2", "ring-primary/40"), 1500);
+        }
+      }, 200);
+    });
+  };
 
   return (
     <aside data-tour="right-checklist" className="hidden xl:flex w-[300px] shrink-0 flex-col gap-4 p-6 sticky top-0 h-screen overflow-y-auto">
@@ -39,7 +62,7 @@ export function RightChecklist() {
           </div>
         </div>
 
-        {/* Sub-progress bars — same color family as main bar */}
+        {/* Sub-progress bars */}
         <div className="space-y-2 text-xs text-secondary">
           <SubBar label="01. Unternehmensdaten" pct={stammdaten} colorClass="bg-primary" />
           <SubBar label="02. Dokumente" pct={uploads} colorClass="bg-primary/70" />
@@ -61,37 +84,28 @@ export function RightChecklist() {
               <ul className="space-y-1.5">
                 {visibleItems.map((item) => {
                   const checked = isChecklistItemDone(item, state);
-                  const isHashLink = item.href.includes("#");
-                  const content = (
-                    <>
-                      <span aria-hidden
-                        className={[
-                          "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-all",
-                          checked ? "bg-primary border-primary" : "border-muted/60 bg-transparent",
-                        ].join(" ")}
-                      >
-                        {checked && <Check className="h-3 w-3 text-primary-foreground" strokeWidth={3} />}
-                      </span>
-                      <span className={[
-                        "text-sm group-hover:text-card-foreground transition-colors",
-                        checked ? "text-card-foreground" : "text-secondary",
-                      ].join(" ")}>
-                        {item.label}
-                      </span>
-                    </>
-                  );
-
                   return (
                     <li key={item.id}>
-                      {isHashLink ? (
-                        <a href={item.href} className="flex items-center gap-3 group">
-                          {content}
-                        </a>
-                      ) : (
-                        <Link to={item.href as any} className="flex items-center gap-3 group">
-                          {content}
-                        </Link>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleChecklistClick(item.href)}
+                        className="flex items-center gap-3 group w-full text-left"
+                      >
+                        <span aria-hidden
+                          className={[
+                            "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-all",
+                            checked ? "bg-primary border-primary" : "border-muted/60 bg-transparent",
+                          ].join(" ")}
+                        >
+                          {checked && <Check className="h-3 w-3 text-primary-foreground" strokeWidth={3} />}
+                        </span>
+                        <span className={[
+                          "text-sm group-hover:text-card-foreground transition-colors",
+                          checked ? "text-card-foreground" : "text-secondary",
+                        ].join(" ")}>
+                          {item.label}
+                        </span>
+                      </button>
                     </li>
                   );
                 })}

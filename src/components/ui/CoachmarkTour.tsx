@@ -67,8 +67,8 @@ const TourContext = createContext<TourCtx>({ start: () => {}, isRunning: false }
 export function useTour() { return useContext(TourContext); }
 
 // ─── Main component ────────────────────────────────────────────────────────────
-export function CoachmarkTour({ steps, children, autoStart = false }: { steps: TourStep[]; children?: ReactNode; autoStart?: boolean }) {
-  const { state, update } = useOnboarding();
+export function CoachmarkTour({ steps, children }: { steps: TourStep[]; children?: ReactNode }) {
+  const { update } = useOnboarding();
   const [active, setActive] = useState(false);
   const [stepIdx, setStepIdx] = useState(0);
   const [rect, setRect] = useState<Rect | null>(null);
@@ -77,14 +77,6 @@ export function CoachmarkTour({ steps, children, autoStart = false }: { steps: T
   const transRef = useRef(false);
 
   const currentStep = steps[stepIdx];
-
-  // Auto-start on first visit (800ms delay so DOM is painted)
-  useEffect(() => {
-    if (autoStart && !state.tourSeen && state.role !== "admin") {
-      const t = setTimeout(() => { setStepIdx(0); setActive(true); setVisible(false); }, 800);
-      return () => clearTimeout(t);
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const measure = useCallback(() => {
     if (!currentStep?.target) { setRect(null); return; }
