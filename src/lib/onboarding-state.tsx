@@ -12,6 +12,41 @@ export interface UploadedDoc {
   uploadedAt: string;
 }
 
+export interface SavedFormData {
+  strasse?: string;
+  plz?: string;
+  ort?: string;
+  land?: string;
+  bankname?: string;
+  bic?: string;
+  iban?: string;
+  steuernummer?: string;
+  ustId?: string;
+  contacts?: Array<{
+    kind: "gf" | "buchhaltung" | "extra";
+    vorname: string;
+    nachname: string;
+    handy: string;
+    telefon: string;
+    email: string;
+  }>;
+  branches?: Array<{
+    name: string;
+    street: string;
+    zip: string;
+    city: string;
+    gln: string;
+  }>;
+  hasGln?: boolean;
+  sortiment?: string[];
+  separateAbrechnung?: boolean | null;
+  postadressen?: boolean | null;
+  postadrResult?: { name: string; street: string; zip: string; city: string; gln: string };
+  einzugseinzel?: boolean | null;
+  liefSortiment?: string;
+  liefMarken?: string;
+}
+
 export interface CustomerAccount {
   id: string;
   firstName: string;
@@ -29,6 +64,8 @@ export interface CustomerAccount {
   postalCode?: string;
   /** Land des Kunden (z.B. "AT", "CH", "DE") */
   country?: string;
+  /** ZR-Startdatum, manuell vom Admin eingetragen */
+  zrStartDate?: string;
   uploadedDocs: Record<string, UploadedDoc>;
   completedSections: Record<string, boolean>;
 }
@@ -56,12 +93,20 @@ export interface OnboardingState {
   activeCustomerId: string | null;
   /** Has the user seen the onboarding tour? */
   tourSeen: boolean;
+  /** Has the user dismissed the welcome entrance (dashboard seen)? */
+  dashboardSeen: boolean;
+  /** Pending tour start requested from sidebar navigation */
+  pendingTourStart: boolean;
   /** Accountant is different from Geschäftsführer */
   buchungIdentischGF: boolean;
   /** PLZ des Kunden */
   postalCode?: string;
   /** Land des Kunden */
   country?: string;
+  /** ZR-Startdatum, gesetzt vom Admin */
+  zrStartDate?: string;
+  /** Gespeicherte Formulardaten für PDF-Generierung */
+  savedFormData: SavedFormData;
 }
 
 const STORAGE_KEY = "unitex_onboarding_state_v4";
@@ -83,9 +128,13 @@ const DEFAULT_STATE: OnboardingState = {
   customerAccounts: [],
   activeCustomerId: null,
   tourSeen: false,
+  dashboardSeen: false,
+  pendingTourStart: false,
   buchungIdentischGF: true,
   postalCode: "",
   country: "DE",
+  zrStartDate: undefined,
+  savedFormData: {},
 };
 
 /** Generates a secure random magic token */
@@ -107,6 +156,7 @@ interface Ctx {
   uploadDoc: (id: string, file: { name: string; size: number }) => void;
   removeDoc: (id: string) => void;
   completeSection: (id: string) => void;
+  updateFormData: (d: Partial<SavedFormData>) => void;
   addCustomerAccount: (acc: Omit<CustomerAccount, "id" | "createdAt" | "magicLinkSent" | "magicToken" | "status" | "linkSentAt" | "uploadedDocs" | "completedSections">) => CustomerAccount;
   updateCustomerAccount: (id: string, patch: Partial<CustomerAccount>) => void;
   sendMagicLink: (id: string) => void;
@@ -153,6 +203,11 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         setState((s) => ({
           ...s,
           completedSections: { ...s.completedSections, [id]: true },
+        })),
+      updateFormData: (d) =>
+        setState((s) => ({
+          ...s,
+          savedFormData: { ...s.savedFormData, ...d },
         })),
       addCustomerAccount: (acc) => {
         const token = generateMagicToken();
@@ -249,13 +304,13 @@ export function getProgressBreakdown(state: OnboardingState): {
   const uploadsDone = requiredDocs.filter((id) => state.uploadedDocs[id]).length;
   const uploads = requiredDocs.length > 0 ? Math.round((uploadsDone / requiredDocs.length) * 100) : 0;
 
-  const sigRequired = getRequiredSignatures(state);
-  const sigDone = sigRequired.filter((id) => state.completedSections[`signed_${id}`]).length;
-  const signaturen = Math.round((sigDone / sigRequired.length) * 100);
+  // Schritt 3 "Onboarding abschließen" – 100% wenn abschluss-Sektion gesetzt
+  const abschluss = state.completedSections["abschluss"] ? 100 : 0;
 
-  const total = Math.round(stammdaten * 0.5 + uploads * 0.25 + signaturen * 0.25);
+  // Neue Gewichtung: 50% Stammdaten, 40% Uploads, 10% Abschluss
+  const total = Math.round(stammdaten * 0.5 + uploads * 0.4 + abschluss * 0.1);
 
-  return { stammdaten, uploads, signaturen, total };
+  return { stammdaten, uploads, signaturen: abschluss, total };
 }
 
 export function getRequiredSignatures(state: OnboardingState): string[] {
@@ -441,34 +496,23 @@ export const CHECKLIST_GROUPS: ChecklistGroup[] = [
       { id: "bankdaten",                 label: "Ihre Bank- & Steuerdaten",                 href: "/unternehmen#bankdaten",  source: { kind: "section", sectionId: "bankdaten" } },
       { id: "gln_filialen",              label: "GLN & Filialen",            href: "/unternehmen#gln_filialen", source: { kind: "section", sectionId: "gln_filialen" }, memberTypes: ["händler"] },
       { id: "geschaeftsdaten",           label: "Geschäftszahlen",            href: "/unternehmen#geschaeftsdaten", source: { kind: "section", sectionId: "geschaeftsdaten" }, memberTypes: ["händler"] },
-      { id: "gwg_daten",                 label: "Wirtschaftlich Berechtigte",                 href: "/unternehmen#gwg_daten",  source: { kind: "section", sectionId: "gwg_daten" }, memberTypes: ["händler"] },
+      { id: "gwg_daten",                 label: "GWG Daten",                 href: "/unternehmen#gwg_daten",  source: { kind: "section", sectionId: "gwg_daten" }, memberTypes: ["händler"] },
       { id: "lieferant_stamm",           label: "Ihre Unternehmensdaten",    href: "/unternehmen#lieferant_stamm", source: { kind: "section", sectionId: "lieferant_stamm" }, memberTypes: ["lieferant"] },
     ],
   },
   {
     title: "Dokumente",
     items: [
-      { id: "cl_ausweiskopie",       label: "Ausweiskopie",                             href: "/upload-center", source: { kind: "upload", docId: "ausweiskopie_gf" }, memberTypes: ["händler"] },
-      { id: "cl_ausw_kommanditisten",label: "Ausweiskopie aller Kommanditisten",        href: "/upload-center", source: { kind: "upload", docId: "ausweiskopie_kommanditisten" }, legalForms: ["GmbHCoKG", "KG", "OHG"], memberTypes: ["händler"] },
-      { id: "cl_gewerbeanmeldung",   label: "Gewerbe-Anmeldung",                        href: "/upload-center", source: { kind: "upload", docId: "gewerbeanmeldung" }, legalForms: ["eK", "GbR"], memberTypes: ["händler"] },
-      { id: "cl_hr_auszug",          label: "Auszug Handels-Register",                  href: "/upload-center", source: { kind: "upload", docId: "hr_auszug" }, memberTypes: ["händler"] },
-      { id: "cl_gesellschaft",       label: "Gesellschafterliste & Gesellschaftsvertrag", href: "/upload-center", source: { kind: "upload", docId: "gesellschafterliste" }, legalForms: ["GmbH", "GmbHCoKG", "KG", "OHG"], memberTypes: ["händler"] },
-      { id: "cl_hr_lieferant",       label: "Handelsregister-Auszug",                   href: "/upload-center", source: { kind: "upload", docId: "hr_auszug_lieferant" }, memberTypes: ["lieferant"] },
+      { id: "cl_ausweiskopie",        label: "Ausweiskopie",                              href: "/upload-center", source: { kind: "upload", docId: "ausweiskopie_gf" }, memberTypes: ["händler"] },
+      { id: "cl_ausw_kommanditisten", label: "Ausweiskopie aller Kommanditisten",         href: "/upload-center", source: { kind: "upload", docId: "ausweiskopie_kommanditisten" }, legalForms: ["GmbHCoKG", "KG", "OHG"], memberTypes: ["händler"] },
+      { id: "cl_gewerbeanmeldung",    label: "Gewerbe-Anmeldung",                         href: "/upload-center", source: { kind: "upload", docId: "gewerbeanmeldung" }, legalForms: ["eK", "GbR"], memberTypes: ["händler"] },
+      { id: "cl_hr_auszug",           label: "Auszug Handels-Register",                   href: "/upload-center", source: { kind: "upload", docId: "hr_auszug" }, legalForms: ["GmbH", "GmbHCoKG", "KG", "OHG"], memberTypes: ["händler"] },
+      { id: "cl_gesellschaft",        label: "Gesellschafterliste",                        href: "/upload-center", source: { kind: "upload", docId: "gesellschafterliste" }, legalForms: ["GmbH", "GmbHCoKG", "KG", "OHG"], memberTypes: ["händler"] },
+      { id: "cl_gesellschaftsvertrag",label: "Gesellschaftsvertrag",                       href: "/upload-center", source: { kind: "upload", docId: "gesellschaftsvertrag" }, legalForms: ["GmbH", "GmbHCoKG", "KG", "OHG"], memberTypes: ["händler"] },
+      { id: "cl_hr_lieferant",        label: "Handelsregister-Auszug",                    href: "/upload-center", source: { kind: "upload", docId: "hr_auszug_lieferant" }, memberTypes: ["lieferant"] },
     ],
   },
-  {
-    title: "Signaturen",
-    items: [
-      // Händler
-      { id: "cl_sepa",       label: "SEPA-Lastschriftmandat",          href: "/signaturen", source: { kind: "signature", sigId: "sepa" }, memberTypes: ["händler"] },
-      { id: "cl_vertrag",    label: "Mitgliedsvertrag unitex",         href: "/signaturen", source: { kind: "signature", sigId: "anschluss" }, memberTypes: ["händler"] },
-      { id: "cl_sonder",     label: "Schreiben Sonderkonditionen",     href: "/signaturen", source: { kind: "signature", sigId: "sonder" }, onlySoliver: true, memberTypes: ["händler"] },
-      // Lieferant
-      { id: "cl_zr_vertrag",    label: "ZR-Vertrag",                   href: "/signaturen", source: { kind: "signature", sigId: "zr_vertrag" }, memberTypes: ["lieferant"] },
-      { id: "cl_gruen_vertrag", label: "Vertrag GRÜN raw",             href: "/signaturen", source: { kind: "signature", sigId: "gruen_vertrag" }, memberTypes: ["lieferant"] },
-      { id: "cl_sepa_gruen",    label: "SEPA-Mandat GRÜN raw",         href: "/signaturen", source: { kind: "signature", sigId: "sepa_gruen" }, memberTypes: ["lieferant"] },
-    ],
-  },
+  
 ];
 
 export function isChecklistItemDone(item: ChecklistItem, state: OnboardingState): boolean {

@@ -40,7 +40,7 @@ function useTypewriter(text: string, speed = 40, startDelay = 0) {
 
 // ── Welcome screen after verification ─────────────────────────────────────────
 function WelcomeScreen({ onContinue }: { onContinue: () => void }) {
-  const WELCOME_TEXT = "Willkommen im Onboarding von unitex ZR! Wir begleiten Sie durch den Prozess Mitglied unserer FashionCommunity zu werden!";
+  const WELCOME_TEXT = "Willkommen im Onboarding-Portal der unitex GmbH!";
   const { displayed, done } = useTypewriter(WELCOME_TEXT, 30, 300);
 
   return (

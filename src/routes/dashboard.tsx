@@ -1,8 +1,8 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { AppShell } from "@/components/layout/AppShell";
-import { useOnboarding, calcZrStartDate, getProgressBreakdown } from "@/lib/onboarding-state";
-import { CoachmarkTour, TourStartButton, useTour, type TourStep } from "@/components/ui/CoachmarkTour";
+import { useOnboarding, getProgressBreakdown } from "@/lib/onboarding-state";
+import { CoachmarkTour, useTour, type TourStep } from "@/components/ui/CoachmarkTour";
 import { ArrowRight, FileText, FolderUp, PenLine, SendHorizonal, Lock, Shield, Info, Check, X, Sparkles } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard")({
@@ -10,10 +10,9 @@ export const Route = createFileRoute("/dashboard")({
   component: DashboardPage,
 });
 
-// ── Tour Steps (Schritt 0 + 6 weitere) ───────────────────────────────────────
+// ── Tour Steps ────────────────────────────────────────────────────────────────
 const TOUR_STEPS: TourStep[] = [
   {
-    // Schritt 0 – reines Willkommens-Modal
     target: null,
     title: "Herzlich Willkommen!",
     body: "Schön, dass Sie dabei sind! Diese kurze Tour zeigt Ihnen in wenigen Schritten, wie das Onboarding-Portal funktioniert – damit Sie schnell und unkompliziert Mitglied werden können.",
@@ -39,8 +38,8 @@ const TOUR_STEPS: TourStep[] = [
   },
   {
     target: "step-signaturen",
-    title: "Schritt 3 · Signaturen",
-    body: "Erst wenn Schritt 1 & 2 erledigt sind können Sie Ihre Verträge signieren und den Onboarding-Prozess abschließen!",
+    title: "Schritt 3 · Onboarding abschließen",
+    body: "Erst wenn Schritt 1 & 2 erledigt sind können Sie Ihr Neukundenformular herunterladen, unterschreiben und einreichen!",
     placement: "top",
   },
   {
@@ -56,10 +55,9 @@ const TOUR_STEPS: TourStep[] = [
     placement: "left",
   },
   {
-    // Finales Modal – kein Spotlight
     target: null,
     title: "Nun sind Sie dran!",
-    body: "Wenn Sie die Tour neu starten wollen, klicken Sie unten links auf den Tour-Button.",
+    body: "Wenn Sie die Tour neu starten wollen, klicken Sie links in der Navigation auf 'Tour starten'.",
     placement: "center",
   },
 ];
@@ -108,20 +106,6 @@ function ProgressRing({ pct }: { pct: number }) {
   );
 }
 
-function MiniBar({ label, pct, colorClass = "bg-primary" }: { label: string; pct: number; colorClass?: string }) {
-  return (
-    <div className="space-y-1">
-      <div className="flex justify-between text-xs">
-        <span className="text-secondary">{label}</span>
-        <span className="text-card-foreground font-medium">{pct}%</span>
-      </div>
-      <div className="h-1.5 rounded-full bg-popover overflow-hidden">
-        <div className={`h-full ${colorClass} transition-all duration-500`} style={{ width: `${pct}%` }} />
-      </div>
-    </div>
-  );
-}
-
 // ── Animated dashboard entrance ───────────────────────────────────────────────
 function DashboardEntrance({ name, onDone }: { name: string; onDone: () => void }) {
   const { displayed, done } = useTypewriter(`Guten Tag, ${name}!`, 60, 300);
@@ -159,10 +143,21 @@ function DashboardEntrance({ name, onDone }: { name: string; onDone: () => void 
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
-// Split into outer + inner so DashboardContent can call useTour() from context.
 function DashboardPage() {
+  const navigate = useNavigate();
+
+  // BUG 6: navigate to /unternehmen#grunddaten after tour completion
+  const handleTourComplete = useCallback(() => {
+    navigate({ to: "/unternehmen" }).then(() => {
+      setTimeout(() => {
+        const el = document.getElementById("grunddaten");
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 250);
+    });
+  }, [navigate]);
+
   return (
-    <CoachmarkTour steps={TOUR_STEPS}>
+    <CoachmarkTour steps={TOUR_STEPS} onComplete={handleTourComplete}>
       <DashboardContent />
     </CoachmarkTour>
   );
@@ -172,9 +167,14 @@ function DashboardContent() {
   const { start: startTour } = useTour();
   const { state, update } = useOnboarding();
   const { stammdaten, uploads, signaturen, total } = getProgressBreakdown(state);
-  const zr = calcZrStartDate();
 
-  const signaturesUnlocked = total >= 75;
+  // DESIGN 5: use manually set zrStartDate
+  const zrDisplay = state.zrStartDate
+    ? new Date(state.zrStartDate).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })
+    : "Wird festgelegt";
+
+  // DESIGN 4: step 3 unlocked and highlighted at ≥90%
+  const signaturesUnlocked = total >= 90;
   const canSubmit = total >= 100;
   const isLieferant = state.memberType === "lieferant";
   const isAdmin = state.role === "admin";
@@ -183,7 +183,7 @@ function DashboardContent() {
   const [showEntrance, setShowEntrance] = useState(false);
   const entranceShownRef = useRef(false);
   useEffect(() => {
-    if (!entranceShownRef.current && !state.tourSeen && !isAdmin) {
+    if (!entranceShownRef.current && !state.dashboardSeen && !isAdmin) {
       const key = `unitex_entrance_${state.email}`;
       if (!sessionStorage.getItem(key)) {
         entranceShownRef.current = true;
@@ -193,16 +193,23 @@ function DashboardContent() {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Hint toast: shown only after entrance is dismissed ─────────────────────
-  const [showHint, setShowHint] = useState(false);
-
   const handleEntranceDone = useCallback(() => {
     setShowEntrance(false);
+    // DESIGN 2: mark dashboard as seen so sidebar "Tour starten" becomes visible
+    update({ dashboardSeen: true });
     startTour();
-    const hide = setTimeout(() => setShowHint(false), 8000);
-    setShowHint(true);
-    return () => clearTimeout(hide);
-  }, [startTour]);
+  }, [startTour, update]);
+
+  // ── pendingTourStart from sidebar ──────────────────────────────────────────
+  useEffect(() => {
+    if (state.pendingTourStart) {
+      update({ pendingTourStart: false });
+      startTour();
+    }
+  }, [state.pendingTourStart, startTour, update]);
+
+  // ── Hint toast ─────────────────────────────────────────────────────────────
+  const [showHint, setShowHint] = useState(false);
 
   // ── Submission success modal ────────────────────────────────────────────────
   const [showSubmitSuccess, setShowSubmitSuccess] = useState(false);
@@ -224,9 +231,6 @@ function DashboardContent() {
           title={`Guten Tag, ${state.userName}`}
           subtitle={`${state.companyName} · ${isLieferant ? "Lieferanten" : "Händler"}-Onboarding`}
         >
-          {/* Tour trigger */}
-          <TourStartButton />
-
           {/* Hint toast – temporär unten links */}
           {showHint && !isAdmin && (
             <div className="fixed bottom-20 left-6 z-50 max-w-xs rounded-xl border border-border bg-card shadow-xl p-4 flex items-start gap-3 animate-in slide-in-from-bottom-4 fade-in duration-300">
@@ -256,32 +260,35 @@ function DashboardContent() {
                     <p className="text-xs uppercase tracking-wide text-secondary">Gesamtfortschritt</p>
                     <h3 className="mt-1 font-display text-2xl font-semibold">{total}% abgeschlossen</h3>
                     <p className="mt-1 text-sm text-secondary">
-                      {total < 75
-                        ? "Unternehmensdaten und Dokumente vervollständigen, um Signaturen freizuschalten."
+                      {total < 90
+                        ? "Unternehmensdaten und Dokumente vervollständigen, um Schritt 3 freizuschalten."
                         : total < 100
-                        ? "Fast geschafft! Verträge jetzt unterschreiben."
+                        ? "Fast geschafft! Bitte laden Sie Ihr unterschriebenes Formular hoch."
                         : "Alles vollständig – bereit zur Einreichung."}
                     </p>
                   </div>
+                  {/* DESIGN 1: sub-bars with updated labels */}
                   <div className="space-y-2">
                     <MiniBar label="01. Unternehmensdaten" pct={stammdaten} colorClass="bg-primary" />
                     <MiniBar label="02. Dokumente" pct={uploads} colorClass="bg-primary/70" />
-                    <MiniBar label="03. Signaturen" pct={signaturen} colorClass="bg-primary/40" />
+                    <MiniBar label="03. Onboarding abschließen" pct={signaturen} colorClass="bg-primary/40" />
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* ZR-Start + Submit */}
+            {/* DESIGN 5: ZR-Start from admin-set date */}
             <div className="rounded-2xl border border-border bg-card p-8 flex flex-col justify-between">
               <div>
-                <p className="text-xs uppercase tracking-wide text-secondary">Voraussichtlicher ZR-Start</p>
+                <p className="text-xs uppercase tracking-wide text-secondary">ZR-Startdatum</p>
                 <p className="mt-3 font-display text-3xl font-bold text-primary">
-                  01.{String(zr.getMonth() + 1).padStart(2, "0")}.{zr.getFullYear()}
+                  {zrDisplay}
                 </p>
-                <p className="mt-2 text-sm text-secondary">Ab dem 1. des Folgemonats nach vollständiger Einreichung</p>
+                {!state.zrStartDate && (
+                  <p className="text-xs text-muted mt-1">Wird vom Admin festgelegt</p>
+                )}
               </div>
-              {state.submittedAt ? (
+              {(state.completedSections["abschluss"] || state.submittedAt) ? (
                 <div className="mt-4 rounded-lg bg-primary/10 border border-primary/30 px-4 py-3 text-sm text-primary font-medium flex items-center gap-2">
                   <Shield className="h-4 w-4 shrink-0" />
                   Zur Prüfung eingereicht
@@ -330,18 +337,25 @@ function DashboardContent() {
               </div>
             </Link>
 
-            {/* Step 3: Signaturen */}
+            {/* DESIGN 4: Step 3 with animated border at ≥90% */}
             {signaturesUnlocked ? (
               <Link to="/signaturen" data-tour="step-signaturen"
-                className="group rounded-2xl border border-border bg-card p-6 hover:border-primary/60 transition-colors">
+                className={[
+                  "group rounded-2xl border bg-card p-6 hover:border-primary/60 transition-colors",
+                  total >= 90 && signaturen < 100
+                    ? "border-primary/60 shadow-[0_0_0_2px_hsl(var(--primary)/0.15)] animate-[pulse-border_2s_ease-in-out_infinite]"
+                    : "border-border",
+                ].join(" ")}>
                 <PenLine className="h-5 w-5 text-primary" />
-                <h4 className="mt-3 font-display text-base font-semibold">03. Signaturen</h4>
-                <p className="mt-1 text-sm text-secondary">Verträge digital unterzeichnen</p>
+                <h4 className="mt-3 font-display text-base font-semibold">03. Onboarding abschließen</h4>
+                <p className="mt-1 text-sm text-secondary">
+                  {isLieferant ? "Zusatzblatt unterschreiben & einreichen" : "Neukundenformular unterschreiben & einreichen"}
+                </p>
                 <div className="mt-4 h-1 rounded-full bg-popover overflow-hidden">
                   <div className="h-full bg-primary/40 transition-all duration-500" style={{ width: `${signaturen}%` }} />
                 </div>
                 <div className="mt-1 flex justify-between text-xs text-secondary">
-                  <span>{signaturen}% signiert</span>
+                  <span>{signaturen}% abgeschlossen</span>
                   <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
                 </div>
               </Link>
@@ -352,9 +366,9 @@ function DashboardContent() {
                   <Lock className="h-4 w-4 text-muted" />
                   <PenLine className="h-4 w-4 text-muted" />
                 </div>
-                <h4 className="mt-3 font-display text-base font-semibold text-secondary">03. Signaturen</h4>
-                <p className="mt-1 text-sm text-muted">Erst ab 75% Gesamtfortschritt verfügbar</p>
-                <p className="mt-3 text-xs text-muted">Aktuell: {total}% – noch {75 - total}% fehlend</p>
+                <h4 className="mt-3 font-display text-base font-semibold text-secondary">03. Onboarding abschließen</h4>
+                <p className="mt-1 text-sm text-muted">Erst ab 90% Gesamtfortschritt verfügbar</p>
+                <p className="mt-3 text-xs text-muted">Aktuell: {total}% – noch {90 - total}% fehlend</p>
               </div>
             )}
           </div>
@@ -385,5 +399,19 @@ function DashboardContent() {
           )}
         </AppShell>
     </>
+  );
+}
+
+function MiniBar({ label, pct, colorClass = "bg-primary" }: { label: string; pct: number; colorClass?: string }) {
+  return (
+    <div className="space-y-1">
+      <div className="flex justify-between text-xs">
+        <span className="text-secondary">{label}</span>
+        <span className="text-card-foreground font-medium">{pct}%</span>
+      </div>
+      <div className="h-1.5 rounded-full bg-popover overflow-hidden">
+        <div className={`h-full ${colorClass} transition-all duration-500`} style={{ width: `${pct}%` }} />
+      </div>
+    </div>
   );
 }

@@ -53,6 +53,7 @@ function AdminPage() {
   const [legalForm, setLegalForm] = useState<LegalForm>("GmbH");
   const [postalCode, setPostalCode] = useState("");
   const [country, setCountry] = useState("DE");
+  const [zrStartDate, setZrStartDate] = useState("");
 
   // Filtered accounts
   const filtered = useMemo(() => {
@@ -80,12 +81,13 @@ function AdminPage() {
     if (!firstName || !lastName || !email || !companyName) return;
     const acc = addCustomerAccount({
       firstName, lastName, email, companyName, memberType, legalForm,
-      postalCode, country,
+      postalCode, country, zrStartDate,
     });
     setShowCreate(false);
     // Reset form
     setFirstName(""); setLastName(""); setEmail(""); setCompanyName("");
     setMemberType("händler"); setLegalForm("GmbH"); setPostalCode(""); setCountry("DE");
+    setZrStartDate("");
     // Navigate into that customer's view
     update({
       email: acc.email,
@@ -102,6 +104,8 @@ function AdminPage() {
       submittedAt: null,
       postalCode: acc.postalCode,
       country: acc.country,
+      zrStartDate: acc.zrStartDate,
+      savedFormData: {},
     });
     navigate({ to: "/dashboard" });
   };
@@ -121,6 +125,7 @@ function AdminPage() {
       completedSections: acc.completedSections,
       postalCode: acc.postalCode,
       country: acc.country,
+      zrStartDate: acc.zrStartDate,
     });
     navigate({ to: "/dashboard" });
   };
@@ -393,6 +398,17 @@ function AdminPage() {
                   ))}
                 </select>
                 <p className="text-[11px] text-muted">Nach Anlage nicht mehr änderbar.</p>
+              </div>
+
+              {/* ZR-Startdatum */}
+              <div className="space-y-1">
+                <label className="text-xs text-secondary uppercase tracking-wide">ZR-Startdatum *</label>
+                <input
+                  type="date"
+                  className="w-full rounded-md border border-border bg-popover px-3 py-2 text-sm focus:border-primary focus:outline-none"
+                  value={zrStartDate}
+                  onChange={(e) => setZrStartDate(e.target.value)}
+                />
               </div>
 
               {/* Info: Admin kann nicht signieren */}

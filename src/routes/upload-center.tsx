@@ -2,8 +2,9 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useRef, useState, useEffect } from "react";
 import { CloudUpload, FileCheck2, FileText, MoreVertical, Trash2, RefreshCcw, Download, Shield } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
-import { useOnboarding, type LegalForm, getProgressBreakdown } from "@/lib/onboarding-state";
+import { useOnboarding, type LegalForm } from "@/lib/onboarding-state";
 import { REQUIRED_DOCS, REQUIRED_DOCS_LIEFERANT, formatBytes } from "@/lib/required-docs";
+import { ConfettiPopup } from "@/components/ui/ConfettiPopup";
 
 const LEGAL_FORMS: { value: LegalForm; label: string }[] = [
   { value: "eK", label: "e.K." },
@@ -24,24 +25,29 @@ function UploadCenterPage() {
   const { state, update, uploadDoc, removeDoc } = useOnboarding();
   const legalForm: LegalForm = state.legalForm ?? "GmbH";
   const isLieferant = state.memberType === "lieferant";
+  const isAdmin = state.role === "admin";
   const docs = isLieferant ? REQUIRED_DOCS_LIEFERANT : REQUIRED_DOCS[legalForm];
 
-  // Auto-navigate to signaturen when uploads hit 100% (and stammdaten also done)
-  const { uploads, stammdaten } = getProgressBreakdown(state);
-  const prevUploads = useRef(uploads);
+  const requiredDocs = docs.filter((d) => d.required);
+  const allRequiredDone = requiredDocs.every((d) => state.uploadedDocs[d.id]);
+  const completed = docs.filter((d) => state.uploadedDocs[d.id]).length;
+
+  const [showConfetti, setShowConfetti] = useState(false);
+  const prevAllDone = useRef(allRequiredDone);
+
   useEffect(() => {
-    if (prevUploads.current < 100 && uploads === 100 && stammdaten >= 100) {
-      setTimeout(() => navigate({ to: "/signaturen" }), 800);
+    // BUG 7: no confetti for admins
+    if (!prevAllDone.current && allRequiredDone && !isAdmin) {
+      setShowConfetti(true);
     }
-    prevUploads.current = uploads;
-  }, [uploads, stammdaten]);
+    prevAllDone.current = allRequiredDone;
+  }, [allRequiredDone, isAdmin]);
 
   // First pending doc becomes the active drop target.
   const firstPending = useMemo(() => docs.find((d) => !state.uploadedDocs[d.id])?.id, [docs, state.uploadedDocs]);
   const [activeId, setActiveId] = useState<string | null>(firstPending ?? null);
   const effectiveActive = activeId && docs.some((d) => d.id === activeId) ? activeId : firstPending ?? null;
 
-  const completed = docs.filter((d) => state.uploadedDocs[d.id]).length;
   const isLieferantView = isLieferant;
 
   return (
@@ -49,6 +55,18 @@ function UploadCenterPage() {
       title="Dokumenten-Upload"
       subtitle={`${state.companyName} · ${isLieferantView ? "Pflichtdokument für Lieferanten" : "Pflichtdokumente für Ihren ZR-Beitritt"}`}
     >
+      {showConfetti && (
+        <ConfettiPopup
+          title="Zweite Etappe geschafft!"
+          message="Alle Pflichtdokumente wurden erfolgreich hochgeladen. Jetzt geht es zum letzten Schritt."
+          buttonLabel="Zum Onboarding-Abschluss"
+          onClose={() => {
+            setShowConfetti(false);
+            navigate({ to: "/signaturen" });
+          }}
+        />
+      )}
+
       {/* DSGVO Hinweis */}
       <div className="mb-6 rounded-xl border border-border bg-card p-4 flex items-start gap-3">
         <Shield className="h-5 w-5 text-primary mt-0.5 shrink-0" />
@@ -108,6 +126,7 @@ function UploadCenterPage() {
                 isActive={isActive && !uploaded}
                 onSelect={() => setActiveId(doc.id)}
                 onRemove={() => removeDoc(doc.id)}
+                onFileNow={(f) => uploadDoc(doc.id, f)}
               />
               {isActive && !uploaded && (
                 <UploadDropZone onFile={(f) => uploadDoc(doc.id, f)} />
@@ -129,6 +148,7 @@ function DocumentRow({
   isActive,
   onSelect,
   onRemove,
+  onFileNow,
 }: {
   docId: string;
   label: string;
@@ -138,8 +158,10 @@ function DocumentRow({
   isActive: boolean;
   onSelect: () => void;
   onRemove: () => void;
+  onFileNow?: (file: { name: string; size: number }) => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const quickInputRef = useRef<HTMLInputElement>(null);
 
   return (
     <div
@@ -152,7 +174,7 @@ function DocumentRow({
         isActive
           ? "border-upload bg-upload-active"
           : uploaded
-          ? "border-border bg-card hover:border-success/50"
+          ? "border-success/50 bg-card"
           : "border-border bg-card hover:border-primary/40",
       ].join(" ")}
     >
@@ -171,19 +193,21 @@ function DocumentRow({
 
       <div className="flex-1 min-w-0">
         <p className="font-medium text-foreground truncate">{label}</p>
-        <p className="text-xs text-secondary truncate">
-          {uploaded ? (
-            <>
-              <span className="text-foreground/80">{uploaded.fileName}</span>
-              <span className="mx-1.5">·</span>
-              {formatBytes(uploaded.size)}
-            </>
-          ) : isActive ? (
-            "Aktuell · jetzt hochladen"
-          ) : (
-            <>Noch nicht hochgeladen{!required && " · optional"}</>
-          )}
-        </p>
+        {hint && !uploaded && (
+          <p className="text-xs text-secondary mt-0.5 leading-relaxed line-clamp-2">{hint}</p>
+        )}
+        {uploaded && (
+          <p className="text-xs text-secondary truncate">
+            <span className="text-foreground/80">{uploaded.fileName}</span>
+            <span className="mx-1.5">·</span>
+            {formatBytes(uploaded.size)}
+          </p>
+        )}
+        {!uploaded && !hint && (
+          <p className="text-xs text-secondary truncate">
+            {isActive ? "Aktuell · jetzt hochladen" : <>Noch nicht hochgeladen{!required && " · optional"}</>}
+          </p>
+        )}
       </div>
 
       <div className="flex items-center gap-3 shrink-0">
@@ -197,7 +221,7 @@ function DocumentRow({
           </span>
         ) : (
           <span className="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-secondary">
-            Ausstehend
+            {required ? "Ausstehend" : "Optional"}
           </span>
         )}
 
@@ -229,12 +253,29 @@ function DocumentRow({
                   <MenuItem icon={Trash2} label="Löschen" destructive onClick={() => { onRemove(); setMenuOpen(false); }} />
                 </>
               ) : (
-                <MenuItem icon={CloudUpload} label="Jetzt hochladen" onClick={() => { onSelect(); setMenuOpen(false); }} />
+                <MenuItem icon={CloudUpload} label="Jetzt hochladen" onClick={() => { onSelect(); setMenuOpen(false); quickInputRef.current?.click(); }} />
               )}
             </div>
           )}
         </div>
       </div>
+      <input
+        ref={quickInputRef}
+        type="file"
+        accept=".pdf,.jpg,.jpeg,.png"
+        className="hidden"
+        onClick={(e) => e.stopPropagation()}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          if (file.size > 10 * 1024 * 1024) {
+            alert("Die Datei überschreitet die maximale Größe von 10 MB.");
+            return;
+          }
+          onFileNow?.({ name: file.name, size: file.size });
+          e.target.value = "";
+        }}
+      />
       <span className="sr-only">{docId}</span>
     </div>
   );

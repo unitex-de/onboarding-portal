@@ -3,7 +3,8 @@ import { useState, useEffect } from "react";
 import { Check, Info, Lock, Plus, Trash2, HelpCircle } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { FormSection, Field, AutoSaveInput, MaskedInput, inputClass } from "@/components/forms/FormSection";
-import { useOnboarding, type LegalForm, getProgressBreakdown, calcZrStartDate, formatDateDe } from "@/lib/onboarding-state";
+import { useOnboarding, type LegalForm, getSectionIds } from "@/lib/onboarding-state";
+import { ConfettiPopup } from "@/components/ui/ConfettiPopup";
 
 export const Route = createFileRoute("/unternehmen")({
   head: () => ({ meta: [{ title: "Unternehmen | unitex Onboarding" }] }),
@@ -41,7 +42,6 @@ interface ContactBlock {
   jobbezeichnung: JobType | "";
   newsletterHandy: boolean;
   newsletterEmail: boolean;
-  /** true = Geschäftsführer block, false = Buchhaltung block, null = extra */
   kind: "gf" | "buchhaltung" | "extra";
 }
 
@@ -60,24 +60,61 @@ function newContact(kind: ContactBlock["kind"]): ContactBlock {
   };
 }
 
+function selectClass(value: string) {
+  return [
+    inputClass,
+    value ? "border-success/60" : "",
+  ].filter(Boolean).join(" ");
+}
+
+// ---------------------------------------------------------------------------
+// Pill – Sortimentsschwerpunkte
+// ---------------------------------------------------------------------------
+function Pill({ label, active, onToggle }: { label: string; active: boolean; onToggle: (on: boolean) => void }) {
+  return (
+    <button type="button" onClick={() => onToggle(!active)}
+      className={[
+        "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+        active
+          ? "border-success bg-success/10 text-success"
+          : "border-border text-secondary hover:border-primary/50 hover:text-foreground",
+      ].join(" ")}
+    >
+      {label}
+    </button>
+  );
+}
+
+const SORTIMENT_OPTIONS = ["DOB", "HAKA", "KIKO", "Schuhe", "Accessoires", "Wäsche"] as const;
+
 function UnternehmenPage() {
   const navigate = useNavigate();
-  const { state, update, completeSection } = useOnboarding();
+  const { state, update, updateFormData } = useOnboarding();
   const legalForm: LegalForm = state.legalForm ?? "GmbH";
   const isLieferant = state.memberType === "lieferant";
+  const isAdmin = state.role === "admin";
 
   // ── Grunddaten ──────────────────────────────────────────────────────────────
   const [firmenname, setFirmenname] = useState(state.companyName);
-  const [strasse, setStrasse] = useState("");
-  const [plz, setPlz] = useState("");
-  const [ort, setOrt] = useState("");
-  const [land, setLand] = useState("DE");
+  const [strasse, setStrasse] = useState(state.savedFormData?.strasse ?? "");
+  const [plz, setPlz] = useState(state.savedFormData?.plz ?? "");
+  const [ort, setOrt] = useState(state.savedFormData?.ort ?? "");
+  const [land, setLand] = useState(state.savedFormData?.land ?? "DE");
 
   // ── Kontakt ─────────────────────────────────────────────────────────────────
-  const [contacts, setContacts] = useState<ContactBlock[]>([
-    newContact("gf"),
-    newContact("buchhaltung"),
-  ]);
+  const [contacts, setContacts] = useState<ContactBlock[]>(() => {
+    const saved = state.savedFormData?.contacts;
+    if (saved && saved.length > 0) {
+      return saved.map((c) => ({
+        ...c,
+        id: `c_${Date.now()}_${Math.random()}`,
+        jobbezeichnung: "" as JobType | "",
+        newsletterHandy: false,
+        newsletterEmail: false,
+      }));
+    }
+    return [newContact("gf"), newContact("buchhaltung")];
+  });
 
   const updateContact = (id: string, patch: Partial<ContactBlock>) => {
     setContacts((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
@@ -92,22 +129,23 @@ function UnternehmenPage() {
   };
 
   // ── GLN & Filialen ──────────────────────────────────────────────────────────
-  const [branches, setBranches] = useState([{ name: "", street: "", zip: "", city: "", gln: "" }]);
-  const [hasGln, setHasGln] = useState(true);
+  const [branches, setBranches] = useState(
+    state.savedFormData?.branches ?? [{ name: "", street: "", zip: "", city: "", gln: "" }]
+  );
+  const [hasGln, setHasGln] = useState(state.savedFormData?.hasGln ?? true);
 
   // ── GWG ─────────────────────────────────────────────────────────────────────
   const [shareholders, setShareholders] = useState([{ name: "", capital: "", voting: "", pep: false }]);
   const [pepTooltip, setPepTooltip] = useState(false);
-  const [sonderTooltip, setSonderTooltip] = useState(false);
   const [wirtschaftAbhaengig, setWirtschaftAbhaengig] = useState(false);
   const [wirtschaftAbhaengigText, setWirtschaftAbhaengigText] = useState("");
 
   // ── Bankdaten ───────────────────────────────────────────────────────────────
-  const [bankname, setBankname] = useState("");
-  const [bic, setBic] = useState("");
-  const [iban, setIban] = useState("");
-  const [steuernummer, setSteuernummer] = useState("");
-  const [ustId, setUstId] = useState("");
+  const [bankname, setBankname] = useState(state.savedFormData?.bankname ?? "");
+  const [bic, setBic] = useState(state.savedFormData?.bic ?? "");
+  const [iban, setIban] = useState(state.savedFormData?.iban ?? "");
+  const [steuernummer, setSteuernummer] = useState(state.savedFormData?.steuernummer ?? "");
+  const [ustId, setUstId] = useState(state.savedFormData?.ustId ?? "");
 
   // ── Geschäftsdaten ──────────────────────────────────────────────────────────
   const [umsatz, setUmsatz] = useState("");
@@ -118,11 +156,27 @@ function UnternehmenPage() {
   const [bilanzsumme, setBilanzsumme] = useState("");
   const [wkvDeckungsbeitrag, setWkvDeckungsbeitrag] = useState("");
   const [umsatzTooltip, setUmsatzTooltip] = useState(false);
+  const [sortiment, setSortiment] = useState<string[]>(state.savedFormData?.sortiment ?? []);
 
-  // ── Lieferant Stammblatt ────────────────────────────────────────────────────
-  const [liefSortiment, setLiefSortiment] = useState("");
-  const [liefMarken, setLiefMarken] = useState("");
-  const [liefAnsprechpartner, setLiefAnsprechpartner] = useState("");
+  // ── Lieferant Stammblatt ─────────────────────────────────────────────────────
+  const [liefSortiment, setLiefSortiment] = useState<string[]>(
+    Array.isArray(state.savedFormData?.liefSortiment)
+      ? (state.savedFormData.liefSortiment as unknown as string[])
+      : []
+  );
+  const [liefMarken, setLiefMarken] = useState(state.savedFormData?.liefMarken ?? "");
+
+  // ── Etappe 1 Confetti ────────────────────────────────────────────────────────
+  const [showEtappe1Confetti, setShowEtappe1Confetti] = useState(false);
+
+  // Check if all required sections completed after saving one section
+  const checkEtappe1Done = (justSavedId: string) => {
+    if (isAdmin) return;
+    const sectionIds = getSectionIds(state.memberType);
+    const newCompleted = { ...state.completedSections, [justSavedId]: true };
+    const allDone = sectionIds.every((id) => newCompleted[id]);
+    if (allDone) setShowEtappe1Confetti(true);
+  };
 
   // Auto-fill first branch from Grunddaten
   const syncAddressToBranch = () => {
@@ -135,11 +189,69 @@ function UnternehmenPage() {
 
   // ── Save handlers ───────────────────────────────────────────────────────────
   const handleSaveGrunddaten = () => {
-    update({ companyName: firmenname, postalCode: plz });
+    // BUG 2 fix: also persist country to state for PLZ-routing
+    update({ companyName: firmenname, postalCode: plz, country: land });
+    updateFormData({ strasse, plz, ort, land });
     syncAddressToBranch();
+    checkEtappe1Done("grunddaten");
   };
 
-  const handleSaveLieferantStamm = () => {};
+  const handleSaveKontakt = () => {
+    updateFormData({
+      contacts: contacts.map((c) => ({
+        kind: c.kind,
+        vorname: c.vorname,
+        nachname: c.nachname,
+        handy: c.handy,
+        telefon: c.telefon,
+        email: c.email,
+      })),
+    });
+    checkEtappe1Done("kontakt");
+  };
+
+  const handleSaveBankdaten = () => {
+    updateFormData({ bankname, bic, iban, steuernummer, ustId });
+    checkEtappe1Done("bankdaten");
+  };
+
+  const handleSaveGln = () => {
+    updateFormData({ branches, hasGln });
+    checkEtappe1Done("gln_filialen");
+  };
+
+  const handleSaveGeschaeftsdaten = () => {
+    updateFormData({ sortiment });
+    checkEtappe1Done("geschaeftsdaten");
+  };
+
+  const handleSaveGwg = () => {
+    checkEtappe1Done("gwg_daten");
+  };
+
+  const handleSaveLieferantStamm = () => {
+    // BUG 4: save array-based sortiment
+    updateFormData({ liefSortiment: liefSortiment as unknown as string, liefMarken });
+    checkEtappe1Done("lieferant_stamm");
+  };
+
+  // ── Validate helpers ────────────────────────────────────────────────────────
+  const validateGeschaeftsdaten = (): string | null => {
+    // Sortiment pills aren't standard inputs; require at least one selection
+    if (sortiment.length === 0) return "Bitte wähle mindestens einen Sortimentsschwerpunkt aus.";
+    return null;
+  };
+
+  const validateLieferantStamm = (): string | null => {
+    if (liefSortiment.length === 0) return "Bitte wähle mindestens einen Sortimentsschwerpunkt aus.";
+    return null;
+  };
+
+  // Keep branches[0] in sync with savedFormData when strasse/plz/ort changes
+  useEffect(() => {
+    const saved = state.savedFormData?.branches;
+    if (saved) setBranches(saved);
+  }, []);
 
   return (
     <AppShell
@@ -150,8 +262,19 @@ function UnternehmenPage() {
           : "Stammdaten, Bankdaten, GLN & Filialen — jederzeit zwischenspeicherbar."
       }
     >
-      <div className="space-y-6 max-w-4xl">
+      {showEtappe1Confetti && (
+        <ConfettiPopup
+          title="Super, Schritt 1 abgeschlossen!"
+          message="Alle Unternehmensdaten wurden gespeichert. Jetzt geht es weiter mit den Dokumenten."
+          buttonLabel="Weiter zu Dokumenten"
+          onClose={() => {
+            setShowEtappe1Confetti(false);
+            navigate({ to: "/upload-center" });
+          }}
+        />
+      )}
 
+      <div className="space-y-6 max-w-4xl">
         {/* ── 1 · Grunddaten ─────────────────────────────────────────────────── */}
         <FormSection
           id="grunddaten"
@@ -176,10 +299,9 @@ function UnternehmenPage() {
                   <span className="text-sm text-foreground">
                     {LEGAL_FORMS.find((f) => f.value === legalForm)?.label ?? legalForm}
                   </span>
-                  <span className="ml-auto text-[10px] text-muted">(vom Admin gesetzt)</span>
                 </div>
               ) : (
-                <select className={inputClass} value={legalForm}
+                <select className={selectClass(legalForm)} value={legalForm}
                   onChange={(e) => update({ legalForm: e.target.value as LegalForm })}>
                   {LEGAL_FORMS.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
                 </select>
@@ -208,8 +330,9 @@ function UnternehmenPage() {
           letter="2"
           title="Kontaktinformationen"
           description="Ansprechpartner für die Geschäftsführung und Ihre Buchhaltung."
+          onSave={handleSaveKontakt}
         >
-          {contacts.map((c, idx) => {
+          {contacts.map((c) => {
             const isGf = c.kind === "gf";
             const isBu = c.kind === "buchhaltung";
             const isExtra = c.kind === "extra";
@@ -247,7 +370,7 @@ function UnternehmenPage() {
 
                 {isExtra && (
                   <Field label="Jobbezeichnung">
-                    <select className={inputClass} value={c.jobbezeichnung}
+                    <select className={selectClass(c.jobbezeichnung)} value={c.jobbezeichnung}
                       onChange={(e) => updateContact(c.id, { jobbezeichnung: e.target.value as JobType })}>
                       <option value="">— bitte wählen —</option>
                       {JOB_TYPES.map((j) => <option key={j} value={j}>{j}</option>)}
@@ -289,6 +412,9 @@ function UnternehmenPage() {
                       <span>Einwilligung zum Newsletter per E-Mail</span>
                     </label>
                   )}
+                  <p className="text-[11px] text-muted mt-1">
+                    <br /> Mit dem Setzen des Newsletter-Häkchens erteilen Sie die Einwilligung zur Kontaktaufnahme zu Neuigkeiten, Aktionen und Informationen von unitex per E-Mail bzw. SMS. Diese Einwilligung kann jederzeit widerrufen werden.
+                  </p>
                 </div>
               </div>
             );
@@ -298,11 +424,6 @@ function UnternehmenPage() {
             className="inline-flex items-center gap-2 text-sm text-primary hover:underline mt-2">
             <Plus className="h-4 w-4" /> Weiteren Kontakt hinzufügen
           </button>
-
-          <p className="text-[11px] text-muted mt-1">
-            * Pflichtfeld. <br />
-            Mit dem Setzen des Newsletter-Häkchens erteilen Sie die Einwilligung zur Kontaktaufnahme zu Neuigkeiten, Aktionen und Informationen von unitex per E-Mail bzw. SMS. Diese Einwilligung kann jederzeit widerrufen werden.
-          </p>
         </FormSection>
 
         {/* ── 3 · Bankdaten ──────────────────────────────────────────────────── */}
@@ -311,6 +432,7 @@ function UnternehmenPage() {
           letter="3"
           title="Konto- und Steuerinformationen"
           description=""
+          onSave={handleSaveBankdaten}
         >
           <div className="grid md:grid-cols-2 gap-4">
             <Field label="Bankname">
@@ -344,19 +466,33 @@ function UnternehmenPage() {
             title="Lieferanten-Stammblatt"
             description="Sortiment, Marken und Ansprechpartner."
             onSave={handleSaveLieferantStamm}
+            validate={validateLieferantStamm}
           >
-            <div className="grid md:grid-cols-2 gap-4">
+            <div className="space-y-4">
+              {/* BUG 4: Sortiment als Pills */}
               <Field label="Sortimentsschwerpunkte">
-                <AutoSaveInput className={inputClass} placeholder="z.B. Damenmode, Herrenmode"
-                  value={liefSortiment} onChange={(e) => setLiefSortiment(e.target.value)} required />
+                <div className="flex flex-wrap gap-2">
+                  {SORTIMENT_OPTIONS.map((opt) => (
+                    <Pill
+                      key={opt}
+                      label={opt}
+                      active={liefSortiment.includes(opt)}
+                      onToggle={(on) =>
+                        setLiefSortiment((prev) =>
+                          on ? [...prev, opt] : prev.filter((s) => s !== opt)
+                        )
+                      }
+                    />
+                  ))}
+                </div>
+                {liefSortiment.length === 0 && (
+                  <p className="text-xs text-muted mt-1">Bitte mindestens einen Schwerpunkt auswählen.</p>
+                )}
               </Field>
+
               <Field label="Wichtigste Marken / Eigenmarken">
-                <AutoSaveInput className={inputClass} placeholder="Komma-getrennt"
+                <AutoSaveInput className={inputClass} placeholder="Komma-getrennt, z.B. Eigene Brand, Mustermarke"
                   value={liefMarken} onChange={(e) => setLiefMarken(e.target.value)} required />
-              </Field>
-              <Field label="Ansprechpartner unitex-Betreuung">
-                <AutoSaveInput className={inputClass} placeholder="Name des Betreuers"
-                  value={liefAnsprechpartner} onChange={(e) => setLiefAnsprechpartner(e.target.value)} required />
               </Field>
             </div>
           </FormSection>
@@ -368,6 +504,7 @@ function UnternehmenPage() {
               letter="4"
               title="GLN & Filialen"
               description="Global Location Number und Filialstruktur."
+              onSave={handleSaveGln}
             >
               <div className="rounded-lg bg-popover p-4">
                 <p className="text-sm font-medium text-foreground mb-3">Haben Sie bereits eine GLN-Nummer?</p>
@@ -427,7 +564,10 @@ function UnternehmenPage() {
                                   next[i] = { ...next[i], [k]: e.target.value };
                                   setBranches(next);
                                 }}
-                                className="w-full rounded bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                                className={[
+                                  "w-full rounded bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary",
+                                  b[k] ? "border border-success/60" : "border border-transparent",
+                                ].join(" ")}
                                 required={k !== "gln"}
                               />
                             </td>
@@ -457,15 +597,24 @@ function UnternehmenPage() {
               letter="5"
               title="Geschäftsdaten"
               description="Umsatz, Mitarbeiter, Sortimentsschwerpunkte und ZR-Kennzahlen."
+              onSave={handleSaveGeschaeftsdaten}
+              validate={validateGeschaeftsdaten}
             >
-              {/* Beginn ZR: voraussichtlicher ZR Start (read-only info) */}
-              <div className="rounded-lg bg-popover/60 border border-border px-4 py-3 flex items-center gap-3">
-                <Info className="h-4 w-4 text-primary shrink-0" />
-                <div className="text-sm text-secondary">
-                  <span className="font-medium text-foreground">Beginn ZR:</span>{" "}
-                  <span className="font-semibold text-primary">{formatDateDe(calcZrStartDate())}</span>
+              {/* ZR-Startdatum (vom Admin gesetzt) */}
+              {state.zrStartDate && (
+                <div className="rounded-lg bg-popover/60 border border-border px-4 py-3 flex items-center gap-3">
+                  <Info className="h-4 w-4 text-primary shrink-0" />
+                  <div className="text-sm text-secondary">
+                    <span className="font-medium text-foreground">ZR-Startdatum:</span>{" "}
+                    <span className="font-semibold text-primary">
+                      {new Date(state.zrStartDate).toLocaleDateString("de-DE", {
+                        day: "2-digit", month: "2-digit", year: "numeric",
+                      })}
+                    </span>
+                  </div>
                 </div>
-              </div>
+              )}
+
               <div className="grid md:grid-cols-3 gap-4">
                 {/* Jahresumsatz mit Tooltip */}
                 <div className="space-y-1.5">
@@ -504,19 +653,16 @@ function UnternehmenPage() {
                     value={gruendung} onChange={(e) => setGruendung(e.target.value)} required />
                 </Field>
 
-                {/* ZR-Volumen */}
                 <Field label="ZR-Volumen (€)" required={false}>
                   <AutoSaveInput type="number" className={inputClass} placeholder="z.B. 350.000"
                     value={zrVolumen} onChange={(e) => setZrVolumen(e.target.value)} />
                 </Field>
 
-                {/* Bilanzsumme */}
                 <Field label="Bilanzsumme (€)" required={false}>
                   <AutoSaveInput type="number" className={inputClass} placeholder="z.B. 860.000"
                     value={bilanzsumme} onChange={(e) => setBilanzsumme(e.target.value)} />
                 </Field>
 
-                {/* WKV Deckungsbeitrag */}
                 <Field label="WKV Deckungsbeitrag (€)" required={false}>
                   <AutoSaveInput type="number" className={inputClass} placeholder="z.B. 800.000"
                     value={wkvDeckungsbeitrag} onChange={(e) => setWkvDeckungsbeitrag(e.target.value)} />
@@ -525,49 +671,22 @@ function UnternehmenPage() {
 
               <Field label="Sortimentsschwerpunkte">
                 <div className="flex flex-wrap gap-2">
-                  {["DOB", "HAKA", "KIKO", "Schuhe", "Accessoires", "Wäsche"].map((c) => (
-                    <Pill key={c} label={c} />
+                  {SORTIMENT_OPTIONS.map((c) => (
+                    <Pill key={c} label={c}
+                      active={sortiment.includes(c)}
+                      onToggle={(on) => setSortiment((prev) => on ? [...prev, c] : prev.filter((s) => s !== c))}
+                    />
                   ))}
                 </div>
+                {sortiment.length === 0 && (
+                  <p className="text-xs text-muted mt-1">Bitte mindestens einen Schwerpunkt auswählen.</p>
+                )}
               </Field>
 
-              {/* S.Oliver toggle */}
-              <div className="rounded-lg bg-popover p-4">
-                <label className="flex items-start gap-3 cursor-pointer">
-                  <input type="checkbox" checked={state.hasSoliver}
-                    onChange={(e) => update({ hasSoliver: e.target.checked })}
-                    className="mt-0.5 h-4 w-4 accent-primary" />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-1.5">
-                      <p className="text-sm font-medium">Zusammenarbeit mit s.Oliver / Gebr. Amman (ISCO)?</p>
-                      <div className="relative inline-block">
-                        <button type="button"
-                          className="text-muted hover:text-primary transition-colors flex items-center"
-                          onMouseEnter={() => setSonderTooltip(true)}
-                          onMouseLeave={() => setSonderTooltip(false)}
-                          onClick={(e) => { e.preventDefault(); setSonderTooltip((v) => !v); }}
-                          aria-label="Sonder erklären"
-                        >
-                          <HelpCircle className="h-4 w-4" />
-                        </button>
-                        {sonderTooltip && (
-                          <div className="absolute left-6 top-1/2 -translate-y-1/2 z-30 w-80 rounded-xl border border-border bg-card p-4 text-xs text-secondary shadow-xl leading-relaxed">
-                            <p className="font-semibold text-foreground mb-1">Warum wollen wir das wissen?</p>
-                            {SONDER_TOOLTIP}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <p className="text-xs text-secondary mt-0.5">Falls ja, schalten wir direkt die passenden Sonder-Verträge für Sie frei.</p>
-                  </div>
-                </label>
-                {state.hasSoliver && (
-                  <div className="mt-3 flex items-start gap-2 rounded-md bg-primary/10 p-3 text-sm text-primary">
-                    <Info className="h-4 w-4 mt-0.5" />
-                    Sonderformular Zentralregulierung wurde automatisch zur Signatur hinzugefügt.
-                  </div>
-                )}
-              </div>
+              <Field label="Wichtige Marken" required={false}>
+                <AutoSaveInput className={inputClass} placeholder="z.B. Hugo Boss, Gerry Weber"
+                  value={marken} onChange={(e) => setMarken(e.target.value)} />
+              </Field>
             </FormSection>
 
             {/* ── 6 · GWG ────────────────────────────────────────────────────── */}
@@ -577,15 +696,16 @@ function UnternehmenPage() {
                 letter="6"
                 title="GWG-Daten"
                 description="Gesetzliche Pflichtangaben nach dem Geldwäschegesetz (GwG)."
+                onSave={handleSaveGwg}
               >
                 {/* Wirtschaftliche Abhängigkeit */}
                 <div className="space-y-3">
                   <label className="flex items-start gap-3 cursor-pointer">
-                    <input 
-                      type="checkbox" 
+                    <input
+                      type="checkbox"
                       className="mt-0.5 h-4 w-4 accent-primary"
                       checked={wirtschaftAbhaengig}
-                      onChange={(e) => setWirtschaftAbhaengig(e.target.checked)} 
+                      onChange={(e) => setWirtschaftAbhaengig(e.target.checked)}
                     />
                     <span className="text-sm text-foreground leading-relaxed">
                       Besteht eine wirtschaftliche Abhängigkeit zu einem einzelnen Lieferanten (mehr als 50% des Gesamtumsatzes)?
@@ -609,9 +729,8 @@ function UnternehmenPage() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-medium text-foreground">Gesellschafter</p>
-                    
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       disabled={shareholders.length >= 6}
                       onClick={() => setShareholders([...shareholders, { name: "", capital: "", voting: "", pep: false }])}
                       className="inline-flex items-center gap-1 text-xs text-primary hover:underline disabled:opacity-40"
@@ -627,12 +746,9 @@ function UnternehmenPage() {
                           <th className="text-left p-2 font-medium whitespace-nowrap">Name *</th>
                           <th className="text-left p-2 font-medium w-28 whitespace-nowrap">Kapital % *</th>
                           <th className="text-left p-2 font-medium w-28 whitespace-nowrap">Stimmrecht % *</th>
-                          
-                          {/* PEP Spaltenkopf mit integriertem Tooltip */}
                           <th className="text-left p-2 font-medium w-24 whitespace-nowrap">
                             <div className="flex items-center gap-1.5 normal-case tracking-normal">
                               <span className="uppercase tracking-wide font-medium">PEP ¹</span>
-                              
                             </div>
                           </th>
                           <th className="w-10" />
@@ -643,22 +759,25 @@ function UnternehmenPage() {
                           <tr key={i} className="border-t border-border">
                             {(["name", "capital", "voting"] as const).map((k) => (
                               <td key={k} className="p-1.5">
-                                <input 
+                                <input
                                   value={s[k]}
                                   onChange={(e) => {
                                     const n = [...shareholders];
                                     n[i] = { ...n[i], [k]: e.target.value };
                                     setShareholders(n);
                                   }}
-                                  className="w-full rounded bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                                  className={[
+                                    "w-full rounded bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary",
+                                    s[k] ? "border border-success/60" : "border border-transparent",
+                                  ].join(" ")}
                                   placeholder={k !== "name" ? "50" : ""}
                                   required
                                 />
                               </td>
                             ))}
                             <td className="p-1.5 pl-4">
-                              <input 
-                                type="checkbox" 
+                              <input
+                                type="checkbox"
                                 checked={s.pep}
                                 onChange={(e) => {
                                   const n = [...shareholders];
@@ -670,10 +789,10 @@ function UnternehmenPage() {
                               />
                             </td>
                             <td className="p-1.5">
-                              <button 
+                              <button
                                 type="button"
                                 onClick={() => setShareholders(shareholders.filter((_, j) => j !== i))}
-                                className="rounded p-1 text-muted hover:text-destructive" 
+                                className="rounded p-1 text-muted hover:text-destructive"
                                 aria-label="Entfernen"
                               >
                                 <Trash2 className="h-4 w-4" />
@@ -684,7 +803,7 @@ function UnternehmenPage() {
                       </tbody>
                     </table>
                   </div>
-                  
+
                   <p className="text-[11px] text-muted">
                     ¹ PEP:&nbsp;
                     <div className="relative inline-block">
@@ -706,32 +825,15 @@ function UnternehmenPage() {
                       )}
                     </div>
                   </p>
-                </div>                  
-
+                </div>
               </FormSection>
             )}
           </>
         )}
+        <p className="text-[11px] text-accent">
+          Mit * markierte Felder sind Pflichtangaben.
+        </p>
       </div>
     </AppShell>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Pill – Sortimentsschwerpunkte
-// ---------------------------------------------------------------------------
-function Pill({ label }: { label: string }) {
-  const [on, setOn] = useState(false);
-  return (
-    <button type="button" onClick={() => setOn((v) => !v)}
-      className={[
-        "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
-        on
-          ? "border-primary bg-primary/10 text-primary"
-          : "border-border text-secondary hover:border-primary/50 hover:text-foreground",
-      ].join(" ")}
-    >
-      {label}
-    </button>
   );
 }

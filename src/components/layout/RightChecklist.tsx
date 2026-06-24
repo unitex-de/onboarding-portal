@@ -1,5 +1,5 @@
-import { Check } from "lucide-react";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Check, UserPlus } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
 import {
   CHECKLIST_GROUPS,
   getProgressBreakdown,
@@ -8,20 +8,18 @@ import {
 } from "@/lib/onboarding-state";
 import { Button } from "@/components/ui/button";
 
-export function RightChecklist() {
+export function RightChecklist({ onInviteClick }: { onInviteClick?: () => void }) {
   const { state } = useOnboarding();
   const navigate = useNavigate();
   const { stammdaten, uploads, signaturen, total } = getProgressBreakdown(state);
+  const isAdmin = state.role === "admin";
+
   const pdfHref = state.memberType === "lieferant"
     ? "/lieferant-zr-onboarding-checkliste.pdf"
     : "/haendler-zr-onboarding-checkliste.pdf";
 
   const barColor = total === 100 ? "bg-emerald-500" : "bg-primary";
 
-  /**
-   * Smart navigation: if the link has a hash (e.g. /unternehmen#kontakt),
-   * navigate to the route first, then scroll to the section.
-   */
   const handleChecklistClick = (href: string) => {
     const hashIdx = href.indexOf("#");
     if (hashIdx === -1) {
@@ -31,13 +29,11 @@ export function RightChecklist() {
     const routePath = href.slice(0, hashIdx);
     const sectionId = href.slice(hashIdx + 1);
 
-    // Navigate, then scroll after paint
     navigate({ to: routePath as any }).then(() => {
       setTimeout(() => {
         const el = document.getElementById(sectionId);
         if (el) {
           el.scrollIntoView({ behavior: "smooth", block: "center" });
-          // Brief highlight
           el.classList.add("ring-2", "ring-primary/40");
           setTimeout(() => el.classList.remove("ring-2", "ring-primary/40"), 1500);
         }
@@ -62,11 +58,11 @@ export function RightChecklist() {
           </div>
         </div>
 
-        {/* Sub-progress bars */}
+        {/* Sub-progress bars – DESIGN 1: 3 Schritte */}
         <div className="space-y-2 text-xs text-secondary">
           <SubBar label="01. Unternehmensdaten" pct={stammdaten} colorClass="bg-primary" />
           <SubBar label="02. Dokumente" pct={uploads} colorClass="bg-primary/70" />
-          <SubBar label="03. Signaturen" pct={signaturen} colorClass="bg-primary/40" />
+          <SubBar label="03. Onboarding abschließen" pct={signaturen} colorClass="bg-primary/40" />
         </div>
 
         {/* Checklist groups */}
@@ -114,9 +110,21 @@ export function RightChecklist() {
           );
         })}
 
-        <div className="pt-4 border-t border-border">
+        {/* DESIGN 3: Mitbearbeiter einladen – nur für Kunden, über Download-Button */}
+        {!isAdmin && onInviteClick && (
+          <button
+            type="button"
+            onClick={onInviteClick}
+            className="w-full flex items-center justify-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-medium text-secondary hover:text-foreground hover:border-primary/60 transition-colors"
+          >
+            <UserPlus className="h-4 w-4" />
+            Mitbearbeiter einladen
+          </button>
+        )}
+
+        <div data-tour="checklist-download" className="border-t border-border pt-4">
           <Button asChild variant="secondary" className="w-full bg-[#FACBBA] text-[#0D1B2A] hover:bg-[#f8b9ac]">
-            <a href={pdfHref} download data-tour="checklist-download">
+            <a href={pdfHref} download>
               Checkliste herunterladen
             </a>
           </Button>

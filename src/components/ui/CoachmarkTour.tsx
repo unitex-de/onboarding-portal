@@ -67,7 +67,7 @@ const TourContext = createContext<TourCtx>({ start: () => {}, isRunning: false }
 export function useTour() { return useContext(TourContext); }
 
 // ─── Main component ────────────────────────────────────────────────────────────
-export function CoachmarkTour({ steps, children }: { steps: TourStep[]; children?: ReactNode }) {
+export function CoachmarkTour({ steps, children, onComplete }: { steps: TourStep[]; children?: ReactNode; onComplete?: () => void }) {
   const { update } = useOnboarding();
   const [active, setActive] = useState(false);
   const [stepIdx, setStepIdx] = useState(0);
@@ -119,9 +119,13 @@ export function CoachmarkTour({ steps, children }: { steps: TourStep[]; children
   }, []);
 
   const next = useCallback(() => {
-    if (stepIdx < steps.length - 1) goTo(stepIdx + 1);
-    else dismiss();
-  }, [stepIdx, steps.length, goTo, dismiss]);
+    if (stepIdx < steps.length - 1) {
+      goTo(stepIdx + 1);
+    } else {
+      dismiss();
+      onComplete?.();
+    }
+  }, [stepIdx, steps.length, goTo, dismiss, onComplete]);
 
   const prev = useCallback(() => { if (stepIdx > 0) goTo(stepIdx - 1); }, [stepIdx, goTo]);
 

@@ -25,7 +25,7 @@ export const REQUIRED_DOCS: Record<LegalForm, RequiredDoc[]> = {
       id: "hr_auszug",
       label: "Auszug Handelsregister",
       hint: "Aktueller Auszug aus dem Handelsregister.",
-      required: false,
+      required: true,
     },
   ],
   GbR: [
@@ -45,7 +45,7 @@ export const REQUIRED_DOCS: Record<LegalForm, RequiredDoc[]> = {
       id: "hr_auszug",
       label: "Auszug Handelsregister",
       hint: "Aktueller Auszug aus dem Handelsregister.",
-      required: false,
+      required: true,
     },
   ],
   GmbH: [
@@ -77,7 +77,7 @@ export const REQUIRED_DOCS: Record<LegalForm, RequiredDoc[]> = {
       id: "jur_person_unterlagen",
       label: "Bei jur. Person als Gesellschafter alle Unterlagen von dieser",
       hint: "Falls ein Gesellschafter Ihres Unternehmens selbst eine juristische Person (z. B. eine andere GmbH oder Holding) ist, laden Sie bitte auch deren Nachweise hoch.",
-      required: false,
+      required: true,
     },
   ],
   GmbHCoKG: [
@@ -115,7 +115,7 @@ export const REQUIRED_DOCS: Record<LegalForm, RequiredDoc[]> = {
       id: "jur_person_unterlagen",
       label: "Bei jur. Person als Gesellschafter alle Unterlagen von dieser",
       hint: "Falls ein Gesellschafter Ihres Unternehmens selbst eine juristische Person (z. B. eine andere GmbH oder Holding) ist, laden Sie bitte auch deren Nachweise hoch.",
-      required: false,
+      required: true,
     },
   ],
   KG: [

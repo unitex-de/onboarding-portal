@@ -1,496 +1,318 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { createServerFn } from "@tanstack/react-start";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
-  Check, FileSignature, Lock, ShieldCheck, X, Loader2,
-  HelpCircle, Shield, ExternalLink, Info
+  Check, Lock, Loader2,
+  Shield, Info, Download, CloudUpload,
+  FileCheck2, Send, AlertTriangle,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { useOnboarding, getProgressBreakdown } from "@/lib/onboarding-state";
-import { getServerConfig } from "@/lib/config.server";
-
-const CREDITOR_ID = "DE850200000018324";
+import { generateNeukundenPdf, generateLieferantPdf, downloadPdf } from "@/lib/pdf-generator";
+import { ConfettiPopup } from "@/components/ui/ConfettiPopup";
 
 export const Route = createFileRoute("/signaturen")({
-  head: () => ({ meta: [{ title: "Signaturen | unitex Onboarding" }] }),
+  head: () => ({ meta: [{ title: "Onboarding abschließen | unitex Onboarding" }] }),
   component: SignaturenPage,
 });
 
-interface Package {
-  id: string;
-  title: string;
-  desc: string;
-  isOptional?: boolean;
-  optionalTooltip?: string;
-  tokens: { label: string; value: string }[];
-}
-
-interface ServerFnInput {
-  packageId: string;
-  tokens: Array<{ label: string; value: string }>;
-}
-
-export const createPandaDocDocument = createServerFn({ method: "POST" })
-  .handler(async (ctx) => {
-    const { data } = ctx as unknown as { data: ServerFnInput };
-    const config = getServerConfig();
-    const {
-      pandadocApiKey,
-      pandadocTemplateSepa,
-      pandadocTemplateAnschluss,
-      pandadocTemplateSonder,
-    } = config;
-
-    const templateId =
-      data.packageId === "sepa"
-        ? pandadocTemplateSepa
-        : data.packageId === "anschluss"
-        ? pandadocTemplateAnschluss
-        : data.packageId === "sonder"
-        ? pandadocTemplateSonder
-        : undefined;
-
-    if (!pandadocApiKey || !templateId) {
-      return { signingUrl: null, documentId: null };
-    }
-
-    const createRes = await fetch("https://api.pandadoc.com/public/v1/documents", {
-      method: "POST",
-      headers: {
-        Authorization: `API-Key ${pandadocApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        name: `unitex Onboarding – ${data.packageId}`,
-        template_uuid: templateId,
-        tokens: data.tokens.map((token: { label: string; value: string }) => ({
-          name: token.label,
-          value: token.value,
-        })),
-        metadata: { packageId: data.packageId },
-      }),
-    });
-
-    if (!createRes.ok) {
-      const errText = await createRes.text();
-      throw new Error(`PandaDoc document creation failed: ${createRes.status} ${errText}`);
-    }
-
-    const result = await createRes.json();
-    return {
-      signingUrl: result.signing_url || null,
-      documentId: result.id || null,
-    };
-  }) as unknown as (opts: { data: ServerFnInput }) => Promise<{ signingUrl: string | null; documentId: string | null }>;
-
-// SEPA Tooltip component
-function SepaTooltip({ text }: { text: string }) {
-  const [visible, setVisible] = useState(false);
-  return (
-    <span className="relative inline-flex items-center">
-      <button
-        type="button"
-        onMouseEnter={() => setVisible(true)}
-        onMouseLeave={() => setVisible(false)}
-        onClick={() => setVisible((v) => !v)}
-        className="inline-flex items-center justify-center h-4 w-4 rounded-full border border-secondary/40 text-muted hover:text-foreground hover:border-primary transition-colors"
-        aria-label="Erklärung"
-      >
-        <HelpCircle className="h-3 w-3" />
-      </button>
-      {visible && (
-        <span className="absolute left-6 top-0 z-30 w-64 rounded-lg border border-border bg-popover p-3 text-xs text-secondary shadow-xl leading-relaxed">
-          {text}
-          <span className="absolute -left-1.5 top-2 h-2.5 w-2.5 rotate-45 border-l border-b border-border bg-popover" />
-        </span>
-      )}
-    </span>
-  );
-}
-
 function SignaturenPage() {
-  const { state, completeSection } = useOnboarding();
+  const { state } = useOnboarding();
   const { total } = getProgressBreakdown(state);
-
   const isAdmin = state.role === "admin";
-  // Gate: 75% required (Stammdaten + Uploads complete)
   const unlocked = total >= 75;
 
+  return <KundeAbschlussPage unlocked={isAdmin || unlocked} readOnly={isAdmin} />;
+}
+
+// ─── Kunden-Flow: Schritt 3 – Onboarding abschließen ─────────────────────────
+
+function KundeAbschlussPage({ unlocked, readOnly = false }: { unlocked: boolean; readOnly?: boolean }) {
+  const { state, uploadDoc, completeSection } = useOnboarding();
+  const signed = !!state.completedSections["abschluss"];
   const isLieferant = state.memberType === "lieferant";
 
-  const haendlerPackages: Package[] = [
-    {
-      id: "sepa",
-      title: "SEPA Firmenlastschrift-Mandat",
-      desc: "Ermächtigt die RSB zum Einzug fälliger Beträge.",
-      isOptional: false,
-      tokens: [
-        { label: "Firmenname", value: state.companyName },
-        { label: "Gläubiger-ID", value: CREDITOR_ID },
-      ],
-    },
-    {
-      id: "anschluss",
-      title: "Mitgliedsvertrag unitex",
-      desc: "Hauptvertrag Ihrer Mitgliedschaft bei unitex.",
-      tokens: [
-        { label: "Firmenname", value: state.companyName },
-        { label: "GF-Name", value: state.userName },
-      ],
-    },
-  ];
-  if (state.hasSoliver) {
-    haendlerPackages.push({
-      id: "sonder",
-      title: "Sonderformular Zentralregulierung",
-      desc: "Erforderlich bei Zusammenarbeit mit s.Oliver / Gebr. Amman (ISCO).",
-      tokens: [{ label: "Firmenname", value: state.companyName }],
-    });
-  }
+  const [generating, setGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
+  const [uploadedForm, setUploadedForm] = useState<{ name: string; size: number } | null>(
+    state.uploadedDocs["neukundenformular_signed"]
+      ? { name: state.uploadedDocs["neukundenformular_signed"].fileName, size: state.uploadedDocs["neukundenformular_signed"].size }
+      : null,
+  );
+  const [submitted, setSubmitted] = useState(signed);
+  const [showEtappe3Confetti, setShowEtappe3Confetti] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [dragging, setDragging] = useState(false);
 
-  const lieferantPackages: Package[] = [
-    {
-      id: "zr_vertrag",
-      title: "ZR-Vertrag",
-      desc: "Zentralregulierungsvertrag zwischen Lieferant und unitex.",
-      tokens: [{ label: "Firmenname", value: state.companyName }],
-    },
-    {
-      id: "gruen_vertrag",
-      title: "Vertrag GRÜN raw",
-      desc: "Rechnungsportalvertrag mit der GRÜN raw GmbH.",
-      tokens: [{ label: "Firmenname", value: state.companyName }],
-    },
-    {
-      id: "sepa_gruen",
-      title: "SEPA-Mandat GRÜN raw",
-      desc: "SEPA-Lastschriftmandat für das GRÜN raw Rechnungsportal.",
-      isOptional: true,
-      optionalTooltip: "Das SEPA-Mandat für GRÜN raw ist optional, da die Zahlungsabwicklung auch per Überweisung möglich ist. Es vereinfacht jedoch die automatische Verarbeitung erheblich.",
-      tokens: [{ label: "Firmenname", value: state.companyName }],
-    },
-  ];
+  const handleDownload = async () => {
+    setGenerating(true);
+    setGenerateError(null);
+    try {
+      const bytes = isLieferant
+        ? await generateLieferantPdf(state)
+        : await generateNeukundenPdf(state);
+      const filename = isLieferant
+        ? "unitex-zusatzblatt-lieferant.pdf"
+        : "unitex-neukundenformular.pdf";
+      downloadPdf(bytes, filename);
+    } catch (err) {
+      setGenerateError("Das PDF konnte nicht erstellt werden. Bitte versuchen Sie es erneut.");
+      console.error("PDF generation error:", err);
+    } finally {
+      setGenerating(false);
+    }
+  };
 
-  const packages: Package[] = isLieferant ? lieferantPackages : haendlerPackages;
+  const handleFile = (file: File | undefined) => {
+    if (!file) return;
+    if (file.size > 20 * 1024 * 1024) {
+      alert("Die Datei überschreitet die maximale Größe von 20 MB.");
+      return;
+    }
+    setUploadedForm({ name: file.name, size: file.size });
+    uploadDoc("neukundenformular_signed", { name: file.name, size: file.size });
+  };
 
-  const [signing, setSigning] = useState<Package | null>(null);
+  const handleSubmit = () => {
+    if (!uploadedForm) return;
+    completeSection("abschluss");
+    setSubmitted(true);
+    setShowEtappe3Confetti(true);
+  };
+
+  const formLabel = isLieferant ? "Lieferantenstammblatt" : "Neukundenformular";
 
   return (
     <AppShell
-      title="Signaturen"
-      subtitle="Verträge einfach hier digital unterschreiben – sicher und rechtsverbindlich via PandaDoc."
+      title="Onboarding abschließen"
+      subtitle={isLieferant
+        ? "Letzter Schritt: Zusatzblatt Lieferanten unterschreiben und einreichen."
+        : "Letzter Schritt: Neukundenformular unterschreiben und einreichen."}
     >
-      {/* Admin cannot sign banner */}
-      {isAdmin && (
+      {/* Admin banner */}
+      {readOnly && (
         <div className="mb-6 rounded-xl border border-amber-500/30 bg-amber-500/10 p-5 flex items-start gap-4">
-          <Info className="h-5 w-5 text-amber-400 mt-0.5 shrink-0" />
+          <Shield className="h-5 w-5 text-amber-400 mt-0.5 shrink-0" />
           <div>
-            <p className="font-display font-semibold text-amber-300">Admin-Modus: Signatur nicht möglich</p>
+            <p className="font-display font-semibold text-amber-300">Admin-Modus: Einreichung nicht möglich</p>
             <p className="text-sm text-amber-400/80 mt-1">
-              Als Admin-Mitarbeiter können Sie diesen Bereich einsehen, aber <strong>nicht selbst signieren</strong>.
-              Die Signatur muss durch den Kunden über seinen persönlichen Magic Link erfolgen.
+              Als Admin-Mitarbeiter können Sie diesen Bereich einsehen, aber <strong>nicht selbst hochladen oder einreichen</strong>.
+              Die Einreichung muss durch den Kunden über seinen persönlichen Magic Link erfolgen.
             </p>
           </div>
         </div>
       )}
 
-      {/* DSGVO Hinweis */}
-      <div className="mb-6 rounded-xl border border-border bg-card p-4 flex items-start gap-3">
-        <Shield className="h-5 w-5 text-primary mt-0.5 shrink-0" />
-        <div className="text-xs text-secondary leading-relaxed">
-          <span className="font-semibold text-foreground">Datenschutz & DSGVO:</span>{" "}
-          Alle digitalen Signaturen werden gemäß DSGVO (EU) 2016/679 verarbeitet und über PandaDoc rechtssicher gespeichert.
-          Die Daten werden ausschließlich zur Vertragserstellung und Archivierung verwendet.
-          Mehr Informationen in unserer{" "}
-          <a href="https://unitex.de/datenschutz/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-            Datenschutzerklärung
-          </a>.
-        </div>
-      </div>
+      {!readOnly && showEtappe3Confetti && (
+        <ConfettiPopup
+          title="Herzlichen Glückwunsch!"
+          message="Ihr Onboarding ist abgeschlossen! Wir prüfen nun Ihre Unterlagen und melden uns in Kürze bei Ihnen."
+          buttonLabel="Schließen"
+          intense
+          onClose={() => setShowEtappe3Confetti(false)}
+        />
+      )}
 
-      {/* Status banner */}
-      <div
-        className={[
-          "mb-6 rounded-xl border p-5 flex items-start gap-4",
-          unlocked ? "border-primary/30 bg-primary/5" : "border-border bg-card",
-        ].join(" ")}
-      >
-        {unlocked
-          ? <ShieldCheck className="h-6 w-6 text-primary mt-0.5" />
-          : <Lock className="h-6 w-6 text-muted mt-0.5" />}
-        <div className="flex-1">
-          <p className="font-display font-semibold">
-            {unlocked ? "Bereit zur Unterschrift" : "Signatur noch nicht freigegeben"}
-          </p>
-          <p className="text-sm text-secondary mt-1">
-            {unlocked
-              ? "Unternehmensadten und Dokumente sind vollständig. Sie können jetzt digital signieren."
-              : `Mindestens 75% Gesamtfortschritt erforderlich (Unternehmensadten + Dokumente). Aktuell: ${total}%.`}
-          </p>
-        </div>
-        {!unlocked && (
+      {/* Gate */}
+      {!unlocked && (
+        <div className="mb-6 rounded-xl border border-border bg-card p-5 flex items-start gap-4">
+          <Lock className="h-6 w-6 text-muted mt-0.5" />
+          <div className="flex-1">
+            <p className="font-display font-semibold">Noch nicht freigeschaltet</p>
+            <p className="text-sm text-secondary mt-1">
+              Bitte vervollständigen Sie zuerst Ihre Unternehmensdaten und laden Sie alle Pflichtdokumente hoch.
+            </p>
+          </div>
           <Link
             to="/unternehmen"
             className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:border-primary shrink-0"
           >
-            Unternehmensadten vervollständigen
+            Zu den Unternehmensdaten
           </Link>
-        )}
-      </div>
+        </div>
+      )}
 
-      <div className="grid lg:grid-cols-3 gap-4">
-        {packages.map((p) => {
-          const signed = !!state.completedSections[`signed_${p.id}`];
-          return (
-            <article key={p.id} className="rounded-2xl border border-border bg-card p-6 flex flex-col">
-              <div className="flex items-start justify-between">
-                <div className={[
-                  "flex h-10 w-10 items-center justify-center rounded-lg",
-                  signed ? "bg-primary/20 text-primary" : "bg-popover text-primary",
-                ].join(" ")}>
-                  {signed
-                    ? <Check className="h-5 w-5" strokeWidth={2.5} />
-                    : <FileSignature className="h-5 w-5" />}
+      <div className={["space-y-6", !unlocked ? "opacity-40 pointer-events-none select-none" : ""].join(" ")}>
+
+        {/* ── Thank-you state ─────────────────────────────────────────────── */}
+        {submitted && (
+          <div className="rounded-2xl border border-success/40 bg-success/5 p-8 text-center space-y-4">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-success/15 border border-success/30 mx-auto">
+              <Check className="h-8 w-8 text-success" strokeWidth={2.5} />
+            </div>
+            <h2 className="font-display text-xl font-semibold">
+              {readOnly ? "Unterlagen eingereicht" : "Vielen Dank!"}
+            </h2>
+            <p className="text-sm text-secondary max-w-md mx-auto leading-relaxed">
+              {readOnly
+                ? "Der Kunde hat alle Unterlagen eingereicht. Die Prüfung läuft."
+                : "Wir haben alle Unterlagen erhalten und kümmern uns nun darum. Sie erhalten eine Nachricht von uns, sobald Ihr Onboarding abgeschlossen ist."}
+            </p>
+          </div>
+        )}
+
+        {!submitted && (
+          <>
+            {/* ── Step 1: Download ──────────────────────────────────────────── */}
+            <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
+              <div className="flex items-start gap-4">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary font-display font-bold text-sm">
+                  1
                 </div>
-                <div className="flex items-center gap-2">
-                  {p.isOptional && (
-                    <span className="text-[10px] text-muted border border-border rounded-full px-2 py-0.5 flex items-center gap-1">
-                      optional
-                      {p.optionalTooltip && <SepaTooltip text={p.optionalTooltip} />}
-                    </span>
-                  )}
-                  {signed && (
-                    <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-medium text-primary">
-                      Unterschrieben
-                    </span>
-                  )}
+                <div>
+                  <h3 className="font-display text-base font-semibold">{formLabel} herunterladen</h3>
+                  <p className="text-sm text-secondary mt-1">
+                    Das Portal hat Ihr {formLabel} automatisch mit Ihren Daten ausgefüllt.
+                    Laden Sie es herunter und drucken Sie es aus.
+                  </p>
                 </div>
               </div>
-              <h3 className="mt-4 font-display text-base font-semibold">{p.title}</h3>
-              <p className="mt-1 text-sm text-secondary">{p.desc}</p>
+              <button
+                type="button"
+                onClick={handleDownload}
+                disabled={generating}
+                className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60 transition-colors"
+              >
+                {generating ? (
+                  <><Loader2 className="h-4 w-4 animate-spin" /> PDF wird erstellt…</>
+                ) : (
+                  <><Download className="h-4 w-4" /> {formLabel} herunterladen (PDF)</>
+                )}
+              </button>
+              {generateError && (
+                <p className="text-sm text-destructive mt-2 flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />{generateError}
+                </p>
+              )}
+            </div>
 
-              <dl className="mt-4 space-y-2 text-xs flex-1">
-                {p.tokens.map((t) => (
-                  <div key={t.label} className="flex justify-between gap-3">
-                    <dt className="text-muted">{t.label}</dt>
-                    <dd className="text-foreground text-right truncate max-w-[60%]">{t.value}</dd>
+            {/* ── Step 2: Sign & stamp ─────────────────────────────────────── */}
+            <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
+              <div className="flex items-start gap-4">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary font-display font-bold text-sm">
+                  2
+                </div>
+                <div>
+                  <h3 className="font-display text-base font-semibold">Formular unterschreiben & stempeln</h3>
+                  <p className="text-sm text-secondary mt-1 leading-relaxed">
+                    Bitte unterschreiben Sie das Formular handschriftlich und versehen Sie es mit Ihrem{" "}
+                    <strong className="text-foreground bg-amber-500/15 px-1 rounded">Firmenstempel</strong>.
+                    Anschließend scannen oder fotografieren Sie das unterschriebene Formular.
+                  </p>
+                  <div className="mt-3 flex items-start gap-2 rounded-md bg-amber-500/10 border border-amber-500/20 p-3 text-xs text-amber-400">
+                    <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                    <span>
+                      <strong>Wichtig:</strong> Das Formular muss sowohl <strong>unterschrieben</strong> als auch mit dem <strong>Firmenstempel</strong> versehen sein.
+                      Formulare ohne Firmenstempel können leider nicht bearbeitet werden.
+                    </span>
                   </div>
-                ))}
-              </dl>
+                </div>
+              </div>
+            </div>
 
-              <div className="mt-auto pt-5">
-                {isAdmin ? (
-                  <div className="w-full rounded-md border border-amber-500/20 bg-amber-500/10 px-4 py-2.5 text-sm text-amber-400 text-center">
-                    Nur durch Kunden signierbar
+            {/* ── Step 3: Upload ───────────────────────────────────────────── */}
+            <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
+              <div className="flex items-start gap-4">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary font-display font-bold text-sm">
+                  3
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-display text-base font-semibold">Unterschriebenes Formular hochladen</h3>
+                  <p className="text-sm text-secondary mt-1">
+                    Laden Sie das unterzeichnete und gestempelte Formular hier hoch.
+                  </p>
+                </div>
+              </div>
+
+              {readOnly ? (
+                uploadedForm ? (
+                  <div className="rounded-xl border border-success/50 bg-success/5 p-4 flex items-center gap-4">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-success/15 text-success">
+                      <FileCheck2 className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-foreground truncate">{uploadedForm.name}</p>
+                      <p className="text-xs text-secondary">Vom Kunden hochgeladen · bereit zur Prüfung</p>
+                    </div>
                   </div>
                 ) : (
+                  <div className="rounded-xl border-2 border-dashed border-border p-8 flex flex-col items-center gap-2 text-center">
+                    <Info className="h-5 w-5 text-muted" />
+                    <p className="text-sm text-secondary">Noch nicht hochgeladen</p>
+                  </div>
+                )
+              ) : uploadedForm ? (
+                <div className="rounded-xl border border-success/50 bg-success/5 p-4 flex items-center gap-4">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-success/15 text-success">
+                    <FileCheck2 className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-foreground truncate">{uploadedForm.name}</p>
+                    <p className="text-xs text-secondary">Hochgeladen · bereit zur Einreichung</p>
+                  </div>
                   <button
                     type="button"
-                    disabled={!unlocked || signed}
-                    onClick={() => setSigning(p)}
-                    className={[
-                      "w-full rounded-md px-4 py-2.5 text-sm font-semibold transition-colors",
-                      signed
-                        ? "bg-primary/10 text-primary border border-primary/20 cursor-default"
-                        : unlocked
-                        ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                        : "bg-popover text-muted cursor-not-allowed",
-                    ].join(" ")}
+                    onClick={() => { setUploadedForm(null); }}
+                    className="text-xs text-secondary hover:text-foreground underline"
                   >
-                    {signed ? "✓ Unterschrieben" : "Jetzt unterschreiben"}
+                    Ersetzen
                   </button>
-                )}
-              </div>
-            </article>
-          );
-        })}
-      </div>
-
-      {signing && !isAdmin && (
-        <SigningModal
-          pkg={signing}
-          onClose={() => setSigning(null)}
-          onSigned={() => {
-            completeSection(`signed_${signing.id}`);
-            setSigning(null);
-          }}
-        />
-      )}
-    </AppShell>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// PandaDoc Signing Modal – öffnet Dokument in neuem Tab
-// ---------------------------------------------------------------------------
-type ModalStep = "preview" | "loading" | "waiting" | "success";
-
-function SigningModal({
-  pkg,
-  onClose,
-  onSigned,
-}: {
-  pkg: Package;
-  onClose: () => void;
-  onSigned: () => void;
-}) {
-  const [step, setStep] = useState<ModalStep>("preview");
-  const [liveSigningUrl, setLiveSigningUrl] = useState<string | null>(null);
-
-  const startSigning = async () => {
-    setStep("loading");
-    try {
-      const createRes = await createPandaDocDocument({
-        data: { packageId: pkg.id, tokens: pkg.tokens },
-      });
-
-      const signingUrl = createRes.signingUrl ?? null;
-      setLiveSigningUrl(signingUrl);
-
-      if (signingUrl) {
-        // Open PandaDoc in a new tab
-        window.open(signingUrl, "_blank", "noopener,noreferrer");
-        setStep("waiting");
-
-        // Listen for postMessage callback from PandaDoc (if opened in same window/iframe context)
-        const handler = (e: MessageEvent) => {
-          if (
-            e.data?.type === "pandadoc:document:completed" ||
-            e.data?.type === "session_view.document.completed"
-          ) {
-            window.removeEventListener("message", handler);
-            setStep("success");
-          }
-        };
-        window.addEventListener("message", handler);
-      } else {
-        // No API key configured → simulate success (dev mode)
-        setStep("success");
-      }
-    } catch {
-      // If API fails → simulate success for demo
-      setStep("success");
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-6">
-      <div className="w-full max-w-lg rounded-2xl border border-border bg-card overflow-hidden">
-        <header className="flex items-center justify-between border-b border-border px-6 py-4 shrink-0">
-          <div className="flex items-center gap-2 text-sm text-secondary">
-            <ShieldCheck className="h-4 w-4 text-primary" />
-            PandaDoc · Sichere Signatur
-          </div>
-          <button onClick={onClose} aria-label="Schließen" className="text-muted hover:text-foreground">
-            <X className="h-5 w-5" />
-          </button>
-        </header>
-
-        {step === "preview" && (
-          <div className="p-8 space-y-6">
-            <div>
-              <h3 className="font-display text-2xl font-semibold">{pkg.title}</h3>
-              <p className="mt-2 text-sm text-secondary">
-                Prüfen Sie die vorausgefüllten Daten. Mit Klick auf „Signieren" wird das Dokument in einem neuen PandaDoc-Tab geöffnet.
-              </p>
-            </div>
-            <div className="rounded-lg border border-border bg-popover p-5 space-y-2 text-sm">
-              {pkg.tokens.map((t) => (
-                <div key={t.label} className="flex justify-between gap-4">
-                  <span className="text-muted">{t.label}</span>
-                  <span className="text-foreground font-medium">{t.value}</span>
                 </div>
-              ))}
+              ) : (
+                <div
+                  onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+                  onDragLeave={() => setDragging(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setDragging(false);
+                    handleFile(e.dataTransfer.files[0]);
+                  }}
+                  className={[
+                    "rounded-xl border-2 border-dashed p-8 text-center transition-colors",
+                    dragging ? "border-primary bg-upload-active" : "border-upload bg-upload-active",
+                  ].join(" ")}
+                >
+                  <input
+                    ref={inputRef}
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    className="hidden"
+                    onChange={(e) => handleFile(e.target.files?.[0])}
+                  />
+                  <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-lg bg-primary/15 text-primary">
+                    <CloudUpload className="h-5 w-5" />
+                  </div>
+                  <p className="mt-3 text-sm text-foreground">
+                    Datei hier ablegen oder{" "}
+                    <button
+                      type="button"
+                      onClick={() => inputRef.current?.click()}
+                      className="text-primary underline underline-offset-4"
+                    >
+                      auswählen
+                    </button>
+                  </p>
+                  <p className="mt-1 text-xs text-secondary">PDF, JPG, PNG · max. 20 MB</p>
+                </div>
+              )}
             </div>
-            {/* DSGVO note in modal */}
-            <div className="rounded-lg border border-border bg-background/40 px-4 py-3 flex items-start gap-2 text-xs text-muted">
-              <Shield className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
-              <span>
-                Ihre Daten werden DSGVO-konform verarbeitet. Die Signatur hat die gleiche rechtliche Gültigkeit wie eine handschriftliche Unterschrift (eIDAS-Verordnung).
-              </span>
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <button
-                onClick={onClose}
-                className="text-sm text-secondary hover:text-foreground transition-colors"
-              >
-                Abbrechen
-              </button>
-              <button
-                onClick={startSigning}
-                className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 shrink-0"
-              >
-                <ExternalLink className="h-4 w-4" /> In PandaDoc öffnen & signieren
-              </button>
-            </div>
-          </div>
-        )}
 
-        {step === "loading" && (
-          <div className="p-12 flex flex-col items-center gap-4 text-center">
-            <Loader2 className="h-8 w-8 text-primary animate-spin" />
-            <p className="text-sm text-secondary">Dokument wird in PandaDoc erstellt…</p>
-          </div>
-        )}
-
-        {step === "waiting" && (
-          <div className="p-8 space-y-5 text-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/15 border border-primary/30 mx-auto">
-              <ExternalLink className="h-8 w-8 text-primary" />
-            </div>
-            <div>
-              <h3 className="font-display text-xl font-semibold">Dokument geöffnet</h3>
-              <p className="mt-2 text-sm text-secondary">
-                Der Vertrag wurde in einem neuen Tab geöffnet. Bitte unterzeichnen Sie dort und kehren Sie danach zurück.
-              </p>
-            </div>
-            {liveSigningUrl && (
-              <a
-                href={liveSigningUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
-              >
-                <ExternalLink className="h-4 w-4" /> Tab erneut öffnen
-              </a>
+            {/* ── Submit button (Kunde only) ────────────────────────────────── */}
+            {!readOnly && (
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={!uploadedForm}
+                  className="inline-flex items-center gap-2 rounded-md bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  <Send className="h-4 w-4" />
+                  Alles zur Prüfung einreichen
+                </button>
+              </div>
             )}
-            <div className="flex gap-3 justify-center pt-2">
-              <button
-                onClick={onClose}
-                className="rounded-md border border-border px-4 py-2 text-sm text-secondary hover:text-foreground"
-              >
-                Später fertigstellen
-              </button>
-              <button
-                onClick={() => setStep("success")}
-                className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
-              >
-                <Check className="h-4 w-4" /> Signatur bestätigen
-              </button>
-            </div>
-          </div>
-        )}
-
-        {step === "success" && (
-          <div className="p-12 flex flex-col items-center gap-4 text-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/15 border border-primary/30">
-              <Check className="h-8 w-8 text-primary" strokeWidth={2.5} />
-            </div>
-            <div>
-              <h3 className="font-display text-xl font-semibold">Signatur erfolgreich</h3>
-              <p className="mt-2 text-sm text-secondary">
-                „{pkg.title}" wurde rechtsverbindlich unterzeichnet.
-              </p>
-            </div>
-            <button
-              onClick={onSigned}
-              className="mt-2 inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
-            >
-              Weiter
-            </button>
-          </div>
+          </>
         )}
       </div>
-    </div>
+    </AppShell>
   );
 }
