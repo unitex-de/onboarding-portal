@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as VerifyRouteImport } from './routes/verify'
 import { Route as UploadCenterRouteImport } from './routes/upload-center'
 import { Route as UnternehmenRouteImport } from './routes/unternehmen'
 import { Route as SupportRouteImport } from './routes/support'
@@ -18,6 +19,11 @@ import { Route as ChecklisteRouteImport } from './routes/checkliste'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 
+const VerifyRoute = VerifyRouteImport.update({
+  id: '/verify',
+  path: '/verify',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const UploadCenterRoute = UploadCenterRouteImport.update({
   id: '/upload-center',
   path: '/upload-center',
@@ -68,6 +74,7 @@ export interface FileRoutesByFullPath {
   '/support': typeof SupportRoute
   '/unternehmen': typeof UnternehmenRoute
   '/upload-center': typeof UploadCenterRoute
+  '/verify': typeof VerifyRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -78,6 +85,7 @@ export interface FileRoutesByTo {
   '/support': typeof SupportRoute
   '/unternehmen': typeof UnternehmenRoute
   '/upload-center': typeof UploadCenterRoute
+  '/verify': typeof VerifyRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -89,6 +97,7 @@ export interface FileRoutesById {
   '/support': typeof SupportRoute
   '/unternehmen': typeof UnternehmenRoute
   '/upload-center': typeof UploadCenterRoute
+  '/verify': typeof VerifyRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -101,6 +110,7 @@ export interface FileRouteTypes {
     | '/support'
     | '/unternehmen'
     | '/upload-center'
+    | '/verify'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -111,6 +121,7 @@ export interface FileRouteTypes {
     | '/support'
     | '/unternehmen'
     | '/upload-center'
+    | '/verify'
   id:
     | '__root__'
     | '/'
@@ -121,6 +132,7 @@ export interface FileRouteTypes {
     | '/support'
     | '/unternehmen'
     | '/upload-center'
+    | '/verify'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -132,10 +144,18 @@ export interface RootRouteChildren {
   SupportRoute: typeof SupportRoute
   UnternehmenRoute: typeof UnternehmenRoute
   UploadCenterRoute: typeof UploadCenterRoute
+  VerifyRoute: typeof VerifyRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/verify': {
+      id: '/verify'
+      path: '/verify'
+      fullPath: '/verify'
+      preLoaderRoute: typeof VerifyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/upload-center': {
       id: '/upload-center'
       path: '/upload-center'
@@ -204,6 +224,7 @@ const rootRouteChildren: RootRouteChildren = {
   SupportRoute: SupportRoute,
   UnternehmenRoute: UnternehmenRoute,
   UploadCenterRoute: UploadCenterRoute,
+  VerifyRoute: VerifyRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
