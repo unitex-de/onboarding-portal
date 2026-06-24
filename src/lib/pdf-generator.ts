@@ -593,9 +593,24 @@ export async function generateLieferantPdf(state: OnboardingState): Promise<Uint
   return pdfDoc.save();
 }
 
+export function isIOS(): boolean {
+  return (
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+  );
+}
+
 export function downloadPdf(bytes: Uint8Array, filename = "unitex-neukundenformular.pdf") {
   const blob = new Blob([bytes as unknown as BlobPart], { type: "application/pdf" });
   const url = URL.createObjectURL(blob);
+
+  if (isIOS()) {
+    // iOS Safari ignores <a download> — open in new tab so the native share sheet appears
+    window.open(url, "_blank");
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    return;
+  }
+
   const a = document.createElement("a");
   a.href = url;
   a.download = filename;

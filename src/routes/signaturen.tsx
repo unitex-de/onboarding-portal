@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { useOnboarding, getProgressBreakdown } from "@/lib/onboarding-state";
-import { generateNeukundenPdf, generateLieferantPdf, downloadPdf } from "@/lib/pdf-generator";
+import { generateNeukundenPdf, generateLieferantPdf, downloadPdf, isIOS } from "@/lib/pdf-generator";
 import { ConfettiPopup } from "@/components/ui/ConfettiPopup";
 
 export const Route = createFileRoute("/signaturen")({
@@ -170,7 +170,7 @@ function KundeAbschlussPage({ unlocked, readOnly = false }: { unlocked: boolean;
                 type="button"
                 onClick={handleDownload}
                 disabled={generating}
-                className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60 transition-colors"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-md bg-primary px-5 py-3 sm:py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60 transition-colors min-h-[44px]"
               >
                 {generating ? (
                   <><Loader2 className="h-4 w-4 animate-spin" /> PDF wird erstellt…</>
@@ -178,6 +178,12 @@ function KundeAbschlussPage({ unlocked, readOnly = false }: { unlocked: boolean;
                   <><Download className="h-4 w-4" /> {formLabel} herunterladen (PDF)</>
                 )}
               </button>
+              {isIOS() && !generating && !generateError && (
+                <p className="text-xs text-secondary mt-2 flex items-start gap-2">
+                  <Info className="h-4 w-4 shrink-0 text-primary mt-0.5" />
+                  Das PDF öffnet sich in einem neuen Tab. Tippen Sie auf „Teilen" → „In Dateien sichern", um es zu speichern.
+                </p>
+              )}
               {generateError && (
                 <p className="text-sm text-destructive mt-2 flex items-center gap-2">
                   <AlertTriangle className="h-4 w-4 shrink-0" />{generateError}
@@ -298,12 +304,12 @@ function KundeAbschlussPage({ unlocked, readOnly = false }: { unlocked: boolean;
 
             {/* ── Submit button (Kunde only) ────────────────────────────────── */}
             {!readOnly && (
-              <div className="flex justify-end">
+              <div className="flex flex-col sm:flex-row sm:justify-end">
                 <button
                   type="button"
                   onClick={handleSubmit}
                   disabled={!uploadedForm}
-                  className="inline-flex items-center gap-2 rounded-md bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-md bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors min-h-[44px]"
                 >
                   <Send className="h-4 w-4" />
                   Alles zur Prüfung einreichen

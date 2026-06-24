@@ -251,11 +251,11 @@ function DashboardContent() {
             {/* Progress card */}
             <div
               data-tour="progress-ring"
-              className="lg:col-span-2 rounded-2xl border border-border bg-card p-8"
+              className="lg:col-span-2 rounded-2xl border border-border bg-card p-4 sm:p-8"
             >
-              <div className="flex items-start gap-8">
+              <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start sm:gap-8">
                 <ProgressRing pct={total} />
-                <div className="flex-1 space-y-4 pt-1">
+                <div className="flex-1 space-y-4 sm:pt-1 text-center sm:text-left w-full">
                   <div>
                     <p className="text-xs uppercase tracking-wide text-secondary">Gesamtfortschritt</p>
                     <h3 className="mt-1 font-display text-2xl font-semibold">{total}% abgeschlossen</h3>
@@ -267,18 +267,12 @@ function DashboardContent() {
                         : "Alles vollständig – bereit zur Einreichung."}
                     </p>
                   </div>
-                  {/* DESIGN 1: sub-bars with updated labels */}
-                  <div className="space-y-2">
-                    <MiniBar label="01. Unternehmensdaten" pct={stammdaten} colorClass="bg-primary" />
-                    <MiniBar label="02. Dokumente" pct={uploads} colorClass="bg-primary/70" />
-                    <MiniBar label="03. Onboarding abschließen" pct={signaturen} colorClass="bg-primary/40" />
-                  </div>
                 </div>
               </div>
             </div>
 
             {/* DESIGN 5: ZR-Start from admin-set date */}
-            <div className="rounded-2xl border border-border bg-card p-8 flex flex-col justify-between">
+            <div className="rounded-2xl border border-border bg-card p-4 sm:p-8 flex flex-col justify-between">
               <div>
                 <p className="text-xs uppercase tracking-wide text-secondary">ZR-Startdatum</p>
                 <p className="mt-3 font-display text-3xl font-bold text-primary">

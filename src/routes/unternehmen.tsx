@@ -312,7 +312,7 @@ function UnternehmenPage() {
                 value={strasse} onChange={(e) => setStrasse(e.target.value)} required />
             </Field>
             <Field label="PLZ / Ort / Land">
-              <div className="grid grid-cols-[100px_1fr_60px] gap-2">
+              <div className="grid grid-cols-[80px_1fr_52px] sm:grid-cols-[100px_1fr_60px] gap-1.5 sm:gap-2">
                 <AutoSaveInput className={inputClass} placeholder="12345"
                   value={plz} onChange={(e) => setPlz(e.target.value)} required />
                 <AutoSaveInput className={inputClass} placeholder="Musterstadt"
@@ -540,8 +540,8 @@ function UnternehmenPage() {
                     <Plus className="h-3.5 w-3.5" /> Filiale hinzufügen
                   </button>
                 </div>
-                <div className="overflow-hidden rounded-lg border border-border">
-                  <table className="w-full text-sm">
+                <div className="overflow-x-auto rounded-lg border border-border">
+                  <table className="w-full min-w-[560px] text-sm">
                     <thead className="bg-popover text-xs uppercase tracking-wide text-secondary">
                       <tr>
                         <th className="text-left p-2 font-medium">Name *</th>
@@ -739,8 +739,8 @@ function UnternehmenPage() {
                     </button>
                   </div>
 
-                  <div className="overflow-hidden rounded-lg border border-border">
-                    <table className="w-full text-sm">
+                  <div className="overflow-x-auto rounded-lg border border-border">
+                    <table className="w-full min-w-[440px] text-sm">
                       <thead className="bg-popover text-xs uppercase tracking-wide text-secondary">
                         <tr>
                           <th className="text-left p-2 font-medium whitespace-nowrap">Name *</th>
@@ -818,7 +818,7 @@ function UnternehmenPage() {
                         <HelpCircle className="h-3.5 w-3.5" />
                       </button>
                       {pepTooltip && (
-                        <div className="absolute left-0 bottom-6 z-30 w-120 rounded-xl border border-border bg-card p-4 text-xs text-secondary shadow-xl leading-relaxed normal-case tracking-normal">
+                        <div className="absolute left-0 bottom-6 z-30 w-72 max-w-[calc(100vw-2rem)] rounded-xl border border-border bg-card p-4 text-xs text-secondary shadow-xl leading-relaxed normal-case tracking-normal">
                           <p className="font-semibold text-foreground mb-1">PEP – Politisch exponierte Person</p>
                           {PEP_TOOLTIP}
                         </div>

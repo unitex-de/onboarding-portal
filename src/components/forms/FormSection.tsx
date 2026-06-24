@@ -70,7 +70,7 @@ export function FormSection({
       <section
         id={id}
         className={[
-          "rounded-2xl border bg-card p-8 transition-all duration-300",
+          "rounded-2xl border bg-card p-4 sm:p-8 transition-all duration-300",
           justSaved ? "border-success ring-1 ring-success/40" : "border-border",
         ].join(" ")}
       >
@@ -100,16 +100,16 @@ export function FormSection({
           </div>
         )}
 
-        <div className="mt-6 flex items-center justify-end gap-3">
+        <div className="mt-6 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-3">
           {justSaved && (
-            <span className="inline-flex items-center gap-1.5 text-xs text-success animate-in fade-in slide-in-from-right-2">
+            <span className="inline-flex items-center justify-center gap-1.5 text-xs text-success animate-in fade-in slide-in-from-right-2">
               <Check className="h-3.5 w-3.5" /> Gespeichert
             </span>
           )}
           <button
             type="button"
             onClick={handleSave}
-            className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+            className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-md bg-primary px-4 py-3 sm:py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 min-h-[44px]"
           >
             <Save className="h-4 w-4" />
             Speichern
