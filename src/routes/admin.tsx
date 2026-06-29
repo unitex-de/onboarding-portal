@@ -10,6 +10,7 @@ import {
   type CustomerStatus, buildMagicLink
 } from "@/lib/onboarding-state";
 import { UnitexLogo } from "@/components/ui/UnitexLogo";
+import { supabase } from "@/lib/supabase";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({ meta: [{ title: "Admin-Übersicht | unitex Onboarding" }] }),
@@ -133,11 +134,23 @@ function AdminPage() {
     navigate({ to: "/dashboard" });
   };
 
-  const handleSendLink = (acc: CustomerAccount) => {
-    sendMagicLink(acc.id);
-    const link = buildMagicLink(acc.magicToken, acc.email);
-    // Copy to clipboard & show confirmation
-    navigator.clipboard.writeText(link).catch(() => {});
+  const handleSendLink = async (acc: CustomerAccount) => {
+    // Supabase sendet die OTP-Mail direkt an den Kunden
+    const { error } = await supabase.auth.signInWithOtp({
+      email: acc.email,
+      options: {
+        shouldCreateUser: false,
+        emailRedirectTo: "https://onboarding.unitex.de/verify",
+      },
+    });
+
+    if (error) {
+      alert(`Fehler beim Senden: ${error.message}`);
+      return;
+    }
+
+    // In DB als gesendet markieren
+    await sendMagicLink(acc.id);
     setCopiedId(acc.id);
     setTimeout(() => setCopiedId(null), 3000);
   };
