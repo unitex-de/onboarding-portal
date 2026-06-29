@@ -1,23 +1,23 @@
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 import tailwindcss from "@tailwindcss/vite";
+import { nitro } from "nitro/vite";  // NEU
 
 export default defineConfig({
   vite: {
     server: {
       host: "0.0.0.0",
       port: 8080,
-      allowedHosts: true,
     },
+    plugins: [
+      nitro(),  // NEU
+      tailwindcss({
+        config: {
+          content: ["src/unitex.css"],
+        },
+      } as any),
+    ],
   },
   tanstackStart: {
     server: { entry: "server" },
   },
-  // Wir zwingen das integrierte Tailwind-Plugin, unsere neue Datei zu lesen
-  plugins: [
-    tailwindcss({
-      config: {
-        content: ["src/unitex.css"],
-      },
-    } as any),
-  ],
 });
