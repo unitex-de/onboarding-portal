@@ -31,39 +31,38 @@ function VerifyPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Supabase kann Token als Fragment (#access_token=...) oder Query (?token_hash=...) senden
     const hash = token_hash ?? token;
 
-    if (!hash || !type) {
-      setError("Ungültiger Link – Token oder Typ fehlt. Bitte fordern Sie einen neuen Magic Link an.");
-      return;
-    }
+    // Fragment aus URL lesen falls Query leer
+    if (!hash && typeof window !== "undefined" && window.location.hash) {
+      const params = new URLSearchParams(window.location.hash.slice(1));
+      const accessToken = params.get("access_token");
+      const refreshToken = params.get("refresh_token");
+      const errorCode = params.get("error_code");
 
-    supabase.auth
-      .verifyOtp({ token_hash: hash, type: type as EmailOtpType })
-      .then(({ data, error: authError }) => {
-        if (authError || !data.session) {
-          const msg =
-            authError?.message?.includes("expired") || authError?.message?.includes("invalid")
-              ? "Dieser Link ist abgelaufen oder ungültig. Bitte fordern Sie einen neuen Magic Link an."
-              : (authError?.message ?? "Verifizierung fehlgeschlagen. Bitte versuchen Sie es erneut.");
-          setError(msg);
-          return;
-        }
+      if (errorCode) {
+        setError("Dieser Link ist abgelaufen oder ungültig. Bitte fordern Sie einen neuen Magic Link an.");
+        return;
+      }
 
-        const user = data.session.user;
-        const email = user.email ?? "";
-
-        const matchingAccount = state.customerAccounts.find(
-          (a) => a.email.toLowerCase() === email.toLowerCase(),
-        );
-
-        update({
-          email,
-          signedIn: true,
-          role: "kunde",
-          tourSeen: false,
-          ...(matchingAccount
-            ? {
+      if (accessToken && refreshToken) {
+        supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
+          .then(({ data, error: authError }) => {
+            if (authError || !data.session) {
+              setError("Verifizierung fehlgeschlagen. Bitte versuchen Sie es erneut.");
+              return;
+            }
+            const email = data.session.user.email ?? "";
+            const matchingAccount = state.customerAccounts.find(
+              (a) => a.email.toLowerCase() === email.toLowerCase()
+            );
+            update({
+              email,
+              signedIn: true,
+              role: "kunde",
+              tourSeen: false,
+              ...(matchingAccount ? {
                 memberType: matchingAccount.memberType,
                 legalForm: matchingAccount.legalForm,
                 legalFormLockedByAdmin: true,
@@ -74,10 +73,52 @@ function VerifyPage() {
                 completedSections: matchingAccount.completedSections,
                 postalCode: matchingAccount.postalCode,
                 country: matchingAccount.country,
-              }
-            : {}),
-        });
+              } : {}),
+            });
+            navigate({ to: "/dashboard" });
+          });
+        return;
+      }
+    }
 
+    if (!hash || !type) {
+      setError("Ungültiger Link – Token oder Typ fehlt. Bitte fordern Sie einen neuen Magic Link an.");
+      return;
+    }
+
+    supabase.auth
+      .verifyOtp({ token_hash: hash, type: type as EmailOtpType })
+      .then(({ data, error: authError }) => {
+        if (authError || !data.session) {
+          setError(
+            authError?.message?.includes("expired") || authError?.message?.includes("invalid")
+              ? "Dieser Link ist abgelaufen oder ungültig. Bitte fordern Sie einen neuen Magic Link an."
+              : (authError?.message ?? "Verifizierung fehlgeschlagen.")
+          );
+          return;
+        }
+        const email = data.session.user.email ?? "";
+        const matchingAccount = state.customerAccounts.find(
+          (a) => a.email.toLowerCase() === email.toLowerCase()
+        );
+        update({
+          email,
+          signedIn: true,
+          role: "kunde",
+          tourSeen: false,
+          ...(matchingAccount ? {
+            memberType: matchingAccount.memberType,
+            legalForm: matchingAccount.legalForm,
+            legalFormLockedByAdmin: true,
+            userName: `${matchingAccount.firstName} ${matchingAccount.lastName}`,
+            companyName: matchingAccount.companyName,
+            activeCustomerId: matchingAccount.id,
+            uploadedDocs: matchingAccount.uploadedDocs,
+            completedSections: matchingAccount.completedSections,
+            postalCode: matchingAccount.postalCode,
+            country: matchingAccount.country,
+          } : {}),
+        });
         navigate({ to: "/dashboard" });
       });
   }, []);
