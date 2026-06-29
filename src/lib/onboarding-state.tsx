@@ -1,4 +1,9 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, useCallback, type ReactNode } from "react";
+import { supabase } from "./supabase";
+
+// ---------------------------------------------------------------------------
+// Types & Interfaces
+// ---------------------------------------------------------------------------
 
 export type MemberType = "händler" | "lieferant";
 export type LegalForm = "eK" | "GbR" | "GmbH" | "GmbHCoKG" | "KG" | "OHG";
@@ -60,11 +65,8 @@ export interface CustomerAccount {
   magicToken: string;
   status: CustomerStatus;
   linkSentAt: string | null;
-  /** PLZ des Kunden für Mitarbeiter-Zuweisung */
   postalCode?: string;
-  /** Land des Kunden (z.B. "AT", "CH", "DE") */
   country?: string;
-  /** ZR-Startdatum, manuell vom Admin eingetragen */
   zrStartDate?: string;
   uploadedDocs: Record<string, UploadedDoc>;
   completedSections: Record<string, boolean>;
@@ -77,39 +79,24 @@ export interface OnboardingState {
   userName: string;
   companyName: string;
   memberType: MemberType | null;
-  /** Set by Admin on creation – cannot be changed by Kunde afterwards */
   legalForm: LegalForm | null;
   legalFormLockedByAdmin: boolean;
   contractType: ContractType | null;
-  /** s.Oliver / Comma / Isco cooperation → triggers Sonderformular */
   hasSoliver: boolean;
   uploadedDocs: Record<string, UploadedDoc>;
-  /** Form sections completed via "Speichern" */
   completedSections: Record<string, boolean>;
   submittedAt: string | null;
-  /** Admin: list of all created customer accounts */
   customerAccounts: CustomerAccount[];
-  /** Currently viewed customer ID (admin mode) */
   activeCustomerId: string | null;
-  /** Has the user seen the onboarding tour? */
   tourSeen: boolean;
-  /** Has the user dismissed the welcome entrance (dashboard seen)? */
   dashboardSeen: boolean;
-  /** Pending tour start requested from sidebar navigation */
   pendingTourStart: boolean;
-  /** Accountant is different from Geschäftsführer */
   buchungIdentischGF: boolean;
-  /** PLZ des Kunden */
   postalCode?: string;
-  /** Land des Kunden */
   country?: string;
-  /** ZR-Startdatum, gesetzt vom Admin */
   zrStartDate?: string;
-  /** Gespeicherte Formulardaten für PDF-Generierung */
   savedFormData: SavedFormData;
 }
-
-const STORAGE_KEY = "unitex_onboarding_state_v4";
 
 const DEFAULT_STATE: OnboardingState = {
   email: null,
@@ -137,6 +124,10 @@ const DEFAULT_STATE: OnboardingState = {
   savedFormData: {},
 };
 
+// ---------------------------------------------------------------------------
+// Helper – unverändert
+// ---------------------------------------------------------------------------
+
 /** Generates a secure random magic token */
 export function generateMagicToken(): string {
   const arr = new Uint8Array(32);
@@ -150,16 +141,154 @@ export function buildMagicLink(token: string, email: string): string {
   return `https://onboarding.unitex.de/verify?token=${token}&email=${encoded}`;
 }
 
+// ---------------------------------------------------------------------------
+// Supabase Hilfsfunktionen – Datenbank lesen/schreiben
+// ---------------------------------------------------------------------------
+
+/** Liest alle Kunden aus Supabase und baut CustomerAccount-Objekte */
+async function fetchAllCustomers(): Promise<CustomerAccount[]> {
+  const { data: customers, error } = await supabase
+    .from("customers")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error || !customers) return [];
+
+  // Für jeden Kunden: Dokumente und Formulardaten nachladen
+  const result: CustomerAccount[] = await Promise.all(
+    customers.map(async (c) => {
+      const { data: docs } = await supabase
+        .from("documents")
+        .select("*")
+        .eq("customer_id", c.id);
+
+      const { data: formSections } = await supabase
+        .from("form_data")
+        .select("*")
+        .eq("customer_id", c.id);
+
+      // Dokumente in das Record-Format umwandeln
+      const uploadedDocs: Record<string, UploadedDoc> = {};
+      for (const doc of docs ?? []) {
+        uploadedDocs[doc.storage_key] = {
+          fileName: doc.file_name,
+          size: doc.size,
+          uploadedAt: doc.uploaded_at,
+        };
+      }
+
+      // Abgeschlossene Sektionen aus form_data zusammenbauen
+      const completedSections: Record<string, boolean> = {};
+      const savedFormData: SavedFormData = {};
+      for (const section of formSections ?? []) {
+        if (section.section === "_completed") {
+          Object.assign(completedSections, section.data);
+        } else {
+          Object.assign(savedFormData, section.data);
+        }
+      }
+
+      return {
+        id: c.id,
+        firstName: c.first_name ?? "",
+        lastName: c.last_name ?? "",
+        email: c.email,
+        companyName: c.company ?? "",
+        memberType: c.member_type as MemberType,
+        legalForm: c.legal_form as LegalForm,
+        createdAt: c.created_at,
+        magicLinkSent: !!c.link_sent_at,
+        magicToken: c.magic_token ?? "",
+        status: c.status as CustomerStatus,
+        linkSentAt: c.link_sent_at ?? null,
+        postalCode: c.postal_code ?? "",
+        country: c.country ?? "DE",
+        zrStartDate: c.zr_start_date ?? undefined,
+        uploadedDocs,
+        completedSections,
+      };
+    })
+  );
+
+  return result;
+}
+
+/** Liest einen einzelnen Kunden anhand seiner E-Mail-Adresse */
+export async function fetchCustomerByEmail(email: string): Promise<CustomerAccount | null> {
+  const { data: c, error } = await supabase
+    .from("customers")
+    .select("*")
+    .eq("email", email)
+    .single();
+
+  if (error || !c) return null;
+
+  const { data: docs } = await supabase
+    .from("documents")
+    .select("*")
+    .eq("customer_id", c.id);
+
+  const { data: formSections } = await supabase
+    .from("form_data")
+    .select("*")
+    .eq("customer_id", c.id);
+
+  const uploadedDocs: Record<string, UploadedDoc> = {};
+  for (const doc of docs ?? []) {
+    uploadedDocs[doc.storage_key] = {
+      fileName: doc.file_name,
+      size: doc.size,
+      uploadedAt: doc.uploaded_at,
+    };
+  }
+
+  const completedSections: Record<string, boolean> = {};
+  const savedFormData: SavedFormData = {};
+  for (const section of formSections ?? []) {
+    if (section.section === "_completed") {
+      Object.assign(completedSections, section.data);
+    } else {
+      Object.assign(savedFormData, section.data);
+    }
+  }
+
+  return {
+    id: c.id,
+    firstName: c.first_name ?? "",
+    lastName: c.last_name ?? "",
+    email: c.email,
+    companyName: c.company ?? "",
+    memberType: c.member_type as MemberType,
+    legalForm: c.legal_form as LegalForm,
+    createdAt: c.created_at,
+    magicLinkSent: !!c.link_sent_at,
+    magicToken: c.magic_token ?? "",
+    status: c.status as CustomerStatus,
+    linkSentAt: c.link_sent_at ?? null,
+    postalCode: c.postal_code ?? "",
+    country: c.country ?? "DE",
+    zrStartDate: c.zr_start_date ?? undefined,
+    uploadedDocs,
+    completedSections,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Context
+// ---------------------------------------------------------------------------
+
 interface Ctx {
   state: OnboardingState;
+  loading: boolean;
   update: (p: Partial<OnboardingState>) => void;
   uploadDoc: (id: string, file: { name: string; size: number }) => void;
   removeDoc: (id: string) => void;
   completeSection: (id: string) => void;
   updateFormData: (d: Partial<SavedFormData>) => void;
-  addCustomerAccount: (acc: Omit<CustomerAccount, "id" | "createdAt" | "magicLinkSent" | "magicToken" | "status" | "linkSentAt" | "uploadedDocs" | "completedSections">) => CustomerAccount;
-  updateCustomerAccount: (id: string, patch: Partial<CustomerAccount>) => void;
-  sendMagicLink: (id: string) => void;
+  addCustomerAccount: (acc: Omit<CustomerAccount, "id" | "createdAt" | "magicLinkSent" | "magicToken" | "status" | "linkSentAt" | "uploadedDocs" | "completedSections">) => Promise<CustomerAccount>;
+  updateCustomerAccount: (id: string, patch: Partial<CustomerAccount>) => Promise<void>;
+  sendMagicLink: (id: string) => Promise<void>;
+  refreshCustomers: () => Promise<void>;
   reset: () => void;
 }
 
@@ -167,86 +296,367 @@ const OnboardingCtx = createContext<Ctx | null>(null);
 
 export function OnboardingProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<OnboardingState>(DEFAULT_STATE);
+  const [loading, setLoading] = useState(true);
 
+  // ---------------------------------------------------------------------------
+  // Beim Start: Supabase Auth-Session prüfen und Daten laden
+  // ---------------------------------------------------------------------------
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) setState({ ...DEFAULT_STATE, ...JSON.parse(raw) });
-    } catch { /* ignore */ }
+    async function init() {
+      setLoading(true);
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session?.user?.email) {
+        setLoading(false);
+        return;
+      }
+
+      const email = session.user.email;
+
+      // Ist diese E-Mail ein Admin?
+      const { data: adminRow } = await supabase
+        .from("admins")
+        .select("id")
+        .eq("email", email)
+        .single();
+
+      if (adminRow) {
+        // Admin: alle Kunden laden
+        const customerAccounts = await fetchAllCustomers();
+        setState((s) => ({
+          ...s,
+          email,
+          signedIn: true,
+          role: "admin",
+          customerAccounts,
+        }));
+      } else {
+        // Kunde: nur eigene Daten laden
+        const customer = await fetchCustomerByEmail(email);
+        if (customer) {
+          setState((s) => ({
+            ...s,
+            email,
+            signedIn: true,
+            role: "kunde",
+            userName: `${customer.firstName} ${customer.lastName}`.trim(),
+            companyName: customer.companyName,
+            memberType: customer.memberType,
+            legalForm: customer.legalForm,
+            legalFormLockedByAdmin: true,
+            uploadedDocs: customer.uploadedDocs,
+            completedSections: customer.completedSections,
+            postalCode: customer.postalCode,
+            country: customer.country,
+            zrStartDate: customer.zrStartDate,
+          }));
+        }
+      }
+
+      setLoading(false);
+    }
+
+    init();
+
+    // Auth-Zustand beobachten (Login/Logout)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session) {
+        setState(DEFAULT_STATE);
+        setLoading(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    } catch { /* ignore */ }
-  }, [state]);
+  // ---------------------------------------------------------------------------
+  // Admin: alle Kunden neu laden
+  // ---------------------------------------------------------------------------
+  const refreshCustomers = useCallback(async () => {
+    const customers = await fetchAllCustomers();
+    setState((s) => ({ ...s, customerAccounts: customers }));
+  }, []);
+
+  // ---------------------------------------------------------------------------
+  // Lokales State-Update (für UI-Felder die nicht sofort persistiert werden)
+  // ---------------------------------------------------------------------------
+  const update = useCallback((p: Partial<OnboardingState>) => {
+    setState((s) => ({ ...s, ...p }));
+  }, []);
+
+  // ---------------------------------------------------------------------------
+  // Dokument hochladen (Kunde)
+  // ---------------------------------------------------------------------------
+  const uploadDoc = useCallback(async (docId: string, file: { name: string; size: number }) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user?.email) return;
+
+    // Kunden-UUID aus der DB holen
+    const { data: customer } = await supabase
+      .from("customers")
+      .select("id")
+      .eq("email", session.user.email)
+      .single();
+
+    if (!customer) return;
+
+    await supabase.from("documents").upsert({
+      customer_id: customer.id,
+      file_name: file.name,
+      storage_key: docId,
+      size: file.size,
+      uploaded_at: new Date().toISOString(),
+    }, { onConflict: "customer_id,storage_key" });
+
+    // Lokalen State aktualisieren
+    setState((s) => ({
+      ...s,
+      uploadedDocs: {
+        ...s.uploadedDocs,
+        [docId]: { fileName: file.name, size: file.size, uploadedAt: new Date().toISOString() },
+      },
+    }));
+  }, []);
+
+  // ---------------------------------------------------------------------------
+  // Dokument entfernen (Kunde)
+  // ---------------------------------------------------------------------------
+  const removeDoc = useCallback(async (docId: string) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user?.email) return;
+
+    const { data: customer } = await supabase
+      .from("customers")
+      .select("id")
+      .eq("email", session.user.email)
+      .single();
+
+    if (!customer) return;
+
+    await supabase
+      .from("documents")
+      .delete()
+      .eq("customer_id", customer.id)
+      .eq("storage_key", docId);
+
+    setState((s) => {
+      const next = { ...s.uploadedDocs };
+      delete next[docId];
+      return { ...s, uploadedDocs: next };
+    });
+  }, []);
+
+  // ---------------------------------------------------------------------------
+  // Sektion als abgeschlossen markieren (Kunde)
+  // ---------------------------------------------------------------------------
+  const completeSection = useCallback(async (sectionId: string) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user?.email) return;
+
+    const { data: customer } = await supabase
+      .from("customers")
+      .select("id")
+      .eq("email", session.user.email)
+      .single();
+
+    if (!customer) return;
+
+    // Aktuelle completed-Sections laden und mergen
+    const { data: existing } = await supabase
+      .from("form_data")
+      .select("data")
+      .eq("customer_id", customer.id)
+      .eq("section", "_completed")
+      .single();
+
+    const merged = { ...(existing?.data ?? {}), [sectionId]: true };
+
+    await supabase.from("form_data").upsert({
+      customer_id: customer.id,
+      section: "_completed",
+      data: merged,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "customer_id,section" });
+
+    setState((s) => ({
+      ...s,
+      completedSections: { ...s.completedSections, [sectionId]: true },
+    }));
+  }, []);
+
+  // ---------------------------------------------------------------------------
+  // Formulardaten speichern (Kunde)
+  // ---------------------------------------------------------------------------
+  const updateFormData = useCallback(async (d: Partial<SavedFormData>) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user?.email) return;
+
+    const { data: customer } = await supabase
+      .from("customers")
+      .select("id")
+      .eq("email", session.user.email)
+      .single();
+
+    if (!customer) return;
+
+    // Aktuelle Daten laden und mergen
+    const { data: existing } = await supabase
+      .from("form_data")
+      .select("data")
+      .eq("customer_id", customer.id)
+      .eq("section", "stammdaten")
+      .single();
+
+    const merged = { ...(existing?.data ?? {}), ...d };
+
+    await supabase.from("form_data").upsert({
+      customer_id: customer.id,
+      section: "stammdaten",
+      data: merged,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "customer_id,section" });
+
+    setState((s) => ({
+      ...s,
+      savedFormData: { ...s.savedFormData, ...d },
+    }));
+  }, []);
+
+  // ---------------------------------------------------------------------------
+  // Neuen Kunden anlegen (Admin)
+  // ---------------------------------------------------------------------------
+  const addCustomerAccount = useCallback(async (
+    acc: Omit<CustomerAccount, "id" | "createdAt" | "magicLinkSent" | "magicToken" | "status" | "linkSentAt" | "uploadedDocs" | "completedSections">
+  ): Promise<CustomerAccount> => {
+    const token = generateMagicToken();
+
+    const { data, error } = await supabase
+      .from("customers")
+      .insert({
+        email: acc.email,
+        first_name: acc.firstName,
+        last_name: acc.lastName,
+        company: acc.companyName,
+        member_type: acc.memberType,
+        legal_form: acc.legalForm,
+        status: "Entwurf",
+        magic_token: token,
+        postal_code: acc.postalCode ?? "",
+        country: acc.country ?? "DE",
+        zr_start_date: acc.zrStartDate ?? null,
+      })
+      .select()
+      .single();
+
+    if (error || !data) throw new Error(error?.message ?? "Kunde konnte nicht angelegt werden");
+
+    const newAcc: CustomerAccount = {
+      id: data.id,
+      firstName: data.first_name,
+      lastName: data.last_name,
+      email: data.email,
+      companyName: data.company,
+      memberType: data.member_type as MemberType,
+      legalForm: data.legal_form as LegalForm,
+      createdAt: data.created_at,
+      magicLinkSent: false,
+      magicToken: token,
+      status: "Entwurf",
+      linkSentAt: null,
+      postalCode: data.postal_code ?? "",
+      country: data.country ?? "DE",
+      zrStartDate: data.zr_start_date ?? undefined,
+      uploadedDocs: {},
+      completedSections: {},
+    };
+
+    setState((s) => ({
+      ...s,
+      customerAccounts: [newAcc, ...s.customerAccounts],
+    }));
+
+    return newAcc;
+  }, []);
+
+  // ---------------------------------------------------------------------------
+  // Kunden aktualisieren (Admin)
+  // ---------------------------------------------------------------------------
+  const updateCustomerAccount = useCallback(async (id: string, patch: Partial<CustomerAccount>) => {
+    const { error } = await supabase
+      .from("customers")
+      .update({
+        first_name: patch.firstName,
+        last_name: patch.lastName,
+        company: patch.companyName,
+        member_type: patch.memberType,
+        legal_form: patch.legalForm,
+        status: patch.status,
+        postal_code: patch.postalCode,
+        country: patch.country,
+        zr_start_date: patch.zrStartDate ?? null,
+      })
+      .eq("id", id);
+
+    if (error) throw new Error(error.message);
+
+    setState((s) => ({
+      ...s,
+      customerAccounts: s.customerAccounts.map((a) =>
+        a.id === id ? { ...a, ...patch } : a
+      ),
+    }));
+  }, []);
+
+  // ---------------------------------------------------------------------------
+  // Magic Link als gesendet markieren (Admin)
+  // ---------------------------------------------------------------------------
+  const sendMagicLink = useCallback(async (id: string) => {
+    const now = new Date().toISOString();
+
+    const { error } = await supabase
+      .from("customers")
+      .update({
+        status: "Link gesendet",
+        link_sent_at: now,
+      })
+      .eq("id", id);
+
+    if (error) throw new Error(error.message);
+
+    setState((s) => ({
+      ...s,
+      customerAccounts: s.customerAccounts.map((a) =>
+        a.id === id
+          ? { ...a, magicLinkSent: true, status: "Link gesendet", linkSentAt: now }
+          : a
+      ),
+    }));
+  }, []);
+
+  // ---------------------------------------------------------------------------
+  // Reset
+  // ---------------------------------------------------------------------------
+  const reset = useCallback(() => {
+    setState(DEFAULT_STATE);
+  }, []);
 
   const value = useMemo<Ctx>(
     () => ({
       state,
-      update: (p) => setState((s) => ({ ...s, ...p })),
-      uploadDoc: (id, file) =>
-        setState((s) => ({
-          ...s,
-          uploadedDocs: {
-            ...s.uploadedDocs,
-            [id]: { fileName: file.name, size: file.size, uploadedAt: new Date().toISOString() },
-          },
-        })),
-      removeDoc: (id) =>
-        setState((s) => {
-          const next = { ...s.uploadedDocs };
-          delete next[id];
-          return { ...s, uploadedDocs: next };
-        }),
-      completeSection: (id) =>
-        setState((s) => ({
-          ...s,
-          completedSections: { ...s.completedSections, [id]: true },
-        })),
-      updateFormData: (d) =>
-        setState((s) => ({
-          ...s,
-          savedFormData: { ...s.savedFormData, ...d },
-        })),
-      addCustomerAccount: (acc) => {
-        const token = generateMagicToken();
-        const newAcc: CustomerAccount = {
-          ...acc,
-          id: `cust_${Date.now()}`,
-          createdAt: new Date().toISOString(),
-          magicLinkSent: false,
-          magicToken: token,
-          status: "Entwurf",
-          linkSentAt: null,
-          uploadedDocs: {},
-          completedSections: {},
-        };
-        setState((s) => ({
-          ...s,
-          customerAccounts: [...s.customerAccounts, newAcc],
-        }));
-        return newAcc;
-      },
-      updateCustomerAccount: (id, patch) =>
-        setState((s) => ({
-          ...s,
-          customerAccounts: s.customerAccounts.map((a) =>
-            a.id === id ? { ...a, ...patch } : a
-          ),
-        })),
-      sendMagicLink: (id) =>
-        setState((s) => ({
-          ...s,
-          customerAccounts: s.customerAccounts.map((a) =>
-            a.id === id
-              ? { ...a, magicLinkSent: true, status: "Link gesendet", linkSentAt: new Date().toISOString() }
-              : a
-          ),
-        })),
-      reset: () => setState(DEFAULT_STATE),
+      loading,
+      update,
+      uploadDoc,
+      removeDoc,
+      completeSection,
+      updateFormData,
+      addCustomerAccount,
+      updateCustomerAccount,
+      sendMagicLink,
+      refreshCustomers,
+      reset,
     }),
-    [state],
+    [state, loading, update, uploadDoc, removeDoc, completeSection, updateFormData,
+     addCustomerAccount, updateCustomerAccount, sendMagicLink, refreshCustomers, reset]
   );
 
   return <OnboardingCtx.Provider value={value}>{children}</OnboardingCtx.Provider>;
@@ -259,7 +669,7 @@ export function useOnboarding() {
 }
 
 // ---------------------------------------------------------------------------
-// ZR-Start: today + 10 Werktage → nächster 1. des Monats
+// ZR-Start: today + 10 Werktage → nächster 1. des Monats – unverändert
 // ---------------------------------------------------------------------------
 export function calcZrStartDate(from: Date = new Date()): Date {
   const d = new Date(from);
@@ -269,7 +679,6 @@ export function calcZrStartDate(from: Date = new Date()): Date {
     const day = d.getDay();
     if (day !== 0 && day !== 6) added++;
   }
-  // Advance to next 1st of month
   d.setDate(1);
   d.setMonth(d.getMonth() + 1);
   return d;
@@ -280,7 +689,7 @@ export function formatDateDe(d: Date): string {
 }
 
 // ---------------------------------------------------------------------------
-// Progress calculation: 50% Stammdaten + 25% Uploads + 25% Signaturen
+// Progress calculation – unverändert
 // ---------------------------------------------------------------------------
 
 const SECTION_IDS_HAENDLER = ["grunddaten", "kontakt", "bankdaten", "gln_filialen", "geschaeftsdaten", "gwg_daten"];
@@ -304,10 +713,8 @@ export function getProgressBreakdown(state: OnboardingState): {
   const uploadsDone = requiredDocs.filter((id) => state.uploadedDocs[id]).length;
   const uploads = requiredDocs.length > 0 ? Math.round((uploadsDone / requiredDocs.length) * 100) : 0;
 
-  // Schritt 3 "Onboarding abschließen" – 100% wenn abschluss-Sektion gesetzt
   const abschluss = state.completedSections["abschluss"] ? 100 : 0;
 
-  // Neue Gewichtung: 50% Stammdaten, 40% Uploads, 10% Abschluss
   const total = Math.round(stammdaten * 0.5 + uploads * 0.4 + abschluss * 0.1);
 
   return { stammdaten, uploads, signaturen: abschluss, total };
@@ -330,10 +737,9 @@ export function getChecklistProgress(state: OnboardingState): { done: number; to
 }
 
 // ---------------------------------------------------------------------------
-// Required doc IDs per Rechtsform + MemberType
+// Required doc IDs – unverändert
 // ---------------------------------------------------------------------------
 export function getRequiredDocIds(legalForm: LegalForm | null, memberType?: MemberType | null): string[] {
-  // Lieferant: only HR-Auszug
   if (memberType === "lieferant") {
     return ["hr_auszug_lieferant"];
   }
@@ -356,7 +762,7 @@ export function getRequiredDocIds(legalForm: LegalForm | null, memberType?: Memb
 }
 
 // ---------------------------------------------------------------------------
-// Support contact resolution by PLZ / Kundentyp
+// Support contacts – unverändert
 // ---------------------------------------------------------------------------
 export interface SupportContact {
   name: string;
@@ -414,14 +820,6 @@ export const SUPPORT_SABINE: SupportContact = {
   email: "s.steinhardt@unitex.de",
 };
 
-/**
- * Determine the responsible admin contact based on customer type and PLZ.
- * Lieferant → Kerstin Bier
- * Händler →
- *   PLZ starts 17-19, 2, 30-33, 37-39, 4, 58-59 → Oliver Borggrefe
- *   PLZ starts 34-36, 50-57, 6, 7 or AT/CH        → Thomas Römer
- *   PLZ starts 0, 10-16, 8, 9                      → Sabine Steinhardt
- */
 export function getResponsibleAdmin(
   memberType: MemberType | null,
   postalCode: string | undefined,
@@ -429,18 +827,15 @@ export function getResponsibleAdmin(
 ): SupportContact {
   if (memberType === "lieferant") return SUPPORT_KERSTIN;
 
-  // Check for AT/CH
   const c = (country ?? "DE").toUpperCase();
   if (c === "AT" || c === "CH") return SUPPORT_THOMAS;
 
   const plz = (postalCode ?? "").trim();
-  if (!plz) return SUPPORT_SABINE; // fallback
+  if (!plz) return SUPPORT_SABINE;
 
-  const num = parseInt(plz.slice(0, 5), 10);
   const twoDigit = parseInt(plz.slice(0, 2), 10);
   const oneDigit = parseInt(plz[0] ?? "0", 10);
 
-  // Oliver: 17-19, 2x, 30-33, 37-39, 4x, 58-59
   if (
     (twoDigit >= 17 && twoDigit <= 19) ||
     oneDigit === 2 ||
@@ -452,7 +847,6 @@ export function getResponsibleAdmin(
     return SUPPORT_OLIVER;
   }
 
-  // Thomas: 34-36, 50-57, 6x, 7x
   if (
     (twoDigit >= 34 && twoDigit <= 36) ||
     (twoDigit >= 50 && twoDigit <= 57) ||
@@ -462,12 +856,11 @@ export function getResponsibleAdmin(
     return SUPPORT_THOMAS;
   }
 
-  // Sabine: 0x, 10-16, 8x, 9x
   return SUPPORT_SABINE;
 }
 
 // ---------------------------------------------------------------------------
-// Checklist groups
+// Checklist – unverändert
 // ---------------------------------------------------------------------------
 export interface ChecklistItem {
   id: string;
@@ -512,7 +905,6 @@ export const CHECKLIST_GROUPS: ChecklistGroup[] = [
       { id: "cl_hr_lieferant",        label: "Handelsregister-Auszug",                    href: "/upload-center", source: { kind: "upload", docId: "hr_auszug_lieferant" }, memberTypes: ["lieferant"] },
     ],
   },
-  
 ];
 
 export function isChecklistItemDone(item: ChecklistItem, state: OnboardingState): boolean {

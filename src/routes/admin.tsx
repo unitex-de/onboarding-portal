@@ -77,37 +77,40 @@ function AdminPage() {
     });
   }, [state.customerAccounts, searchQuery, filterType, filterStatus, filterDateFrom, filterDateTo]);
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!firstName || !lastName || !email || !companyName) return;
-    const acc = addCustomerAccount({
-      firstName, lastName, email, companyName, memberType, legalForm,
-      postalCode, country, zrStartDate,
-    });
-    setShowCreate(false);
-    // Reset form
-    setFirstName(""); setLastName(""); setEmail(""); setCompanyName("");
-    setMemberType("händler"); setLegalForm("GmbH"); setPostalCode(""); setCountry("DE");
-    setZrStartDate("");
-    // Navigate into that customer's view
-    update({
-      email: acc.email,
-      memberType: acc.memberType,
-      legalForm: acc.legalForm,
-      legalFormLockedByAdmin: true,
-      userName: `${acc.firstName} ${acc.lastName}`,
-      companyName: acc.companyName,
-      role: "admin",
-      signedIn: true,
-      activeCustomerId: acc.id,
-      uploadedDocs: {},
-      completedSections: {},
-      submittedAt: null,
-      postalCode: acc.postalCode,
-      country: acc.country,
-      zrStartDate: acc.zrStartDate,
-      savedFormData: {},
-    });
-    navigate({ to: "/dashboard" });
+    try {
+      const acc = await addCustomerAccount({
+        firstName, lastName, email, companyName, memberType, legalForm,
+        postalCode, country, zrStartDate,
+      });
+      setShowCreate(false);
+      setFirstName(""); setLastName(""); setEmail(""); setCompanyName("");
+      setMemberType("händler"); setLegalForm("GmbH"); setPostalCode(""); setCountry("DE");
+      setZrStartDate("");
+      update({
+        email: acc.email,
+        memberType: acc.memberType,
+        legalForm: acc.legalForm,
+        legalFormLockedByAdmin: true,
+        userName: `${acc.firstName} ${acc.lastName}`,
+        companyName: acc.companyName,
+        role: "admin",
+        signedIn: true,
+        activeCustomerId: acc.id,
+        uploadedDocs: {},
+        completedSections: {},
+        submittedAt: null,
+        postalCode: acc.postalCode,
+        country: acc.country,
+        zrStartDate: acc.zrStartDate,
+        savedFormData: {},
+      });
+      navigate({ to: "/dashboard" });
+    } catch (err) {
+      console.error("Fehler beim Anlegen:", err);
+      alert("Fehler beim Anlegen des Kunden. Bitte prüfe die Konsole.");
+    }
   };
 
   const handleViewCustomer = (acc: CustomerAccount) => {

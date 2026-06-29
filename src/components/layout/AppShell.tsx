@@ -24,7 +24,7 @@ export function AppShell({
   const isAdmin = state.role === "admin";
 
   return (
-    <div className="flex min-h-screen bg-background text-foreground overflow-x-hidden">
+    <div className="flex min-h-screen bg-background text-foreground">
       {/* Mobile backdrop for sidebar drawer */}
       {sidebarOpen && (
         <div
@@ -40,7 +40,7 @@ export function AppShell({
         onClose={() => setSidebarOpen(false)}
       />
 
-      <main className="flex-1 min-w-0 flex flex-col">
+      <main className="flex-1 min-w-0 flex flex-col overflow-x-hidden">
         <TopHeader
           title={title}
           subtitle={subtitle}

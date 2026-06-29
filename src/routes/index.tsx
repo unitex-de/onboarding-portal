@@ -1,7 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect, useRef } from "react";
 import { ArrowRight, Mail, ShieldCheck, CheckCircle2, UserCog, User, Lock, Sparkles } from "lucide-react";
-import { useOnboarding, type MemberType, type LegalForm, type UserRole } from "@/lib/onboarding-state";
+import { useOnboarding, type UserRole, type MemberType, type LegalForm, fetchCustomerByEmail } from "@/lib/onboarding-state";
+import { supabase } from "@/lib/supabase";
 import { UnitexLogo } from "@/components/ui/UnitexLogo";
 
 export const Route = createFileRoute("/")({
@@ -39,19 +40,21 @@ function useTypewriter(text: string, speed = 40, startDelay = 0) {
 }
 
 // ── Welcome screen after verification ─────────────────────────────────────────
-function WelcomeScreen({ onContinue }: { onContinue: () => void }) {
-  const WELCOME_TEXT = "Willkommen im Onboarding-Portal der unitex GmbH!";
-  const { displayed, done } = useTypewriter(WELCOME_TEXT, 30, 300);
+function WelcomeScreen({ name, onContinue }: { name: string; onContinue: () => void }) {
+  const text = name
+    ? `Willkommen ${name} im unitex Onboarding Portal`
+    : "Willkommen im unitex Onboarding Portal";
+  const { displayed, done } = useTypewriter(text, 38, 300);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">
-      <div className="max-w-lg px-8 text-center space-y-6">
+      <div className="max-w-xl px-8 text-center space-y-6">
         <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-primary/15 border border-primary/30 animate-pulse">
           <Sparkles className="h-10 w-10 text-primary" />
         </div>
-        <p className="font-display text-2xl font-semibold text-foreground leading-relaxed min-h-[5rem]">
+        <p className="font-display text-3xl font-bold text-foreground leading-snug min-h-[5rem]">
           {displayed}
-          {!done && <span className="inline-block w-0.5 h-6 bg-primary ml-1 animate-pulse" />}
+          {!done && <span className="inline-block w-0.5 h-8 bg-primary ml-1 animate-pulse" />}
         </p>
         <div className="flex flex-col items-center gap-3 min-h-[2.5rem]">
           {done && (
@@ -80,7 +83,7 @@ function WelcomeScreen({ onContinue }: { onContinue: () => void }) {
 
 function Index() {
   const navigate = useNavigate();
-  const { state, update } = useOnboarding();
+  const { state, update, refreshCustomers } = useOnboarding();
 
   const [role, setRole] = useState<UserRole>("kunde");
   const [email, setEmail] = useState(state.email ?? "");
@@ -89,6 +92,7 @@ function Index() {
   const [codeError, setCodeError] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
   const pendingNav = useRef<() => void>(() => {});
+  const pendingName = useRef<string>("");
 
   // Admin fields
   const [adminEmail, setAdminEmail] = useState("");
@@ -96,23 +100,28 @@ function Index() {
   const [adminEmailError, setAdminEmailError] = useState("");
   const [adminPassError, setAdminPassError] = useState(false);
 
-  const ADMIN_PASSWORD = "unitex2026";
-
   const validateAdminEmail = (val: string) => {
     if (!val.includes("@")) return "Bitte eine gültige E-Mail eingeben.";
     if (!val.toLowerCase().endsWith("@unitex.de")) return "Nur @unitex.de E-Mail-Adressen sind erlaubt.";
     return "";
   };
 
-  const onAdminSubmit = () => {
+  const onAdminSubmit = async () => {
     const emailErr = validateAdminEmail(adminEmail);
     if (emailErr) { setAdminEmailError(emailErr); return; }
-    if (adminPassword !== ADMIN_PASSWORD) { setAdminPassError(true); return; }
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email: adminEmail,
+      password: adminPassword,
+    });
+
+    if (error) { setAdminPassError(true); return; }
+
+    await refreshCustomers();
 
     const prefix = adminEmail.split("@")[0];
     const parts = prefix.split(".");
     const userName = parts.map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(" ");
-
     update({
       email: adminEmail,
       legalFormLockedByAdmin: false,
@@ -124,44 +133,70 @@ function Index() {
     navigate({ to: "/admin" });
   };
 
-  const onKundeRequest = () => {
+  const onKundeRequest = async () => {
     if (!email.includes("@")) return;
     update({ email });
+
+    // Supabase: OTP per E-Mail senden
+    await supabase.auth.signInWithOtp({
+      email,
+      options: { shouldCreateUser: false }, // Nur bestehende Kunden können sich einloggen
+    });
+
     setSent(true);
   };
 
-  const onVerify = () => {
-    if (verifyCode.length === 6) {
-      const matchingAccount = state.customerAccounts.find(
-        (a) => a.email.toLowerCase() === email.toLowerCase()
-      );
-      update({
-        signedIn: true,
-        role: "kunde",
-        tourSeen: false,
-        ...(matchingAccount ? {
-          memberType: matchingAccount.memberType,
-          legalForm: matchingAccount.legalForm,
-          legalFormLockedByAdmin: true,
-          userName: `${matchingAccount.firstName} ${matchingAccount.lastName}`,
-          companyName: matchingAccount.companyName,
-          activeCustomerId: matchingAccount.id,
-          uploadedDocs: matchingAccount.uploadedDocs,
-          completedSections: matchingAccount.completedSections,
-          postalCode: matchingAccount.postalCode,
-          country: matchingAccount.country,
-        } : {}),
-      });
-      // Show welcome animation, then navigate
-      pendingNav.current = () => navigate({ to: "/dashboard" });
-      setShowWelcome(true);
-    } else {
-      setCodeError(true);
-    }
+  const doVerify = async (code: string) => {
+    if (code.length !== 6) return;
+
+    // Supabase: OTP verifizieren
+    const { error } = await supabase.auth.verifyOtp({
+      email,
+      token: code,
+      type: "email",
+    });
+
+    if (error) { setCodeError(true); return; }
+
+    const customer = await fetchCustomerByEmail(email);
+    const name = customer
+      ? `${customer.firstName} ${customer.lastName}`.trim()
+      : "";
+    update({
+      signedIn: true,
+      role: "kunde",
+      tourSeen: false,
+      ...(customer ? {
+        memberType: customer.memberType,
+        legalForm: customer.legalForm,
+        legalFormLockedByAdmin: true,
+        userName: name,
+        companyName: customer.companyName,
+        activeCustomerId: customer.id,
+        uploadedDocs: customer.uploadedDocs,
+        completedSections: customer.completedSections,
+        postalCode: customer.postalCode,
+        country: customer.country,
+      } : {}),
+    });
+    pendingName.current = name;
+    pendingNav.current = () => navigate({ to: "/dashboard" });
+    setShowWelcome(true);
   };
 
+  const onVerify = () => doVerify(verifyCode);
+
   if (showWelcome) {
-    return <WelcomeScreen onContinue={() => { setShowWelcome(false); pendingNav.current(); }} />;
+    return (
+      <WelcomeScreen
+        name={pendingName.current}
+        onContinue={() => {
+          setShowWelcome(false);
+          update({ dashboardSeen: true, pendingTourStart: true });
+          pendingNav.current();
+        }}
+      />
+    );
   }
 
   return (
@@ -338,30 +373,7 @@ function Index() {
                       setCodeError(false);
                       // Auto-verify on 6 digits
                       if (val.length === 6) {
-                        setTimeout(() => {
-                          const matchingAccount = state.customerAccounts.find(
-                            (a) => a.email.toLowerCase() === email.toLowerCase()
-                          );
-                          update({
-                            signedIn: true,
-                            role: "kunde",
-                            tourSeen: false,
-                            ...(matchingAccount ? {
-                              memberType: matchingAccount.memberType,
-                              legalForm: matchingAccount.legalForm,
-                              legalFormLockedByAdmin: true,
-                              userName: `${matchingAccount.firstName} ${matchingAccount.lastName}`,
-                              companyName: matchingAccount.companyName,
-                              activeCustomerId: matchingAccount.id,
-                              uploadedDocs: matchingAccount.uploadedDocs,
-                              completedSections: matchingAccount.completedSections,
-                              postalCode: matchingAccount.postalCode,
-                              country: matchingAccount.country,
-                            } : {}),
-                          });
-                          pendingNav.current = () => navigate({ to: "/dashboard" });
-                          setShowWelcome(true);
-                        }, 300);
+                        setTimeout(() => doVerify(val), 300);
                       }
                     }}
                     placeholder="123456"

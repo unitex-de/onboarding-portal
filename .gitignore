@@ -31,3 +31,8 @@ dist-ssr
 *.sln
 *.sw?
 onboarding-portal.zip
+
+# API
+.env
+.env.*
+pandadoc.env

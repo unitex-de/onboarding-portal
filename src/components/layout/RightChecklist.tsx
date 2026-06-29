@@ -85,7 +85,7 @@ export function ChecklistContent({
         return (
           <div key={g.title} className="space-y-2">
             <h4 className="font-display text-xs font-semibold uppercase tracking-wide text-muted">{g.title}</h4>
-            <ul className="space-y-1.5">
+            <ul className="space-y-px">
               {visibleItems.map((item) => {
                 const checked = isChecklistItemDone(item, state);
                 return (
@@ -93,7 +93,7 @@ export function ChecklistContent({
                     <button
                       type="button"
                       onClick={() => handleChecklistClick(item.href)}
-                      className="flex items-center gap-3 group w-full text-left min-h-[44px]"
+                      className="flex items-center gap-3 group w-full text-left min-h-[44px] xl:min-h-0 xl:py-1"
                     >
                       <span aria-hidden
                         className={[

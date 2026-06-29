@@ -108,7 +108,7 @@ function ProgressRing({ pct }: { pct: number }) {
 
 // ── Animated dashboard entrance ───────────────────────────────────────────────
 function DashboardEntrance({ name, onDone }: { name: string; onDone: () => void }) {
-  const { displayed, done } = useTypewriter(`Guten Tag, ${name}!`, 60, 300);
+  const { displayed, done } = useTypewriter(`Willkommen ${name} im unitex Onboarding Portal`, 55, 300);
 
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-background">
