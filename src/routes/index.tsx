@@ -137,10 +137,12 @@ function Index() {
     if (!email.includes("@")) return;
     update({ email });
 
-    // Supabase: OTP per E-Mail senden
     await supabase.auth.signInWithOtp({
       email,
-      options: { shouldCreateUser: false }, // Nur bestehende Kunden können sich einloggen
+      options: {
+        shouldCreateUser: false,
+        emailRedirectTo: "https://onboarding.unitex.de/verify",  // NEU
+      },
     });
 
     setSent(true);
