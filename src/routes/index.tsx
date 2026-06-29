@@ -4,8 +4,14 @@ import { ArrowRight, Mail, ShieldCheck, CheckCircle2, UserCog, User, Lock, Spark
 import { useOnboarding, type UserRole, type MemberType, type LegalForm, fetchCustomerByEmail } from "@/lib/onboarding-state";
 import { supabase } from "@/lib/supabase";
 import { UnitexLogo } from "@/components/ui/UnitexLogo";
+import { z } from "zod";
+
+const indexSearchSchema = z.object({
+  email: z.string().optional(),
+});
 
 export const Route = createFileRoute("/")({
+  validateSearch: indexSearchSchema,
   head: () => ({
     meta: [
       { title: "unitex Onboarding Portal" },
@@ -82,11 +88,12 @@ function WelcomeScreen({ name, onContinue }: { name: string; onContinue: () => v
 }
 
 function Index() {
+  const { email: prefillEmail } = Route.useSearch();
+
   const navigate = useNavigate();
   const { state, update, refreshCustomers } = useOnboarding();
-
+  const [email, setEmail] = useState(prefillEmail ?? "");
   const [role, setRole] = useState<UserRole>("kunde");
-  const [email, setEmail] = useState(state.email ?? "");
   const [sent, setSent] = useState(false);
   const [verifyCode, setVerifyCode] = useState("");
   const [codeError, setCodeError] = useState(false);
