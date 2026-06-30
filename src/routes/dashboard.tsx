@@ -181,6 +181,7 @@ function DashboardContent() {
 
   // ── First-visit animated entrance ──────────────────────────────────────────
   const [showEntrance, setShowEntrance] = useState(false);
+  const [showBookmarkBanner, setShowBookmarkBanner] = useState(false);
   const entranceShownRef = useRef(false);
   useEffect(() => {
     if (!entranceShownRef.current && !state.dashboardSeen && !isAdmin) {
@@ -195,8 +196,8 @@ function DashboardContent() {
 
   const handleEntranceDone = useCallback(() => {
     setShowEntrance(false);
-    // DESIGN 2: mark dashboard as seen so sidebar "Tour starten" becomes visible
     update({ dashboardSeen: true });
+    setShowBookmarkBanner(true);
     startTour();
   }, [startTour, update]);
 
@@ -221,6 +222,30 @@ function DashboardContent() {
 
   return (
     <>
+      {showBookmarkBanner && !isAdmin && state.email && (
+        <div className="fixed top-6 right-6 z-50 max-w-sm rounded-xl border border-primary/30 bg-card shadow-xl p-4 flex items-start gap-3 animate-in slide-in-from-top-4 fade-in duration-300">
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-foreground">Lesezeichen speichern</p>
+            <p className="text-xs text-secondary mt-1">
+              Speichern Sie diesen Link als Lesezeichen – damit kommen Sie jederzeit direkt zu Ihrem Onboarding:
+            </p>
+            <a
+              href={`https://onboarding.unitex.de/?email=${encodeURIComponent(state.email)}`}
+              className="text-xs text-primary underline mt-2 block break-all"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {`onboarding.unitex.de/?email=${encodeURIComponent(state.email)}`}
+            </a>
+          </div>
+          <button
+            onClick={() => setShowBookmarkBanner(false)}
+            className="text-muted hover:text-foreground shrink-0"
+          >
+            ✕
+          </button>
+        </div>
+      )}
       {showEntrance && (
         <DashboardEntrance
           name={state.userName}
