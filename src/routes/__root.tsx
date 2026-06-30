@@ -11,7 +11,7 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../unitex.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { OnboardingProvider } from "../lib/onboarding-state";
+import { OnboardingProvider, useOnboarding } from "../lib/onboarding-state";
 
 function NotFoundComponent() {
   return (
@@ -116,15 +116,29 @@ function RootShell({ children }: { children: ReactNode }) {
     </html>
   );
 }
+function AuthGate({ children }: { children: ReactNode }) {
+  const { loading } = useOnboarding();
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+}
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
-
   return (
     <QueryClientProvider client={queryClient}>
       <OnboardingProvider>
-        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-        <Outlet />
+        <AuthGate>
+          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+          <Outlet />
+        </AuthGate>
       </OnboardingProvider>
     </QueryClientProvider>
   );
