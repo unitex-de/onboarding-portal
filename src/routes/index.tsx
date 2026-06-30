@@ -47,7 +47,7 @@ function useTypewriter(text: string, speed = 40, startDelay = 0) {
 }
 
 // ── Welcome screen after verification ─────────────────────────────────────────
-function WelcomeScreen({ name, onContinue }: { name: string; onContinue: () => void }) {
+function WelcomeScreen({ name, email, onContinue }: { name: string; email?: string; onContinue: () => void }) {
   const text = name
     ? `Willkommen ${name} im unitex Onboarding Portal`
     : "Willkommen im unitex Onboarding Portal";
@@ -83,6 +83,20 @@ function WelcomeScreen({ name, onContinue }: { name: string; onContinue: () => v
             </button>
           )}
         </div>
+        {done && email && (
+          <p className="text-xs text-muted animate-in fade-in duration-700">
+            Tipp: Speichern Sie{" "}
+            <a
+              href={`https://onboarding.unitex.de/?email=${encodeURIComponent(email)}`}
+              className="text-primary underline"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              diesen Link
+            </a>{" "}
+            als Lesezeichen für künftige Logins.
+          </p>
+        )}
       </div>
     </div>
   );
@@ -149,14 +163,14 @@ function Index() {
       email,
       options: {
         shouldCreateUser: false,
-        emailRedirectTo: "https://onboarding.unitex.de/verify",  // NEU
+        emailRedirectTo: "https://onboarding.unitex.de/verify",
       },
     });
 
     setSent(true);
   };
 
-    const doVerify = async (code: string) => {
+  const doVerify = async (code: string) => {
     if (code.length !== 6) return;
     const { error } = await supabase.auth.verifyOtp({
       email,
@@ -207,6 +221,7 @@ function Index() {
     return (
       <WelcomeScreen
         name={pendingName.current}
+        email={email}
         onContinue={() => {
           setShowWelcome(false);
           update({ dashboardSeen: true, pendingTourStart: true });
