@@ -1,10 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect, useRef } from "react";
 import { ArrowRight, Mail, ShieldCheck, CheckCircle2, UserCog, User, Lock, Sparkles } from "lucide-react";
-import { useOnboarding, type UserRole, type MemberType, type LegalForm, fetchCustomerByEmail } from "@/lib/onboarding-state";
+import { useOnboarding, type UserRole, type MemberType, type LegalForm, fetchCustomerByEmail, markDashboardSeen } from "@/lib/onboarding-state";
 import { supabase } from "@/lib/supabase";
 import { UnitexLogo } from "@/components/ui/UnitexLogo";
 import { z } from "zod";
+
 
 const indexSearchSchema = z.object({
   email: z.string().optional(),
@@ -155,26 +156,23 @@ function Index() {
     setSent(true);
   };
 
-  const doVerify = async (code: string) => {
+    const doVerify = async (code: string) => {
     if (code.length !== 6) return;
-
-    // Supabase: OTP verifizieren
     const { error } = await supabase.auth.verifyOtp({
       email,
       token: code,
       type: "email",
     });
-
     if (error) { setCodeError(true); return; }
 
     const customer = await fetchCustomerByEmail(email);
     const name = customer
       ? `${customer.firstName} ${customer.lastName}`.trim()
       : "";
+
     update({
       signedIn: true,
       role: "kunde",
-      tourSeen: false,
       ...(customer ? {
         memberType: customer.memberType,
         legalForm: customer.legalForm,
@@ -186,11 +184,21 @@ function Index() {
         completedSections: customer.completedSections,
         postalCode: customer.postalCode,
         country: customer.country,
+        dashboardSeen: customer.dashboardSeen,
       } : {}),
     });
-    pendingName.current = name;
-    pendingNav.current = () => navigate({ to: "/dashboard" });
-    setShowWelcome(true);
+
+    if (customer?.dashboardSeen) {
+      // Nicht der erste Login → direkt zum Dashboard, kein Welcome-Screen, keine Tour
+      navigate({ to: "/dashboard" });
+    } else {
+      pendingName.current = name;
+      pendingNav.current = () => {
+        if (customer) markDashboardSeen(customer.id);
+        navigate({ to: "/dashboard" });
+      };
+      setShowWelcome(true);
+    }
   };
 
   const onVerify = () => doVerify(verifyCode);

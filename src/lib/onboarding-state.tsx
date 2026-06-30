@@ -70,6 +70,7 @@ export interface CustomerAccount {
   zrStartDate?: string;
   uploadedDocs: Record<string, UploadedDoc>;
   completedSections: Record<string, boolean>;
+  dashboardSeen: boolean;
 }
 
 export interface OnboardingState {
@@ -206,6 +207,7 @@ async function fetchAllCustomers(): Promise<CustomerAccount[]> {
         zrStartDate: c.zr_start_date ?? undefined,
         uploadedDocs,
         completedSections,
+        dashboardSeen: c.dashboard_seen ?? false,
       };
     })
   );
@@ -270,9 +272,16 @@ export async function fetchCustomerByEmail(email: string): Promise<CustomerAccou
     zrStartDate: c.zr_start_date ?? undefined,
     uploadedDocs,
     completedSections,
+    dashboardSeen: c.dashboard_seen ?? false,
   };
 }
 
+export async function markDashboardSeen(customerId: string): Promise<void> {
+  await supabase
+    .from("customers")
+    .update({ dashboard_seen: true })
+    .eq("id", customerId);
+}
 // ---------------------------------------------------------------------------
 // Context
 // ---------------------------------------------------------------------------
@@ -568,6 +577,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       zrStartDate: data.zr_start_date ?? undefined,
       uploadedDocs: {},
       completedSections: {},
+      dashboardSeen: false,
     };
 
     setState((s) => ({
