@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { z } from "zod";
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
-import { useOnboarding } from "@/lib/onboarding-state";
+import { useOnboarding, fetchCustomerByEmail, markDashboardSeen } from "@/lib/onboarding-state";
 import { UnitexLogo } from "@/components/ui/UnitexLogo";
 import { Loader2, MailX, ShieldCheck } from "lucide-react";
 
@@ -24,10 +24,46 @@ export const Route = createFileRoute("/verify")({
   component: VerifyPage,
 });
 
+async function applyCustomerSession(
+  email: string,
+  update: ReturnType<typeof useOnboarding>["update"],
+  setVerifiedEmail: (e: string) => void,
+  navigate: ReturnType<typeof useNavigate>
+) {
+  const customer = await fetchCustomerByEmail(email);
+
+  update({
+    email,
+    signedIn: true,
+    role: "kunde",
+    ...(customer ? {
+      memberType: customer.memberType,
+      legalForm: customer.legalForm,
+      legalFormLockedByAdmin: true,
+      userName: `${customer.firstName} ${customer.lastName}`.trim(),
+      companyName: customer.companyName,
+      activeCustomerId: customer.id,
+      uploadedDocs: customer.uploadedDocs,
+      completedSections: customer.completedSections,
+      postalCode: customer.postalCode,
+      country: customer.country,
+      dashboardSeen: customer.dashboardSeen,
+    } : {}),
+  });
+
+  if (customer?.dashboardSeen) {
+    // Nicht der erste Login → direkt zum Dashboard, kein Erfolgs-/Welcome-Screen, keine Tour
+    navigate({ to: "/dashboard" });
+  } else {
+    if (customer) await markDashboardSeen(customer.id);
+    setVerifiedEmail(email);
+  }
+}
+
 function VerifyPage() {
   const { token_hash, token, type } = Route.useSearch();
   const navigate = useNavigate();
-  const { state, update } = useOnboarding();
+  const { update } = useOnboarding();
   const [error, setError] = useState<string | null>(null);
   const [verifiedEmail, setVerifiedEmail] = useState<string | null>(null);
 
@@ -55,28 +91,7 @@ function VerifyPage() {
               return;
             }
             const email = data.session.user.email ?? "";
-            const matchingAccount = state.customerAccounts.find(
-              (a) => a.email.toLowerCase() === email.toLowerCase()
-            );
-            update({
-              email,
-              signedIn: true,
-              role: "kunde",
-              tourSeen: false,
-              ...(matchingAccount ? {
-                memberType: matchingAccount.memberType,
-                legalForm: matchingAccount.legalForm,
-                legalFormLockedByAdmin: true,
-                userName: `${matchingAccount.firstName} ${matchingAccount.lastName}`,
-                companyName: matchingAccount.companyName,
-                activeCustomerId: matchingAccount.id,
-                uploadedDocs: matchingAccount.uploadedDocs,
-                completedSections: matchingAccount.completedSections,
-                postalCode: matchingAccount.postalCode,
-                country: matchingAccount.country,
-              } : {}),
-            });
-            setVerifiedEmail(email);
+            applyCustomerSession(email, update, setVerifiedEmail, navigate);
           });
         return;
       }
@@ -99,28 +114,7 @@ function VerifyPage() {
           return;
         }
         const email = data.session.user.email ?? "";
-        const matchingAccount = state.customerAccounts.find(
-          (a) => a.email.toLowerCase() === email.toLowerCase()
-        );
-        update({
-          email,
-          signedIn: true,
-          role: "kunde",
-          tourSeen: false,
-          ...(matchingAccount ? {
-            memberType: matchingAccount.memberType,
-            legalForm: matchingAccount.legalForm,
-            legalFormLockedByAdmin: true,
-            userName: `${matchingAccount.firstName} ${matchingAccount.lastName}`,
-            companyName: matchingAccount.companyName,
-            activeCustomerId: matchingAccount.id,
-            uploadedDocs: matchingAccount.uploadedDocs,
-            completedSections: matchingAccount.completedSections,
-            postalCode: matchingAccount.postalCode,
-            country: matchingAccount.country,
-          } : {}),
-        });
-        setVerifiedEmail(email);
+        applyCustomerSession(email, update, setVerifiedEmail, navigate);
       });
   }, []);
 
