@@ -29,6 +29,7 @@ function VerifyPage() {
   const navigate = useNavigate();
   const { state, update } = useOnboarding();
   const [error, setError] = useState<string | null>(null);
+  const [verifiedEmail, setVerifiedEmail] = useState<string | null>(null);
 
   useEffect(() => {
     // Supabase kann Token als Fragment (#access_token=...) oder Query (?token_hash=...) senden
@@ -75,7 +76,7 @@ function VerifyPage() {
                 country: matchingAccount.country,
               } : {}),
             });
-            navigate({ to: "/dashboard" });
+            setVerifiedEmail(email);
           });
         return;
       }
@@ -119,7 +120,7 @@ function VerifyPage() {
             country: matchingAccount.country,
           } : {}),
         });
-        navigate({ to: "/dashboard" });
+        setVerifiedEmail(email);
       });
   }, []);
 
@@ -131,7 +132,33 @@ function VerifyPage() {
         </div>
       </div>
 
-      {error ? (
+      {verifiedEmail ? (
+        <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-8 shadow-2xl text-center space-y-5">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/20">
+            <ShieldCheck className="h-6 w-6 text-emerald-500" />
+          </div>
+          <div>
+            <h1 className="font-display text-xl font-semibold text-foreground">Erfolgreich angemeldet</h1>
+            <p className="mt-2 text-sm text-secondary leading-relaxed">
+              Speichern Sie diesen Link als Lesezeichen, um künftig direkt hierher zurückzukehren:
+            </p>
+            <a
+              href={`https://onboarding.unitex.de/?email=${encodeURIComponent(verifiedEmail)}`}
+              className="mt-2 block text-xs text-primary underline break-all"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {`onboarding.unitex.de/?email=${encodeURIComponent(verifiedEmail)}`}
+            </a>
+          </div>
+          <button
+            onClick={() => navigate({ to: "/dashboard" })}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+          >
+            Weiter zum Dashboard
+          </button>
+        </div>
+      ) : error ? (
         <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-8 shadow-2xl text-center space-y-5">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-destructive/10 border border-destructive/20">
             <MailX className="h-6 w-6 text-destructive" />
