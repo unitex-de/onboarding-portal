@@ -221,7 +221,7 @@ export async function fetchCustomerByEmail(email: string): Promise<CustomerAccou
     .from("customers")
     .select("*")
     .eq("email", email)
-    .single();
+    .maybeSingle();
 
   if (error || !c) return null;
 
@@ -327,7 +327,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         .from("admins")
         .select("id")
         .eq("email", email)
-        .single();
+        .maybeSingle();
 
       if (adminRow) {
         // Admin: alle Kunden laden
@@ -405,7 +405,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       .from("customers")
       .select("id")
       .eq("email", session.user.email)
-      .single();
+      .maybeSingle();
 
     if (!customer) return;
 
@@ -438,7 +438,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       .from("customers")
       .select("id")
       .eq("email", session.user.email)
-      .single();
+      .maybeSingle();
 
     if (!customer) return;
 
@@ -466,7 +466,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       .from("customers")
       .select("id")
       .eq("email", session.user.email)
-      .single();
+      .maybeSingle();
 
     if (!customer) return;
 
@@ -476,7 +476,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       .select("data")
       .eq("customer_id", customer.id)
       .eq("section", "_completed")
-      .single();
+      .maybeSingle();
 
     const merged = { ...(existing?.data ?? {}), [sectionId]: true };
 
@@ -504,7 +504,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       .from("customers")
       .select("id")
       .eq("email", session.user.email)
-      .single();
+      .maybeSingle();
 
     if (!customer) return;
 
@@ -514,7 +514,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       .select("data")
       .eq("customer_id", customer.id)
       .eq("section", "stammdaten")
-      .single();
+      .maybeSingle();
 
     const merged = { ...(existing?.data ?? {}), ...d };
 
