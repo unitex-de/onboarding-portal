@@ -84,6 +84,7 @@ function AdminPage() {
       const acc = await addCustomerAccount({
         firstName, lastName, email, companyName, memberType, legalForm,
         postalCode, country, zrStartDate,
+        dashboardSeen: false
       });
       setShowCreate(false);
       setFirstName(""); setLastName(""); setEmail(""); setCompanyName("");

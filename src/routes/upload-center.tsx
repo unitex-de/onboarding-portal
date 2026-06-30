@@ -158,7 +158,7 @@ function DocumentRow({
   isActive: boolean;
   onSelect: () => void;
   onRemove: () => void;
-  onFileNow?: (file: { name: string; size: number }) => void;
+  onFileNow?: (file: File) => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const quickInputRef = useRef<HTMLInputElement>(null);
@@ -272,7 +272,7 @@ function DocumentRow({
             alert("Die Datei überschreitet die maximale Größe von 10 MB.");
             return;
           }
-          onFileNow?.({ name: file.name, size: file.size });
+          onFileNow?.(file);
           e.target.value = "";
         }}
       />
@@ -307,7 +307,7 @@ function MenuItem({
   );
 }
 
-function UploadDropZone({ onFile }: { onFile: (file: { name: string; size: number }) => void }) {
+function UploadDropZone({ onFile }: { onFile: (file: File) => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
 
@@ -317,7 +317,7 @@ function UploadDropZone({ onFile }: { onFile: (file: { name: string; size: numbe
       alert("Die Datei überschreitet die maximale Größe von 10 MB.");
       return;
     }
-    onFile({ name: file.name, size: file.size });
+    onFile(file);
   };
 
   return (

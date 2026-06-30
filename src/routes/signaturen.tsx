@@ -69,7 +69,7 @@ function KundeAbschlussPage({ unlocked, readOnly = false }: { unlocked: boolean;
       return;
     }
     setUploadedForm({ name: file.name, size: file.size });
-    uploadDoc("neukundenformular_signed", { name: file.name, size: file.size });
+    uploadDoc("neukundenformular_signed", file);
   };
 
   const handleSubmit = () => {

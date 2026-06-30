@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, useCallback, useRef, type ReactNode } from "react";
 import { supabase } from "./supabase";
 
 // ---------------------------------------------------------------------------
@@ -15,6 +15,7 @@ export interface UploadedDoc {
   fileName: string;
   size: number;
   uploadedAt: string;
+  storagePath: string;
 }
 
 export interface SavedFormData {
@@ -169,12 +170,16 @@ async function fetchAllCustomers(): Promise<CustomerAccount[]> {
         .eq("customer_id", c.id);
 
       // Dokumente in das Record-Format umwandeln
+      // Schlüssel im Record ist die docId (z.B. "ausweiskopie_gf"), die wir
+      // aus dem storage_key extrahieren: {customerId}/{docId}-{dateiname}
       const uploadedDocs: Record<string, UploadedDoc> = {};
       for (const doc of docs ?? []) {
-        uploadedDocs[doc.storage_key] = {
+        const docId = extractDocIdFromStorageKey(doc.storage_key);
+        uploadedDocs[docId] = {
           fileName: doc.file_name,
           size: doc.size,
           uploadedAt: doc.uploaded_at,
+          storagePath: doc.storage_key,
         };
       }
 
@@ -237,10 +242,12 @@ export async function fetchCustomerByEmail(email: string): Promise<CustomerAccou
 
   const uploadedDocs: Record<string, UploadedDoc> = {};
   for (const doc of docs ?? []) {
-    uploadedDocs[doc.storage_key] = {
+    const docId = extractDocIdFromStorageKey(doc.storage_key);
+    uploadedDocs[docId] = {
       fileName: doc.file_name,
       size: doc.size,
       uploadedAt: doc.uploaded_at,
+      storagePath: doc.storage_key,
     };
   }
 
@@ -282,6 +289,26 @@ export async function markDashboardSeen(customerId: string): Promise<void> {
     .update({ dashboard_seen: true })
     .eq("id", customerId);
 }
+
+// ---------------------------------------------------------------------------
+// Storage-Key Helper
+// ---------------------------------------------------------------------------
+
+/**
+ * storage_key hat die Form {customerId}/{docId}-{dateiname}.
+ * Diese Funktion extrahiert die docId daraus, damit wir die Datei dem
+ * richtigen Checklisten-Slot (z.B. "ausweiskopie_gf") zuordnen können.
+ * customerId ist eine UUID (enthält keine "-" im Sinne von Trennzeichen
+ * zwischen docId und Dateiname, da UUIDs nur als ganzer erster Pfadteil
+ * vorkommen), daher reicht ein Split nach dem ersten "/".
+ */
+function extractDocIdFromStorageKey(storageKey: string): string {
+  const afterSlash = storageKey.split("/")[1] ?? storageKey;
+  // alles bis zum ersten "-" ist die docId, der Rest ist der Dateiname
+  const dashIndex = afterSlash.indexOf("-");
+  return dashIndex === -1 ? afterSlash : afterSlash.slice(0, dashIndex);
+}
+
 // ---------------------------------------------------------------------------
 // Context
 // ---------------------------------------------------------------------------
@@ -290,7 +317,7 @@ interface Ctx {
   state: OnboardingState;
   loading: boolean;
   update: (p: Partial<OnboardingState>) => void;
-  uploadDoc: (id: string, file: { name: string; size: number }) => void;
+  uploadDoc: (id: string, file: File) => void;
   removeDoc: (id: string) => void;
   completeSection: (id: string) => void;
   updateFormData: (d: Partial<SavedFormData>) => void;
@@ -306,6 +333,31 @@ const OnboardingCtx = createContext<Ctx | null>(null);
 export function OnboardingProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<OnboardingState>(DEFAULT_STATE);
   const [loading, setLoading] = useState(true);
+
+  // Ref hält den aktuellen State synchron, damit useCallback-Funktionen
+  // mit [] als Dependency trotzdem den aktuellen activeCustomerId sehen
+  // (kein "stale closure"-Problem).
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
+  // Ermittelt die Kunden-ID für DB-Schreibzugriffe:
+  // - Admin, der gerade einen Kunden bearbeitet → activeCustomerId
+  // - Kunde, der selbst eingeloggt ist → eigene customers-Zeile über E-Mail
+  const resolveCustomerId = useCallback(async (): Promise<string | null> => {
+    const activeId = stateRef.current.activeCustomerId;
+    if (activeId) return activeId;
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user?.email) return null;
+
+    const { data: customer } = await supabase
+      .from("customers")
+      .select("id")
+      .eq("email", session.user.email)
+      .maybeSingle();
+
+    return customer?.id ?? null;
+  }, []);
 
   // ---------------------------------------------------------------------------
   // Beim Start: Supabase Auth-Session prüfen und Daten laden
@@ -394,27 +446,49 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // ---------------------------------------------------------------------------
-  // Dokument hochladen (Kunde)
+  // Dokument hochladen (Kunde oder Admin im Namen eines Kunden)
   // ---------------------------------------------------------------------------
-  const uploadDoc = useCallback(async (docId: string, file: { name: string; size: number }) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user?.email) return;
+  const uploadDoc = useCallback(async (docId: string, file: File) => {
+    const customerId = await resolveCustomerId();
+    if (!customerId) return;
 
-    // Kunden-UUID aus der DB holen
-    const { data: customer } = await supabase
-      .from("customers")
-      .select("id")
-      .eq("email", session.user.email)
-      .maybeSingle();
+    const { data: existingDocs } = await supabase
+      .from("documents")
+      .select("storage_key")
+      .eq("customer_id", customerId)
+      .like("storage_key", `${customerId}/${docId}-%`);
 
-    if (!customer) return;
+    if (existingDocs && existingDocs.length > 0) {
+      const oldPaths = existingDocs.map((d) => d.storage_key);
+      await supabase.storage.from("documents").remove(oldPaths);
+      await supabase
+        .from("documents")
+        .delete()
+        .eq("customer_id", customerId)
+        .in("storage_key", oldPaths);
+    }
+
+    // Storage-Pfad: {customerId}/{docId}-{dateiname}
+    const storagePath = `${customerId}/${docId}-${file.name}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("documents")
+      .upload(storagePath, file, { upsert: true });
+
+    if (uploadError) {
+      console.error("Storage-Upload fehlgeschlagen:", uploadError);
+      alert("Datei konnte nicht hochgeladen werden. Bitte erneut versuchen.");
+      return;
+    }
+
+    const uploadedAt = new Date().toISOString();
 
     await supabase.from("documents").upsert({
-      customer_id: customer.id,
+      customer_id: customerId,
       file_name: file.name,
-      storage_key: docId,
+      storage_key: storagePath,
       size: file.size,
-      uploaded_at: new Date().toISOString(),
+      uploaded_at: uploadedAt,
     }, { onConflict: "customer_id,storage_key" });
 
     // Lokalen State aktualisieren
@@ -422,66 +496,56 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       ...s,
       uploadedDocs: {
         ...s.uploadedDocs,
-        [docId]: { fileName: file.name, size: file.size, uploadedAt: new Date().toISOString() },
+        [docId]: { fileName: file.name, size: file.size, uploadedAt, storagePath },
       },
     }));
-  }, []);
+  }, [resolveCustomerId]);
 
   // ---------------------------------------------------------------------------
-  // Dokument entfernen (Kunde)
+  // Dokument entfernen (Kunde oder Admin im Namen eines Kunden)
   // ---------------------------------------------------------------------------
   const removeDoc = useCallback(async (docId: string) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user?.email) return;
+    const customerId = await resolveCustomerId();
+    if (!customerId) return;
 
-    const { data: customer } = await supabase
-      .from("customers")
-      .select("id")
-      .eq("email", session.user.email)
-      .maybeSingle();
+    const storagePath = stateRef.current.uploadedDocs[docId]?.storagePath;
 
-    if (!customer) return;
+    if (storagePath) {
+      await supabase.storage.from("documents").remove([storagePath]);
+    }
 
     await supabase
       .from("documents")
       .delete()
-      .eq("customer_id", customer.id)
-      .eq("storage_key", docId);
+      .eq("customer_id", customerId)
+      .like("storage_key", `${customerId}/${docId}-%`);
 
     setState((s) => {
       const next = { ...s.uploadedDocs };
       delete next[docId];
       return { ...s, uploadedDocs: next };
     });
-  }, []);
+  }, [resolveCustomerId]);
 
   // ---------------------------------------------------------------------------
-  // Sektion als abgeschlossen markieren (Kunde)
+  // Sektion als abgeschlossen markieren (Kunde oder Admin im Namen eines Kunden)
   // ---------------------------------------------------------------------------
   const completeSection = useCallback(async (sectionId: string) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user?.email) return;
-
-    const { data: customer } = await supabase
-      .from("customers")
-      .select("id")
-      .eq("email", session.user.email)
-      .maybeSingle();
-
-    if (!customer) return;
+    const customerId = await resolveCustomerId();
+    if (!customerId) return;
 
     // Aktuelle completed-Sections laden und mergen
     const { data: existing } = await supabase
       .from("form_data")
       .select("data")
-      .eq("customer_id", customer.id)
+      .eq("customer_id", customerId)
       .eq("section", "_completed")
       .maybeSingle();
 
     const merged = { ...(existing?.data ?? {}), [sectionId]: true };
 
     await supabase.from("form_data").upsert({
-      customer_id: customer.id,
+      customer_id: customerId,
       section: "_completed",
       data: merged,
       updated_at: new Date().toISOString(),
@@ -491,35 +555,27 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       ...s,
       completedSections: { ...s.completedSections, [sectionId]: true },
     }));
-  }, []);
+  }, [resolveCustomerId]);
 
   // ---------------------------------------------------------------------------
-  // Formulardaten speichern (Kunde)
+  // Formulardaten speichern (Kunde oder Admin im Namen eines Kunden)
   // ---------------------------------------------------------------------------
   const updateFormData = useCallback(async (d: Partial<SavedFormData>) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user?.email) return;
-
-    const { data: customer } = await supabase
-      .from("customers")
-      .select("id")
-      .eq("email", session.user.email)
-      .maybeSingle();
-
-    if (!customer) return;
+    const customerId = await resolveCustomerId();
+    if (!customerId) return;
 
     // Aktuelle Daten laden und mergen
     const { data: existing } = await supabase
       .from("form_data")
       .select("data")
-      .eq("customer_id", customer.id)
+      .eq("customer_id", customerId)
       .eq("section", "stammdaten")
       .maybeSingle();
 
     const merged = { ...(existing?.data ?? {}), ...d };
 
     await supabase.from("form_data").upsert({
-      customer_id: customer.id,
+      customer_id: customerId,
       section: "stammdaten",
       data: merged,
       updated_at: new Date().toISOString(),
@@ -529,7 +585,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       ...s,
       savedFormData: { ...s.savedFormData, ...d },
     }));
-  }, []);
+  }, [resolveCustomerId]);
 
   // ---------------------------------------------------------------------------
   // Neuen Kunden anlegen (Admin)
