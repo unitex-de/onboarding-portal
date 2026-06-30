@@ -197,8 +197,8 @@ function DashboardContent() {
   const handleEntranceDone = useCallback(() => {
     setShowEntrance(false);
     update({ dashboardSeen: true });
-    setShowBookmarkBanner(true);
     startTour();
+    setTimeout(() => setShowBookmarkBanner(true), 20000); // Timer nach Tour bis Bookmark Banner
   }, [startTour, update]);
 
   // ── pendingTourStart from sidebar ──────────────────────────────────────────
