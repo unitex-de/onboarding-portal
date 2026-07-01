@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useRef, useState, useEffect } from "react";
 import { CloudUpload, FileCheck2, FileText, MoreVertical, Trash2, RefreshCcw, Download, Shield } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
-import { useOnboarding, type LegalForm } from "@/lib/onboarding-state";
+import { useOnboarding, getDownloadUrl, type LegalForm } from "@/lib/onboarding-state";
 import { REQUIRED_DOCS, REQUIRED_DOCS_LIEFERANT, formatBytes } from "@/lib/required-docs";
 import { ConfettiPopup } from "@/components/ui/ConfettiPopup";
 
@@ -154,7 +154,7 @@ function DocumentRow({
   label: string;
   hint?: string;
   required: boolean;
-  uploaded?: { fileName: string; size: number; uploadedAt: string };
+  uploaded?: { fileName: string; size: number; uploadedAt: string; storagePath: string };
   isActive: boolean;
   onSelect: () => void;
   onRemove: () => void;
@@ -249,7 +249,19 @@ function DocumentRow({
               {uploaded ? (
                 <>
                   <MenuItem icon={RefreshCcw} label="Ersetzen" onClick={() => { onRemove(); onSelect(); setMenuOpen(false); }} />
-                  <MenuItem icon={Download} label="Herunterladen" onClick={() => setMenuOpen(false)} />
+                  <MenuItem
+                    icon={Download}
+                    label="Herunterladen"
+                    onClick={async () => {
+                      setMenuOpen(false);
+                      const url = await getDownloadUrl(uploaded.storagePath);
+                      if (!url) {
+                        alert("Die Datei konnte nicht geladen werden. Bitte versuchen Sie es erneut.");
+                        return;
+                      }
+                      window.open(url, "_blank", "noopener,noreferrer");
+                    }}
+                  />
                   <MenuItem icon={Trash2} label="Löschen" destructive onClick={() => { onRemove(); setMenuOpen(false); }} />
                 </>
               ) : (

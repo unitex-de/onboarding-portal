@@ -290,6 +290,20 @@ export async function markDashboardSeen(customerId: string): Promise<void> {
     .eq("id", customerId);
 }
 
+/** Erzeugt eine zeitlich begrenzte signierte URL zum Anzeigen/Herunterladen einer Datei */
+export async function getDownloadUrl(storagePath: string): Promise<string | null> {
+  const { data, error } = await supabase.storage
+    .from("documents")
+    .createSignedUrl(storagePath, 60 * 60); // 1 Stunde gültig, wie im Sicherheitskonzept vorgesehen
+
+  if (error || !data) {
+    console.error("Signierte URL konnte nicht erstellt werden:", error);
+    return null;
+  }
+
+  return data.signedUrl;
+}
+
 // ---------------------------------------------------------------------------
 // Storage-Key Helper
 // ---------------------------------------------------------------------------
