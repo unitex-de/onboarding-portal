@@ -72,6 +72,8 @@ export interface CustomerAccount {
   uploadedDocs: Record<string, UploadedDoc>;
   completedSections: Record<string, boolean>;
   dashboardSeen: boolean;
+  loggedInName?: string;
+  isCollaborator?: boolean;
 }
 
 export interface OnboardingState {
@@ -231,14 +233,18 @@ export async function fetchCustomerByEmail(email: string): Promise<CustomerAccou
     .maybeSingle();
 
   // Kein direkter Kunde mit dieser E-Mail → prüfen, ob es ein Mitbearbeiter ist
+  let collaboratorName: string | undefined;
+
   if (!c && !error) {
     const { data: collab } = await supabase
       .from("collaborators")
-      .select("customer_id")
+      .select("customer_id, first_name, last_name")
       .eq("email", email)
       .maybeSingle();
 
     if (collab) {
+      collaboratorName = `${collab.first_name ?? ""} ${collab.last_name ?? ""}`.trim();
+
       const result = await supabase
         .from("customers")
         .select("*")
@@ -302,6 +308,8 @@ export async function fetchCustomerByEmail(email: string): Promise<CustomerAccou
     uploadedDocs,
     completedSections,
     dashboardSeen: c.dashboard_seen ?? false,
+    loggedInName: collaboratorName,
+    isCollaborator: !!collaboratorName,
   };
 }
 
@@ -357,7 +365,7 @@ interface Ctx {
   removeDoc: (id: string) => void;
   completeSection: (id: string) => void;
   updateFormData: (d: Partial<SavedFormData>) => void;
-  inviteCollaborator: (email: string) => Promise<{ success: boolean; error?: string }>;
+  inviteCollaborator: (email: string, firstName: string, lastName: string) => Promise<{ success: boolean; error?: string }>;
   addCustomerAccount: (acc: Omit<CustomerAccount, "id" | "createdAt" | "magicLinkSent" | "magicToken" | "status" | "linkSentAt" | "uploadedDocs" | "completedSections">) => Promise<CustomerAccount>;
   updateCustomerAccount: (id: string, patch: Partial<CustomerAccount>) => Promise<void>;
   sendMagicLink: (id: string) => Promise<void>;
@@ -446,7 +454,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
             email,
             signedIn: true,
             role: "kunde",
-            userName: `${customer.firstName} ${customer.lastName}`.trim(),
+            userName: customer.loggedInName || `${customer.firstName} ${customer.lastName}`.trim(),
             companyName: customer.companyName,
             memberType: customer.memberType,
             legalForm: customer.legalForm,
@@ -646,7 +654,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   // ---------------------------------------------------------------------------
   // Mitbearbeiter einladen (Kunde oder Admin im Namen eines Kunden)
   // ---------------------------------------------------------------------------
-  const inviteCollaborator = useCallback(async (email: string): Promise<{ success: boolean; error?: string }> => {
+  const inviteCollaborator = useCallback(async (email: string, firstName: string, lastName: string): Promise<{ success: boolean; error?: string }> => {
     const customerId = await resolveCustomerId();
     if (!customerId) return { success: false, error: "Kein Kundenkonto gefunden." };
 
@@ -658,6 +666,8 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       .insert({
         customer_id: customerId,
         email,
+        first_name: firstName,
+        last_name: lastName,
         invited_by: actorEmail,
       });
 
@@ -673,7 +683,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       email,
       options: {
         shouldCreateUser: true,
-        emailRedirectTo: "https://onboarding.unitex.de/verify",
+        emailRedirectTo: `https://onboarding.unitex.de/?email=${encodeURIComponent(email)}&verify=1`,
       },
     });
 

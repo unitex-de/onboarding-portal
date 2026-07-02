@@ -40,7 +40,7 @@ async function applyCustomerSession(
       memberType: customer.memberType,
       legalForm: customer.legalForm,
       legalFormLockedByAdmin: true,
-      userName: `${customer.firstName} ${customer.lastName}`.trim(),
+      userName: customer.loggedInName || `${customer.firstName} ${customer.lastName}`.trim(),
       companyName: customer.companyName,
       activeCustomerId: customer.id,
       uploadedDocs: customer.uploadedDocs,

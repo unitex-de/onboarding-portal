@@ -200,7 +200,7 @@ function Index() {
 
     const customer = await fetchCustomerByEmail(email);
     const name = customer
-      ? `${customer.firstName} ${customer.lastName}`.trim()
+      ? (customer.loggedInName || `${customer.firstName} ${customer.lastName}`.trim())
       : "";
 
     update({
