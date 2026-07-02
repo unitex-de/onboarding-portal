@@ -475,6 +475,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
             postalCode: customer.postalCode,
             country: customer.country,
             zrStartDate: customer.zrStartDate,
+            dashboardSeen: customer.dashboardSeen,
           }));
         }
       }
