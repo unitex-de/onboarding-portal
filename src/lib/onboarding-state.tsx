@@ -75,6 +75,7 @@ export interface CustomerAccount {
 }
 
 export interface OnboardingState {
+  loading: any;
   email: string | null;
   signedIn: boolean;
   role: UserRole;
@@ -101,6 +102,7 @@ export interface OnboardingState {
 }
 
 const DEFAULT_STATE: OnboardingState = {
+  loading: false,
   email: null,
   signedIn: false,
   role: "kunde",
@@ -222,13 +224,33 @@ async function fetchAllCustomers(): Promise<CustomerAccount[]> {
 
 /** Liest einen einzelnen Kunden anhand seiner E-Mail-Adresse */
 export async function fetchCustomerByEmail(email: string): Promise<CustomerAccount | null> {
-  const { data: c, error } = await supabase
+  let { data: c, error } = await supabase
     .from("customers")
     .select("*")
     .eq("email", email)
     .maybeSingle();
 
+  // Kein direkter Kunde mit dieser E-Mail → prüfen, ob es ein Mitbearbeiter ist
+  if (!c && !error) {
+    const { data: collab } = await supabase
+      .from("collaborators")
+      .select("customer_id")
+      .eq("email", email)
+      .maybeSingle();
+
+    if (collab) {
+      const result = await supabase
+        .from("customers")
+        .select("*")
+        .eq("id", collab.customer_id)
+        .maybeSingle();
+      c = result.data;
+      error = result.error;
+    }
+  }
+
   if (error || !c) return null;
+  // ... ab hier bleibt der Rest der Funktion unverändert (docs, formSections, etc.)
 
   const { data: docs } = await supabase
     .from("documents")
@@ -335,6 +357,7 @@ interface Ctx {
   removeDoc: (id: string) => void;
   completeSection: (id: string) => void;
   updateFormData: (d: Partial<SavedFormData>) => void;
+  inviteCollaborator: (email: string) => Promise<{ success: boolean; error?: string }>;
   addCustomerAccount: (acc: Omit<CustomerAccount, "id" | "createdAt" | "magicLinkSent" | "magicToken" | "status" | "linkSentAt" | "uploadedDocs" | "completedSections">) => Promise<CustomerAccount>;
   updateCustomerAccount: (id: string, patch: Partial<CustomerAccount>) => Promise<void>;
   sendMagicLink: (id: string) => Promise<void>;
@@ -370,7 +393,16 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       .eq("email", session.user.email)
       .maybeSingle();
 
-    return customer?.id ?? null;
+    if (customer?.id) return customer.id;
+
+    // Kein direkter Kunde → prüfen, ob die Session-E-Mail ein Mitbearbeiter ist
+    const { data: collab } = await supabase
+      .from("collaborators")
+      .select("customer_id")
+      .eq("email", session.user.email)
+      .maybeSingle();
+
+    return collab?.customer_id ?? null;
   }, []);
 
   // ---------------------------------------------------------------------------
@@ -466,6 +498,9 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     const customerId = await resolveCustomerId();
     if (!customerId) return;
 
+    const { data: { session } } = await supabase.auth.getSession();
+    const actorEmail = session?.user?.email ?? null;
+
     const { data: existingDocs } = await supabase
       .from("documents")
       .select("storage_key")
@@ -496,16 +531,15 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     }
 
     const uploadedAt = new Date().toISOString();
-
     await supabase.from("documents").upsert({
       customer_id: customerId,
       file_name: file.name,
       storage_key: storagePath,
       size: file.size,
       uploaded_at: uploadedAt,
+      created_by: actorEmail,
     }, { onConflict: "customer_id,storage_key" });
 
-    // Lokalen State aktualisieren
     setState((s) => ({
       ...s,
       uploadedDocs: {
@@ -548,6 +582,9 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     const customerId = await resolveCustomerId();
     if (!customerId) return;
 
+    const { data: { session } } = await supabase.auth.getSession();
+    const actorEmail = session?.user?.email ?? null;
+
     // Aktuelle completed-Sections laden und mergen
     const { data: existing } = await supabase
       .from("form_data")
@@ -563,6 +600,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       section: "_completed",
       data: merged,
       updated_at: new Date().toISOString(),
+      updated_by: actorEmail,
     }, { onConflict: "customer_id,section" });
 
     setState((s) => ({
@@ -577,6 +615,9 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   const updateFormData = useCallback(async (d: Partial<SavedFormData>) => {
     const customerId = await resolveCustomerId();
     if (!customerId) return;
+
+    const { data: { session } } = await supabase.auth.getSession();
+    const actorEmail = session?.user?.email ?? null;
 
     // Aktuelle Daten laden und mergen
     const { data: existing } = await supabase
@@ -593,12 +634,54 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       section: "stammdaten",
       data: merged,
       updated_at: new Date().toISOString(),
+      updated_by: actorEmail,
     }, { onConflict: "customer_id,section" });
 
     setState((s) => ({
       ...s,
       savedFormData: { ...s.savedFormData, ...d },
     }));
+  }, [resolveCustomerId]);
+
+  // ---------------------------------------------------------------------------
+  // Mitbearbeiter einladen (Kunde oder Admin im Namen eines Kunden)
+  // ---------------------------------------------------------------------------
+  const inviteCollaborator = useCallback(async (email: string): Promise<{ success: boolean; error?: string }> => {
+    const customerId = await resolveCustomerId();
+    if (!customerId) return { success: false, error: "Kein Kundenkonto gefunden." };
+
+    const { data: { session } } = await supabase.auth.getSession();
+    const actorEmail = session?.user?.email ?? null;
+
+    const { error: insertError } = await supabase
+      .from("collaborators")
+      .insert({
+        customer_id: customerId,
+        email,
+        invited_by: actorEmail,
+      });
+
+    if (insertError) {
+      // Postgres-Fehlercode 23505 = unique constraint verletzt (customer_id, email)
+      if (insertError.code === "23505") {
+        return { success: false, error: "Diese Person ist bereits als Mitbearbeiter eingetragen." };
+      }
+      return { success: false, error: insertError.message };
+    }
+
+    const { error: otpError } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        shouldCreateUser: true,
+        emailRedirectTo: "https://onboarding.unitex.de/verify",
+      },
+    });
+
+    if (otpError) {
+      return { success: false, error: "Eintrag gespeichert, aber Einladungs-Mail konnte nicht versendet werden." };
+    }
+
+    return { success: true };
   }, [resolveCustomerId]);
 
   // ---------------------------------------------------------------------------
@@ -729,6 +812,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       removeDoc,
       completeSection,
       updateFormData,
+      inviteCollaborator,
       addCustomerAccount,
       updateCustomerAccount,
       sendMagicLink,
@@ -736,7 +820,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       reset,
     }),
     [state, loading, update, uploadDoc, removeDoc, completeSection, updateFormData,
-     addCustomerAccount, updateCustomerAccount, sendMagicLink, refreshCustomers, reset]
+     inviteCollaborator, addCustomerAccount, updateCustomerAccount, sendMagicLink, refreshCustomers, reset]
   );
 
   return <OnboardingCtx.Provider value={value}>{children}</OnboardingCtx.Provider>;

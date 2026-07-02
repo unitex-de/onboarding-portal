@@ -1,48 +1,35 @@
 /**
  * CollaboratorInvite – Mitbearbeiter einladen
  *
- * Ansatz: "Copy Link" – der Benutzer erhält einen personalisierten Link,
- * der weitergegeben werden kann (z.B. an Buchhalter / Steuerberater).
- * Kein separater Backend-User nötig – der Link enthält das Session-Token
- * aus dem State, sodass der Eingeladene denselben Zugriff wie der Kunde hat.
- *
- * Backend-Hinweis für echte Implementierung:
- * - Option A (einfach): Link enthält das bestehende magic Token → gleicher Zugang,
- *   kein separater Account nötig.
- * - Option B (sicher): Neuen collaborator_token in Supabase anlegen,
- *   per Zapier-Webhook E-Mail versenden, Token mit read-only oder
- *   section-spezifischen Rechten verknüpfen.
- * Für den Demo-Prototyp wird Option A umgesetzt (Copy Link).
+ * Der Kunde (oder ein Admin im Namen eines Kunden) trägt die E-Mail-Adresse
+ * eines Mitbearbeiters ein. Dieser bekommt eine eigene OTP-Einladungsmail
+ * und kann sich danach eigenständig mit voller Berechtigung auf denselben
+ * Kundendatensatz anmelden (siehe collaborators-Tabelle + RLS-Policies).
  */
 import { useState } from "react";
-import { X, Copy, Check, Users, Link as LinkIcon, Info } from "lucide-react";
+import { X, Users, UserPlus, Info, CheckCircle2, Loader2 } from "lucide-react";
 import { useOnboarding } from "@/lib/onboarding-state";
 
 export function CollaboratorInvite({ onClose }: { onClose: () => void }) {
-  const { state } = useOnboarding();
-  const [copied, setCopied] = useState(false);
+  const { inviteCollaborator } = useOnboarding();
+  const [email, setEmail] = useState("");
+  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Build shareable link using the current magic token if available
-  const activeAccount = state.customerAccounts.find((a) => a.id === state.activeCustomerId);
-  const token = activeAccount?.magicToken ?? "demo-token";
-  const email = state.email ?? "";
-  const shareLink = `${window.location.origin}/verify?token=${token}&email=${encodeURIComponent(email)}`;
+  const isValidEmail = email.includes("@") && email.includes(".");
 
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(shareLink);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
-    } catch {
-      // Fallback
-      const ta = document.createElement("textarea");
-      ta.value = shareLink;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand("copy");
-      document.body.removeChild(ta);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
+  const handleInvite = async () => {
+    if (!isValidEmail) return;
+    setStatus("loading");
+    setErrorMsg(null);
+
+    const result = await inviteCollaborator(email.trim());
+
+    if (result.success) {
+      setStatus("success");
+    } else {
+      setStatus("error");
+      setErrorMsg(result.error ?? "Unbekannter Fehler beim Einladen.");
     }
   };
 
@@ -67,42 +54,65 @@ export function CollaboratorInvite({ onClose }: { onClose: () => void }) {
 
         {/* Body */}
         <div className="p-6 space-y-5">
-          <p className="text-sm text-secondary leading-relaxed">
-            Teilen Sie diesen Link mit Personen, die Ihnen beim Ausfüllen des Onboarding-Formulars helfen sollen.
-            Der Link gewährt Zugriff auf Ihr Onboarding-Konto.
-          </p>
+          {status === "success" ? (
+            <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-4 flex items-start gap-2.5">
+              <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
+              <p className="text-sm text-foreground leading-relaxed">
+                Einladung an <span className="font-medium">{email}</span> wurde versendet.
+                Die Person erhält eine E-Mail mit einem Anmeldecode und hat danach denselben
+                Zugriff wie Sie.
+              </p>
+            </div>
+          ) : (
+            <>
+              <p className="text-sm text-secondary leading-relaxed">
+                Laden Sie eine Person per E-Mail ein. Sie erhält einen eigenen Anmeldecode
+                und kann danach eigenständig auf Ihr Onboarding-Konto zugreifen.
+              </p>
 
-          <div className="space-y-2">
-            <label className="text-xs font-medium uppercase tracking-wide text-secondary">Ihr Einladungslink</label>
-            <div className="flex items-center gap-2 rounded-lg border border-border bg-popover p-3">
-              <LinkIcon className="h-4 w-4 text-muted shrink-0" />
-              <span className="flex-1 text-xs text-foreground truncate font-mono">{shareLink}</span>
+              <div className="space-y-2">
+                <label className="text-xs font-medium uppercase tracking-wide text-secondary">
+                  E-Mail-Adresse
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (status === "error") setStatus("idle");
+                  }}
+                  placeholder="name@beispiel.de"
+                  className="w-full rounded-lg border border-border bg-popover p-3 text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary/40"
+                />
+              </div>
+
+              {status === "error" && errorMsg && (
+                <p className="text-xs text-destructive">{errorMsg}</p>
+              )}
+
               <button
                 type="button"
-                onClick={handleCopy}
-                className={[
-                  "shrink-0 inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-all",
-                  copied
-                    ? "bg-success/15 text-success border border-success/30"
-                    : "bg-primary text-primary-foreground hover:bg-primary/90",
-                ].join(" ")}
+                onClick={handleInvite}
+                disabled={!isValidEmail || status === "loading"}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {copied ? (
-                  <><Check className="h-3.5 w-3.5" /> Kopiert!</>
+                {status === "loading" ? (
+                  <><Loader2 className="h-4 w-4 animate-spin" /> Wird gesendet…</>
                 ) : (
-                  <><Copy className="h-3.5 w-3.5" /> Kopieren</>
+                  <><UserPlus className="h-4 w-4" /> Einladen</>
                 )}
               </button>
-            </div>
-          </div>
 
-          <div className="rounded-lg bg-popover/80 border border-border p-3 flex items-start gap-2.5">
-            <Info className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-            <p className="text-xs text-secondary leading-relaxed">
-              <span className="font-medium text-foreground">Sicherheitshinweis:</span>{" "}
-              Teilen Sie diesen Link nur mit Personen, denen Sie vertrauen. Er gewährt Lesezugriff auf Ihre Onboarding-Daten. Der Link ist an Ihre E-Mail-Adresse gebunden.
-            </p>
-          </div>
+              <div className="rounded-lg bg-popover/80 border border-border p-3 flex items-start gap-2.5">
+                <Info className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                <p className="text-xs text-secondary leading-relaxed">
+                  <span className="font-medium text-foreground">Sicherheitshinweis:</span>{" "}
+                  Der Mitbearbeiter erhält vollen Zugriff auf Ihre Onboarding-Daten – wie Sie
+                  selbst. Laden Sie nur Personen ein, denen Sie vertrauen.
+                </p>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Footer */}

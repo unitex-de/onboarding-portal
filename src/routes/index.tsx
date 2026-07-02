@@ -9,6 +9,7 @@ import { z } from "zod";
 
 const indexSearchSchema = z.object({
   email: z.string().optional(),
+  verify: z.string().optional(),
 });
 
 export const Route = createFileRoute("/")({
@@ -103,15 +104,21 @@ function WelcomeScreen({ name, email, onContinue }: { name: string; email?: stri
 }
 
 function Index() {
-  const { email: prefillEmail } = Route.useSearch();
+  const { email: prefillEmail, verify } = Route.useSearch();
 
   const navigate = useNavigate();
-  const { state, update, refreshCustomers } = useOnboarding();
+  const { state, loading, update, refreshCustomers } = useOnboarding();
+    useEffect(() => {
+      if (!state.loading && state.signedIn) {
+        navigate({ to: state.role === "admin" ? "/admin" : "/dashboard" });
+      }
+    }, [state.loading, state.signedIn, state.role, navigate]);
   const [email, setEmail] = useState(prefillEmail ?? "");
   const [role, setRole] = useState<UserRole>("kunde");
-  const [sent, setSent] = useState(false);
+  const [sent, setSent] = useState(verify === "1");
   const [verifyCode, setVerifyCode] = useState("");
   const [codeError, setCodeError] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
   const [showWelcome, setShowWelcome] = useState(false);
   const pendingNav = useRef<() => void>(() => {});
   const pendingName = useRef<string>("");
@@ -157,15 +164,27 @@ function Index() {
 
   const onKundeRequest = async () => {
     if (!email.includes("@")) return;
-    update({ email });
+    setEmailError(null);
 
-    await supabase.auth.signInWithOtp({
+    const { data: isRegistered } = await supabase.rpc("email_is_registered", { check_email: email });
+    if (!isRegistered) {
+      setEmailError("Diese E-Mail-Adresse ist uns nicht bekannt. Bitte wenden Sie sich an Ihren unitex-Ansprechpartner.");
+      return;
+    }
+
+    update({ email });
+    const { error: otpError } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        shouldCreateUser: false,
-        emailRedirectTo: "https://onboarding.unitex.de/verify",
+        shouldCreateUser: true,
+        emailRedirectTo: `https://onboarding.unitex.de/?email=${encodeURIComponent(email)}&verify=1`,
       },
     });
+
+    if (otpError) {
+      setEmailError("Code konnte nicht versendet werden. Bitte versuchen Sie es erneut.");
+      return;
+    }
 
     setSent(true);
   };
@@ -369,6 +388,9 @@ function Index() {
                     />
                   </div>
                 </div>
+                {emailError && (
+                  <p className="text-xs text-destructive">{emailError}</p>
+                )}
                 <button type="button" onClick={onKundeRequest} disabled={!email.includes("@")}
                   className="group inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
