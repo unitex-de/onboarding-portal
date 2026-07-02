@@ -76,6 +76,15 @@ export interface CustomerAccount {
   isCollaborator?: boolean;
 }
 
+export interface Collaborator {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  invitedBy: string | null;
+  createdAt: string;
+}
+
 export interface OnboardingState {
   loading: any;
   email: string | null;
@@ -366,6 +375,8 @@ interface Ctx {
   completeSection: (id: string) => void;
   updateFormData: (d: Partial<SavedFormData>) => void;
   inviteCollaborator: (email: string, firstName: string, lastName: string) => Promise<{ success: boolean; error?: string }>;
+  fetchCollaborators: () => Promise<Collaborator[]>;
+  removeCollaborator: (id: string) => Promise<void>;
   addCustomerAccount: (acc: Omit<CustomerAccount, "id" | "createdAt" | "magicLinkSent" | "magicToken" | "status" | "linkSentAt" | "uploadedDocs" | "completedSections">) => Promise<CustomerAccount>;
   updateCustomerAccount: (id: string, patch: Partial<CustomerAccount>) => Promise<void>;
   sendMagicLink: (id: string) => Promise<void>;
@@ -695,6 +706,41 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   }, [resolveCustomerId]);
 
   // ---------------------------------------------------------------------------
+  // Mitbearbeiter-Liste laden (Kunde oder Admin im Namen eines Kunden)
+  // ---------------------------------------------------------------------------
+  const fetchCollaborators = useCallback(async (): Promise<Collaborator[]> => {
+    const customerId = await resolveCustomerId();
+    if (!customerId) return [];
+
+    const { data, error } = await supabase
+      .from("collaborators")
+      .select("*")
+      .eq("customer_id", customerId)
+      .order("created_at", { ascending: false });
+
+    if (error || !data) return [];
+
+    return data.map((c) => ({
+      id: c.id,
+      email: c.email,
+      firstName: c.first_name ?? "",
+      lastName: c.last_name ?? "",
+      invitedBy: c.invited_by,
+      createdAt: c.created_at,
+    }));
+  }, [resolveCustomerId]);
+
+  // ---------------------------------------------------------------------------
+  // Mitbearbeiter entfernen (Kunde oder Admin im Namen eines Kunden)
+  // ---------------------------------------------------------------------------
+  const removeCollaborator = useCallback(async (id: string): Promise<void> => {
+    await supabase
+      .from("collaborators")
+      .delete()
+      .eq("id", id);
+  }, []);
+
+  // ---------------------------------------------------------------------------
   // Neuen Kunden anlegen (Admin)
   // ---------------------------------------------------------------------------
   const addCustomerAccount = useCallback(async (
@@ -823,6 +869,8 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       completeSection,
       updateFormData,
       inviteCollaborator,
+      fetchCollaborators,
+      removeCollaborator,
       addCustomerAccount,
       updateCustomerAccount,
       sendMagicLink,
@@ -830,7 +878,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       reset,
     }),
     [state, loading, update, uploadDoc, removeDoc, completeSection, updateFormData,
-     inviteCollaborator, addCustomerAccount, updateCustomerAccount, sendMagicLink, refreshCustomers, reset]
+     inviteCollaborator, fetchCollaborators, removeCollaborator, addCustomerAccount, updateCustomerAccount, sendMagicLink, refreshCustomers, reset]
   );
 
   return <OnboardingCtx.Provider value={value}>{children}</OnboardingCtx.Provider>;

@@ -118,8 +118,8 @@ export function ChecklistContent({
         );
       })}
 
-      {/* Mitbearbeiter einladen – nur für Kunden */}
-      {!isAdmin && onInviteClick && (
+      {/* Mitbearbeiter einladen – für Kunden immer, für Admins nur wenn ein Kunde aktiv verwaltet wird */}
+      {(!isAdmin || state.activeCustomerId) && onInviteClick && (
         <button
           type="button"
           onClick={onInviteClick}
