@@ -89,7 +89,7 @@ const SORTIMENT_OPTIONS = ["DOB", "HAKA", "KIKO", "Schuhe", "Accessoires", "Wäs
 
 function UnternehmenPage() {
   const navigate = useNavigate();
-  const { state, update, updateFormData } = useOnboarding();
+  const { state, update, updateFormData, completeSection } = useOnboarding();
   const legalForm: LegalForm = state.legalForm ?? "GmbH";
   const isLieferant = state.memberType === "lieferant";
   const isAdmin = state.role === "admin";
@@ -172,6 +172,7 @@ function UnternehmenPage() {
 
   // Check if all required sections completed after saving one section
   const checkEtappe1Done = (justSavedId: string) => {
+    completeSection(justSavedId);
     if (isAdmin) return;
     const sectionIds = getSectionIds(state.memberType);
     const newCompleted = { ...state.completedSections, [justSavedId]: true };
