@@ -218,6 +218,7 @@ function Index() {
         postalCode: customer.postalCode,
         country: customer.country,
         dashboardSeen: customer.dashboardSeen,
+        savedFormData: customer.savedFormData ?? {},
       } : {}),
     });
 
