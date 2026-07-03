@@ -48,6 +48,7 @@ async function applyCustomerSession(
       postalCode: customer.postalCode,
       country: customer.country,
       dashboardSeen: customer.dashboardSeen,
+      savedFormData: customer.savedFormData ?? {},
     } : {}),
   });
 
