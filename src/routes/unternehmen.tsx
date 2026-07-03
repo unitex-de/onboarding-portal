@@ -136,10 +136,12 @@ function UnternehmenPage() {
   const [hasGln, setHasGln] = useState(state.savedFormData?.hasGln ?? true);
 
   // ── GWG ─────────────────────────────────────────────────────────────────────
-  const [shareholders, setShareholders] = useState([{ name: "", capital: "", voting: "", pep: false }]);
+  const [shareholders, setShareholders] = useState(
+    state.savedFormData?.shareholders ?? [{ name: "", capital: "", voting: "", pep: false }]
+  );
   const [pepTooltip, setPepTooltip] = useState(false);
-  const [wirtschaftAbhaengig, setWirtschaftAbhaengig] = useState(false);
-  const [wirtschaftAbhaengigText, setWirtschaftAbhaengigText] = useState("");
+  const [wirtschaftAbhaengig, setWirtschaftAbhaengig] = useState(state.savedFormData?.wirtschaftAbhaengig ?? false);
+  const [wirtschaftAbhaengigText, setWirtschaftAbhaengigText] = useState(state.savedFormData?.wirtschaftAbhaengigText ?? "");
 
   // ── Bankdaten ───────────────────────────────────────────────────────────────
   const [bankname, setBankname] = useState(state.savedFormData?.bankname ?? "");
@@ -149,15 +151,19 @@ function UnternehmenPage() {
   const [ustId, setUstId] = useState(state.savedFormData?.ustId ?? "");
 
   // ── Geschäftsdaten ──────────────────────────────────────────────────────────
-  const [umsatz, setUmsatz] = useState("");
-  const [mitarbeiter, setMitarbeiter] = useState("");
-  const [gruendung, setGruendung] = useState("");
-  const [marken, setMarken] = useState("");
-  const [zrVolumen, setZrVolumen] = useState("");
-  const [bilanzsumme, setBilanzsumme] = useState("");
-  const [wkvDeckungsbeitrag, setWkvDeckungsbeitrag] = useState("");
+  const [umsatz, setUmsatz] = useState(state.savedFormData?.umsatz ?? "");
+  const [mitarbeiter, setMitarbeiter] = useState(state.savedFormData?.mitarbeiter ?? "");
+  const [gruendung, setGruendung] = useState(state.savedFormData?.gruendung ?? "");
+  const [marken, setMarken] = useState(state.savedFormData?.marken ?? "");
+  const [zrVolumen, setZrVolumen] = useState(state.savedFormData?.zrVolumen ?? "");
+  const [bilanzsumme, setBilanzsumme] = useState(state.savedFormData?.bilanzsumme ?? "");
+  const [wkvDeckungsbeitrag, setWkvDeckungsbeitrag] = useState(state.savedFormData?.wkvDeckungsbeitrag ?? "");
   const [umsatzTooltip, setUmsatzTooltip] = useState(false);
-  const [sortiment, setSortiment] = useState<string[]>(state.savedFormData?.sortiment ?? []);
+  const [sortiment, setSortiment] = useState<string[]>(
+    Array.isArray(state.savedFormData?.sortiment)
+      ? (state.savedFormData.sortiment as unknown as string[])
+      : []
+  );
 
   // ── Lieferant Stammblatt ─────────────────────────────────────────────────────
   const [liefSortiment, setLiefSortiment] = useState<string[]>(
@@ -224,11 +230,12 @@ function UnternehmenPage() {
   };
 
   const handleSaveGeschaeftsdaten = () => {
-    updateFormData({ sortiment });
+    updateFormData({ sortiment, umsatz, mitarbeiter, gruendung, marken, zrVolumen, bilanzsumme, wkvDeckungsbeitrag });
     checkEtappe1Done("geschaeftsdaten");
   };
 
   const handleSaveGwg = () => {
+    updateFormData({ wirtschaftAbhaengig, wirtschaftAbhaengigText, shareholders });
     checkEtappe1Done("gwg_daten");
   };
 

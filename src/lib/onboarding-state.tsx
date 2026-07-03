@@ -52,6 +52,16 @@ export interface SavedFormData {
   einzugseinzel?: boolean | null;
   liefSortiment?: string;
   liefMarken?: string;
+  umsatz?: string;
+  mitarbeiter?: string;
+  gruendung?: string;
+  marken?: string;
+  zrVolumen?: string;
+  bilanzsumme?: string;
+  wkvDeckungsbeitrag?: string;
+  wirtschaftAbhaengig?: boolean;
+  wirtschaftAbhaengigText?: string;
+  shareholders?: Array<{ name: string; capital: string; voting: string; pep: boolean }>;
 }
 
 export interface CustomerAccount {
