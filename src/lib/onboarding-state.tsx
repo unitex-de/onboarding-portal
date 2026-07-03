@@ -75,6 +75,7 @@ export interface CustomerAccount {
   dashboardSeen: boolean;
   loggedInName?: string;
   isCollaborator?: boolean;
+  savedFormData?: SavedFormData;
 }
 
 export interface Collaborator {
@@ -227,6 +228,7 @@ async function fetchAllCustomers(): Promise<CustomerAccount[]> {
         uploadedDocs,
         completedSections,
         dashboardSeen: c.dashboard_seen ?? false,
+        savedFormData,
       };
     })
   );
@@ -320,6 +322,7 @@ export async function fetchCustomerByEmail(email: string): Promise<CustomerAccou
     dashboardSeen: c.dashboard_seen ?? false,
     loggedInName: collaboratorName,
     isCollaborator: !!collaboratorName,
+    savedFormData,
   };
 }
 
@@ -477,6 +480,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
             country: customer.country,
             zrStartDate: customer.zrStartDate,
             dashboardSeen: customer.dashboardSeen,
+            savedFormData: customer.savedFormData ?? {},
           }));
         }
       }

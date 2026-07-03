@@ -131,6 +131,7 @@ function AdminPage() {
       postalCode: acc.postalCode,
       country: acc.country,
       zrStartDate: acc.zrStartDate,
+      savedFormData: acc.savedFormData ?? {},
     });
     navigate({ to: "/dashboard" });
   };
