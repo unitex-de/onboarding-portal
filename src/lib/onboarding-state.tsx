@@ -23,6 +23,7 @@ export interface SavedFormData {
   plz?: string;
   ort?: string;
   land?: string;
+  emailFirma?: string;
   bankname?: string;
   bic?: string;
   iban?: string;

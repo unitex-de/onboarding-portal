@@ -73,7 +73,7 @@ export async function generateNeukundenPdfFilled(state: OnboardingState): Promis
   await setText(form, "E-Mail Geschäftsführer_es_:signer2", gf?.email ?? "");
   await setText(form, "Tel. Zentrale_es_:signer2", gf?.telefon || gf?.handy || "");
   await setText(form, "Tel. Buchhaltung_es_:signer2", bu?.telefon || bu?.handy || "");
-  await setText(form, "E-Mail_es_:signer2", gf?.email ?? "");
+  await setText(form, "E-Mail_es_:signer2", fd.emailFirma ?? "");
   await setText(form, "E-Mail Buchhaltung_es_:signer2", bu?.email ?? "");
   await setText(form, "Adresse des Inhabers bzw. Geschäftsführers_es_:signer2", adresse);
   await setText(form, "Bankinstitut / BIC_es_:signer2", [fd.bankname, fd.bic].filter(Boolean).join(" / "));
@@ -81,13 +81,8 @@ export async function generateNeukundenPdfFilled(state: OnboardingState): Promis
   await setText(form, "Steurnummer_es_:signer2", fd.steuernummer ?? "");
   await setText(form, "UST. Ident.Nr. / Wirtschafts-ID Nr_es_:signer2", fd.ustId ?? "");
 
-  // Marken-Freitextfelder: aktuell keine Datenquelle in savedFormData, bleiben leer
-  await setText(form, "Damen, wichtige Marken_es_:signer2", "");
-  await setText(form, "Kinder, wichtige Marken_es_:signer2", "");
-  await setText(form, "Herren, wichtige Marken_es_:signer2", "");
-  await setText(form, "Accessoires, wichtige Marken_es_:signer2", "");
-  await setText(form, "Wäsche, wichtige Marken_es_:signer2", "");
-  await setText(form, "weitere, wichtige Marken_es_:signer2", "");
+  // "wichtige Marken"-Freitextfelder und die "weitere"-Checkbox wurden aus der
+  // PDF-Vorlage entfernt (nicht mehr Teil des Formulars) - keine Aufrufe mehr nötig.
 
   // "Kundenbetreuer" (intern "Signature3" genannt, ist aber ein reines Textfeld)
   await setText(form, "Signature3_es_:signer2:signature", admin.name);
@@ -110,7 +105,6 @@ export async function generateNeukundenPdfFilled(state: OnboardingState): Promis
   setCheck(form, "Herrenmode_es_:signer2", sel.includes("HAKA"));
   setCheck(form, "Accessoires_es_:signer2", sel.includes("Accessoires"));
   setCheck(form, "Wäsche_es_:signer2", sel.includes("Wäsche"));
-  setCheck(form, "Weitere_es_:signer2", false);
 
   // Immer gesetzt (wie bisher im hand-gezeichneten PDF)
   setCheck(form, "unitex-Neukunde mit Erstbestellung_es_:signer2", true);
@@ -140,7 +134,9 @@ export async function generateNeukundenPdfFilled(state: OnboardingState): Promis
   setCheck(form, "sep.AbrechnungNEIN_es_:signer2", fd.separateAbrechnung === false);
   setCheck(form, "PostadresseJA_es_:signer2", fd.postadressen === true);
   setCheck(form, "PostadresseNEIN_es_:signer2", fd.postadressen === false);
-  setCheck(form, "EinzugsermächtigungJA_es_:signer2", fd.einzugseinzel !== true);
+  // Bewusst kein Default mehr: nur setzen, wenn der Kunde das im Portal explizit
+  // beantwortet hat (fd.einzugseinzel ist dann true/false statt null/undefined).
+  setCheck(form, "EinzugsermächtigungJA_es_:signer2", fd.einzugseinzel === false);
   setCheck(form, "EinzugsermächtigungNEIN_es_:signer2", fd.einzugseinzel === true);
 
   // Erscheinungsbilder der Felder anhand der eingebetteten Schrift neu aufbauen
@@ -151,7 +147,7 @@ export async function generateNeukundenPdfFilled(state: OnboardingState): Promis
   const page1 = pdfDoc.getPages()[0];
   page1.drawText(state.companyName ?? "", { x: 70, y: 767, size: 10, font, color: rgb(0, 0, 0) });
   page1.drawText(adresse, { x: 70, y: 729, size: 9, font, color: rgb(0, 0, 0) });
-  page1.drawText(new Date().toLocaleDateString("de-DE"), { x: 294, y: 85, size: 9, font, color: rgb(0, 0, 0) });
+  // Datum bleibt bewusst leer (wird von Hand/beim Ausdruck ergänzt)
 
   // Formularfelder fixieren, damit das PDF wie ein normales (nicht mehr editierbares)
   // Dokument gedruckt/hochgeladen werden kann – analog zum bisherigen Verhalten.

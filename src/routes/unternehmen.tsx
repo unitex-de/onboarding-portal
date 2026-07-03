@@ -100,6 +100,7 @@ function UnternehmenPage() {
   const [plz, setPlz] = useState(state.savedFormData?.plz ?? "");
   const [ort, setOrt] = useState(state.savedFormData?.ort ?? "");
   const [land, setLand] = useState(state.savedFormData?.land ?? "DE");
+  const [emailFirma, setEmailFirma] = useState(state.savedFormData?.emailFirma ?? "");
 
   // ── Kontakt ─────────────────────────────────────────────────────────────────
   const [contacts, setContacts] = useState<ContactBlock[]>(() => {
@@ -191,7 +192,8 @@ function UnternehmenPage() {
   const handleSaveGrunddaten = () => {
     // BUG 2 fix: also persist country to state for PLZ-routing
     update({ companyName: firmenname, postalCode: plz, country: land });
-    updateFormData({ strasse, plz, ort, land });
+    // emailFirma may not be defined on SavedFormData type; cast to any to allow saving
+    updateFormData({ strasse, plz, ort, land, emailFirma } as any);
     syncAddressToBranch();
     checkEtappe1Done("grunddaten");
   };
@@ -320,6 +322,10 @@ function UnternehmenPage() {
                 <AutoSaveInput className={inputClass} placeholder="DE"
                   value={land} onChange={(e) => setLand(e.target.value)} required />
               </div>
+            </Field>
+            <Field label="Email Firma">
+              <AutoSaveInput className={inputClass} type="email" placeholder="info@firma.de"
+                value={emailFirma} onChange={(e) => setEmailFirma(e.target.value)} required />
             </Field>
           </div>
         </FormSection>
