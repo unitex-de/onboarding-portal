@@ -7,8 +7,8 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { useOnboarding, getProgressBreakdown } from "@/lib/onboarding-state";
-import { generateLieferantPdf, downloadPdf, isIOS } from "@/lib/pdf-generator";
-import { generateNeukundenPdfFilled } from "@/lib/pdf-form-filler";
+import { downloadPdf, isIOS } from "@/lib/pdf-generator";
+import { generateNeukundenPdfFilled, generateLieferantPdfFilled } from "@/lib/pdf-form-filler";
 import { ConfettiPopup } from "@/components/ui/ConfettiPopup";
 
 export const Route = createFileRoute("/signaturen")({
@@ -49,7 +49,7 @@ function KundeAbschlussPage({ unlocked, readOnly = false }: { unlocked: boolean;
     setGenerateError(null);
     try {
       const bytes = isLieferant
-        ? await generateLieferantPdf(state)
+        ? await generateLieferantPdfFilled(state)
         : await generateNeukundenPdfFilled(state);
       const filename = isLieferant
         ? "unitex-zusatzblatt-lieferant.pdf"

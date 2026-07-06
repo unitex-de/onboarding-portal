@@ -155,3 +155,88 @@ export async function generateNeukundenPdfFilled(state: OnboardingState): Promis
 
   return pdfDoc.save();
 }
+
+const LIEFERANT_TEMPLATE_PATH = "/Lieferant_Lieferantenstammblatt.pdf";
+
+export async function generateLieferantPdfFilled(state: OnboardingState): Promise<Uint8Array> {
+  const templateBytes = await fetch(LIEFERANT_TEMPLATE_PATH).then((r) => {
+    if (!r.ok) throw new Error(`Vorlage nicht ladbar (${r.status}): ${LIEFERANT_TEMPLATE_PATH}`);
+    return r.arrayBuffer();
+  });
+  const pdfDoc = await PDFDocument.load(templateBytes);
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const form = pdfDoc.getForm();
+  const fd = state.savedFormData ?? {};
+
+  const gf = fd.contacts?.find((c) => c.kind === "gf");
+  const bu = fd.contacts?.find((c) => c.kind === "buchhaltung");
+  const vertrieb = fd.contacts?.find((c) => c.kind === "extra" && c.jobbezeichnung === "Vertrieb");
+  const marketing = fd.contacts?.find((c) => c.kind === "extra" && c.jobbezeichnung === "Marketing");
+  const edv = fd.contacts?.find((c) => c.kind === "extra" && c.jobbezeichnung === "Sonstige");
+  const inhaber = fd.contacts?.find((c) => c.kind === "extra" && c.jobbezeichnung === "Inhaber");
+
+  const gfName = gf ? `${gf.vorname} ${gf.nachname}`.trim() : "";
+  const buName = bu ? `${bu.vorname} ${bu.nachname}`.trim() : "";
+  const vertriebName = vertrieb ? `${vertrieb.vorname} ${vertrieb.nachname}`.trim() : "";
+  const marketingName = marketing ? `${marketing.vorname} ${marketing.nachname}`.trim() : "";
+  const edvName = edv ? `${edv.vorname} ${edv.nachname}`.trim() : "";
+  const inhaberName = inhaber ? `${inhaber.vorname} ${inhaber.nachname}`.trim() : "";
+
+  const adresse = [fd.strasse, [fd.plz, fd.ort].filter(Boolean).join(", ")].filter(Boolean).join(", ");
+  const admin = getResponsibleAdmin(state.memberType, state.postalCode, state.country);
+
+  const liefSortimentVal = Array.isArray(fd.liefSortiment)
+    ? (fd.liefSortiment as unknown as string[]).join(", ")
+    : (fd.liefSortiment as string) ?? "";
+
+  const markenCombined = [fd.marken, fd.liefMarken].filter(Boolean).join(", ");
+
+  await setText(form, "Firmierung", state.companyName ?? "");
+  await setText(form, "Telefon Zentrale", gf?.telefon || gf?.handy || "");
+  await setText(form, "EMail Zentrale", fd.emailFirma ?? "");
+
+  await setText(form, "Ansprechpartner Vertrieb", vertriebName);
+  await setText(form, "Telefon Vertrieb", vertrieb?.telefon || vertrieb?.handy || "");
+  await setText(form, "EMail Vertrieb", vertrieb?.email ?? "");
+
+  await setText(form, "Ansprechpartner Buchhaltung", buName);
+  await setText(form, "Telefon Buchhaltung", bu?.telefon || bu?.handy || "");
+  await setText(form, "EMail Buchhaltung", bu?.email ?? "");
+
+  await setText(form, "Ansprechpartner Marketing", marketingName);
+  await setText(form, "Telefon Marketing", marketing?.telefon || marketing?.handy || "");
+  await setText(form, "EMail Marketing", marketing?.email ?? "");
+
+  await setText(form, "Ansprechpartner EDV", edvName);
+  await setText(form, "Telefon EDV", edv?.telefon || edv?.handy || "");
+  await setText(form, "EMail EDV", edv?.email ?? "");
+
+  await setText(form, "Inhaber", inhaberName);
+  await setText(form, "EMail Inhaber", inhaber?.email ?? "");
+
+  await setText(form, "Geschäftsführer", gfName);
+  await setText(form, "EMail Geschäftsführer", gf?.email ?? "");
+
+  await setText(form, "Webseite", fd.webseite ?? "");
+  await setText(form, "Marken", markenCombined);
+  await setText(form, "Warensortiment", liefSortimentVal);
+
+  await setText(form, "GLNNr", "");
+  await setText(form, "USTIdentNrWirtschaftsIDNr", fd.ustId ?? "");
+  await setText(form, "Steuernummer", fd.steuernummer ?? "");
+  await setText(form, "Bankinstitut", fd.bankname ?? "");
+  await setText(form, "IBAN", fd.iban ?? "");
+  await setText(form, "SWIFT Code", "");
+  await setText(form, "BIC", fd.bic ?? "");
+  await setText(form, "Ort Datum", "");
+  await setText(form, "Unterschrift", admin.name);
+
+  form.updateFieldAppearances(font);
+
+  const page1 = pdfDoc.getPages()[0];
+  page1.drawText(adresse, { x: 70, y: 700, size: 9, font, color: rgb(0, 0, 0) });
+
+  form.flatten();
+
+  return pdfDoc.save();
+}

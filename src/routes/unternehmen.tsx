@@ -172,6 +172,7 @@ function UnternehmenPage() {
       : []
   );
   const [liefMarken, setLiefMarken] = useState(state.savedFormData?.liefMarken ?? "");
+  const [webseite, setWebseite] = useState(state.savedFormData?.webseite ?? "");
 
   // ── Etappe 1 Confetti ────────────────────────────────────────────────────────
   const [showEtappe1Confetti, setShowEtappe1Confetti] = useState(false);
@@ -214,6 +215,7 @@ function UnternehmenPage() {
         handy: c.handy,
         telefon: c.telefon,
         email: c.email,
+        jobbezeichnung: c.jobbezeichnung || undefined,
       })),
     });
     checkEtappe1Done("kontakt");
@@ -241,7 +243,7 @@ function UnternehmenPage() {
 
   const handleSaveLieferantStamm = () => {
     // BUG 4: save array-based sortiment
-    updateFormData({ liefSortiment: liefSortiment as unknown as string, liefMarken });
+    updateFormData({ liefSortiment: liefSortiment as unknown as string, liefMarken, webseite });
     checkEtappe1Done("lieferant_stamm");
   };
 
@@ -507,6 +509,10 @@ function UnternehmenPage() {
               <Field label="Wichtigste Marken / Eigenmarken">
                 <AutoSaveInput className={inputClass} placeholder="Komma-getrennt, z.B. Eigene Brand, Mustermarke"
                   value={liefMarken} onChange={(e) => setLiefMarken(e.target.value)} required />
+              </Field>
+              <Field label="Webseite">
+                <AutoSaveInput className={inputClass} placeholder="https://www.beispiel.de"
+                  value={webseite} onChange={(e) => setWebseite(e.target.value)} />
               </Field>
             </div>
           </FormSection>

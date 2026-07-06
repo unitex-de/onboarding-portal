@@ -36,6 +36,7 @@ export interface SavedFormData {
     handy: string;
     telefon: string;
     email: string;
+    jobbezeichnung?: string;
   }>;
   branches?: Array<{
     name: string;
@@ -52,6 +53,7 @@ export interface SavedFormData {
   einzugseinzel?: boolean | null;
   liefSortiment?: string;
   liefMarken?: string;
+  webseite?: string;
   umsatz?: string;
   mitarbeiter?: string;
   gruendung?: string;
