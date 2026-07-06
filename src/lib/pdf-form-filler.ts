@@ -56,7 +56,7 @@ export async function generateNeukundenPdfFilled(state: OnboardingState): Promis
   const bu = fd.contacts?.find((c) => c.kind === "buchhaltung");
   const mainBranch = fd.branches?.[0];
   const branches = fd.branches ?? [];
-  const adresse = [fd.strasse, [fd.plz, fd.ort].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+  const adresse = [fd.strasse, [fd.plz, fd.ort].filter(Boolean).join(" ")].filter(Boolean).join("\n");
   const gfName = gf ? `${gf.vorname} ${gf.nachname}`.trim() : "";
   const buName = bu ? `${bu.vorname} ${bu.nachname}`.trim() : "";
   const legalForm = state.legalForm ?? "GmbH";
