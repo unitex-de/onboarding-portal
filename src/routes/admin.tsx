@@ -3,7 +3,7 @@ import { useState, useMemo } from "react";
 import {
   Users, Plus, ArrowRight, Building2, UserCheck, Mail, Calendar,
   ExternalLink, X, Lock, Search, Filter, RefreshCw, Copy, CheckCircle2,
-  Clock, FileEdit, ChevronDown
+  Clock, FileEdit, ChevronDown, FileSpreadsheet
 } from "lucide-react";
 import {
   useOnboarding, type MemberType, type LegalForm, type CustomerAccount,
@@ -11,6 +11,7 @@ import {
 } from "@/lib/onboarding-state";
 import { UnitexLogo } from "@/components/ui/UnitexLogo";
 import { supabase } from "@/lib/supabase";
+import { exportCustomersToExcel } from "../lib/excel-export";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({ meta: [{ title: "Admin-Übersicht | unitex Onboarding" }] }),
@@ -284,6 +285,13 @@ function AdminPage() {
                 <X className="h-3.5 w-3.5" /> Filter zurücksetzen
               </button>
             )}
+            <button
+              onClick={() => exportCustomersToExcel(filtered)}
+              disabled={filtered.length === 0}
+              className="flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs text-secondary hover:text-foreground hover:border-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <FileSpreadsheet className="h-3.5 w-3.5" /> Als Excel exportieren ({filtered.length})
+            </button>
           </div>
         )}
 
