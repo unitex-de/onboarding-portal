@@ -146,6 +146,7 @@ function UnternehmenPage() {
   // ── Bankdaten ───────────────────────────────────────────────────────────────
   const [bankname, setBankname] = useState(state.savedFormData?.bankname ?? "");
   const [bic, setBic] = useState(state.savedFormData?.bic ?? "");
+  const [swiftCode, setSwiftCode] = useState(state.savedFormData?.swiftCode ?? "");
   const [iban, setIban] = useState(state.savedFormData?.iban ?? "");
   const [steuernummer, setSteuernummer] = useState(state.savedFormData?.steuernummer ?? "");
   const [ustId, setUstId] = useState(state.savedFormData?.ustId ?? "");
@@ -173,6 +174,7 @@ function UnternehmenPage() {
   );
   const [liefMarken, setLiefMarken] = useState(state.savedFormData?.liefMarken ?? "");
   const [webseite, setWebseite] = useState(state.savedFormData?.webseite ?? "");
+  const [glnNr, setGlnNr] = useState(state.savedFormData?.glnNr ?? "");
 
   // ── Etappe 1 Confetti ────────────────────────────────────────────────────────
   const [showEtappe1Confetti, setShowEtappe1Confetti] = useState(false);
@@ -242,8 +244,7 @@ function UnternehmenPage() {
   };
 
   const handleSaveLieferantStamm = () => {
-    // BUG 4: save array-based sortiment
-    updateFormData({ liefSortiment: liefSortiment as unknown as string, liefMarken, webseite });
+    updateFormData({ liefSortiment: liefSortiment as unknown as string, liefMarken, webseite, glnNr });
     checkEtappe1Done("lieferant_stamm");
   };
 
@@ -459,6 +460,12 @@ function UnternehmenPage() {
               <AutoSaveInput className={inputClass} placeholder="GENODEM1XXX"
                 value={bic} onChange={(e) => setBic(e.target.value)} required />
             </Field>
+            {isLieferant && (
+              <Field label="SWIFT Code" required={false}>
+                <AutoSaveInput className={inputClass} placeholder="GENODEM1XXX"
+                  value={swiftCode} onChange={(e) => setSwiftCode(e.target.value)} />
+              </Field>
+            )}
             <Field label="IBAN" className="md:col-span-2">
               <MaskedInput mask="iban" className={inputClass} placeholder="DE89 3704 0044 0532 0130 00"
                 value={iban} onChange={(e) => setIban(e.target.value)} required />
@@ -513,6 +520,10 @@ function UnternehmenPage() {
               <Field label="Webseite">
                 <AutoSaveInput className={inputClass} placeholder="https://www.beispiel.de"
                   value={webseite} onChange={(e) => setWebseite(e.target.value)} />
+              </Field>
+              <Field label="GLN-Nr." required={false}>
+                <AutoSaveInput className={inputClass} placeholder="4012345678900"
+                  value={glnNr} onChange={(e) => setGlnNr(e.target.value)} />
               </Field>
             </div>
           </FormSection>

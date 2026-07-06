@@ -54,6 +54,8 @@ export interface SavedFormData {
   liefSortiment?: string;
   liefMarken?: string;
   webseite?: string;
+  swiftCode?: string;
+  glnNr?: string;
   umsatz?: string;
   mitarbeiter?: string;
   gruendung?: string;

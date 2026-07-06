@@ -229,13 +229,11 @@ export async function generateLieferantPdfFilled(state: OnboardingState): Promis
   await setText(form, "SWIFT Code", "");
   await setText(form, "BIC", fd.bic ?? "");
   await setText(form, "Ort Datum", "");
-  await setText(form, "Unterschrift", admin.name);
+  await setText(form, "Unterschrift", "");
+
+  await setText(form, "Adresse", adresse);
 
   form.updateFieldAppearances(font);
-
-  const page1 = pdfDoc.getPages()[0];
-  page1.drawText(adresse, { x: 70, y: 700, size: 9, font, color: rgb(0, 0, 0) });
-
   form.flatten();
 
   return pdfDoc.save();
