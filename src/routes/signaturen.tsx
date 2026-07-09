@@ -157,6 +157,22 @@ function KundeAbschlussPage({ unlocked, readOnly = false }: { unlocked: boolean;
                 ? "Der Kunde hat alle Unterlagen eingereicht. Die Prüfung läuft."
                 : "Wir haben alle Unterlagen erhalten und kümmern uns nun darum. Sie erhalten eine Nachricht von uns, sobald Ihr Onboarding abgeschlossen ist."}
             </p>
+            {readOnly && uploadedForm && (
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!uploadedForm.storagePath) return;
+                    const url = await getDownloadUrl(uploadedForm.storagePath);
+                    if (url) window.open(url, "_blank");
+                  }}
+                  disabled={!uploadedForm.storagePath}
+                  className="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2.5 text-sm font-medium text-foreground hover:border-primary hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Download className="h-4 w-4" /> {uploadedForm.name} ansehen
+                </button>
+              </div>
+            )}
           </div>
         )}
 
