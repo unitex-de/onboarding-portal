@@ -300,12 +300,6 @@ function DashboardContent() {
                   {state.reviewNote && (
                     <p className="mt-1.5 text-xs text-red-400/90 leading-relaxed">{state.reviewNote}</p>
                   )}
-                  <Link
-                    to="/signaturen"
-                    className="mt-2 inline-flex items-center gap-1 text-xs font-semibold underline hover:no-underline"
-                  >
-                    Jetzt korrigieren
-                  </Link>
                 </div>
               ) : (state.completedSections["abschluss"] || state.submittedAt) ? (
                 <div className="mt-4 rounded-lg bg-primary/10 border border-primary/30 px-4 py-3 text-sm text-primary font-medium flex items-center gap-2">
