@@ -706,13 +706,14 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     // Benachrichtigung an Tanja – Fehler hier sollen die Einreichung selbst nicht blockieren
     if (stateRef.current.memberType) {
       try {
-        await notifyReviewSubmitted({
+        const result = await notifyReviewSubmitted({
           data: {
             companyName: stateRef.current.companyName,
             memberType: stateRef.current.memberType,
             customerId,
           },
         });
+        console.log("[DEBUG notifyReviewSubmitted] result:", result);
       } catch (e) {
         console.error("[submitForReview] Benachrichtigung an Tanja fehlgeschlagen:", e);
       }
