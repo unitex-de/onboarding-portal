@@ -3,7 +3,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { useOnboarding, getProgressBreakdown } from "@/lib/onboarding-state";
 import { CoachmarkTour, useTour, type TourStep } from "@/components/ui/CoachmarkTour";
-import { ArrowRight, FileText, FolderUp, PenLine, SendHorizonal, Lock, Shield, Info, Check, X, Sparkles } from "lucide-react";
+import { ArrowRight, FileText, FolderUp, PenLine, SendHorizonal, Lock, Shield, Info, Check, X, Sparkles, AlertTriangle } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard | unitex Onboarding" }] }),
@@ -291,7 +291,23 @@ function DashboardContent() {
                   <p className="text-xs text-muted mt-1">Wird vom Admin festgelegt</p>
                 )}
               </div>
-              {(state.completedSections["abschluss"] || state.submittedAt) ? (
+              {state.reviewStatus === "Nachbesserung nötig" ? (
+                <div className="mt-4 rounded-lg bg-red-500/10 border border-red-500/30 px-4 py-3 text-sm text-red-500">
+                  <p className="font-medium flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 shrink-0" />
+                    Nachbesserung nötig
+                  </p>
+                  {state.reviewNote && (
+                    <p className="mt-1.5 text-xs text-red-400/90 leading-relaxed">{state.reviewNote}</p>
+                  )}
+                  <Link
+                    to="/signaturen"
+                    className="mt-2 inline-flex items-center gap-1 text-xs font-semibold underline hover:no-underline"
+                  >
+                    Jetzt korrigieren
+                  </Link>
+                </div>
+              ) : (state.completedSections["abschluss"] || state.submittedAt) ? (
                 <div className="mt-4 rounded-lg bg-primary/10 border border-primary/30 px-4 py-3 text-sm text-primary font-medium flex items-center gap-2">
                   <Shield className="h-4 w-4 shrink-0" />
                   Zur Prüfung eingereicht

@@ -121,6 +121,8 @@ export interface OnboardingState {
   uploadedDocs: Record<string, UploadedDoc>;
   completedSections: Record<string, boolean>;
   submittedAt: string | null;
+  reviewStatus: CustomerStatus | null;
+  reviewNote: string | null;
   customerAccounts: CustomerAccount[];
   activeCustomerId: string | null;
   tourSeen: boolean;
@@ -148,6 +150,8 @@ const DEFAULT_STATE: OnboardingState = {
   uploadedDocs: {},
   completedSections: {},
   submittedAt: null,
+  reviewStatus: null,
+  reviewNote: null,
   customerAccounts: [],
   activeCustomerId: null,
   tourSeen: false,
@@ -510,13 +514,14 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
             zrStartDate: customer.zrStartDate,
             dashboardSeen: customer.dashboardSeen,
             savedFormData: customer.savedFormData ?? {},
+            submittedAt: customer.submittedAt ?? null,
+            reviewStatus: customer.status,
+            reviewNote: customer.reviewNote ?? null,
           }));
         }
       }
-
       setLoading(false);
     }
-
     init();
 
     // Auth-Zustand beobachten (Login/Logout)
@@ -915,11 +920,39 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       })
       .eq("id", id);
     if (error) throw new Error(error.message);
+    // Bei Rückweisung: "abschluss" freigeben, damit der Kunde die Signaturen-Seite wieder bearbeiten kann
+    if (decision === "Nachbesserung nötig") {
+      const { data: existing } = await supabase
+        .from("form_data")
+        .select("data")
+        .eq("customer_id", id)
+        .eq("section", "_completed")
+        .maybeSingle();
+      if (existing?.data) {
+        const { abschluss: _abschluss, ...rest } = existing.data as Record<string, boolean>;
+        await supabase.from("form_data").upsert({
+          customer_id: id,
+          section: "_completed",
+          data: rest,
+          updated_at: now,
+          updated_by: actorEmail,
+        }, { onConflict: "customer_id,section" });
+      }
+    }
     setState((s) => ({
       ...s,
       customerAccounts: s.customerAccounts.map((a) =>
         a.id === id
-          ? { ...a, status: decision, reviewedAt: now, reviewedBy: actorEmail, reviewNote: decision === "Nachbesserung nötig" ? (note ?? null) : null }
+          ? {
+              ...a,
+              status: decision,
+              reviewedAt: now,
+              reviewedBy: actorEmail,
+              reviewNote: decision === "Nachbesserung nötig" ? (note ?? null) : null,
+              completedSections: decision === "Nachbesserung nötig"
+                ? { ...a.completedSections, abschluss: false }
+                : a.completedSections,
+            }
           : a
       ),
     }));
