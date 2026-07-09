@@ -24,5 +24,7 @@ export function getServerConfig() {
     pandadocTemplateSepa: process.env.PANDADOC_TEMPLATE_SEPA,
     pandadocTemplateAnschluss: process.env.PANDADOC_TEMPLATE_ANSCHLUSS,
     pandadocTemplateSonder: process.env.PANDADOC_TEMPLATE_SONDER,
+    resendApiKey: process.env.RESEND_API_KEY,
+    tanjaEmail: process.env.TANJA_EMAIL,
   };
 }

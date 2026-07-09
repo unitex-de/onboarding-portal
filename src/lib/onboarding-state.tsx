@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, useCallback, useRef, type ReactNode } from "react";
 import { supabase } from "./supabase";
+import { notifyReviewSubmitted } from "./api/notify.functions";
 
 // ---------------------------------------------------------------------------
 // Types & Interfaces
@@ -688,11 +689,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   // ---------------------------------------------------------------------------
   const submitForReview = useCallback(async () => {
     const customerId = await resolveCustomerId();
-    console.log("[DEBUG submitForReview] customerId:", customerId);
-    if (!customerId) {
-      console.warn("[DEBUG submitForReview] Abbruch: keine customerId gefunden");
-      return;
-    }
+    if (!customerId) return;
     const now = new Date().toISOString();
     const { error } = await supabase
       .from("customers")
@@ -704,9 +701,22 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         review_note: null,
       })
       .eq("id", customerId);
-    console.log("[DEBUG submitForReview] update error:", error);
     if (error) throw new Error(error.message);
     setState((s) => ({ ...s, submittedAt: now }));
+    // Benachrichtigung an Tanja – Fehler hier sollen die Einreichung selbst nicht blockieren
+    if (stateRef.current.memberType) {
+      try {
+        await notifyReviewSubmitted({
+          data: {
+            companyName: stateRef.current.companyName,
+            memberType: stateRef.current.memberType,
+            customerId,
+          },
+        });
+      } catch (e) {
+        console.error("[submitForReview] Benachrichtigung an Tanja fehlgeschlagen:", e);
+      }
+    }
   }, [resolveCustomerId]);
 
   // ---------------------------------------------------------------------------
