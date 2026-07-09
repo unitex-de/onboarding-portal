@@ -31,6 +31,9 @@ const STATUS_LABELS: Record<CustomerStatus, { label: string; color: string }> = 
   Entwurf: { label: "Entwurf", color: "bg-secondary/20 text-secondary" },
   "Link gesendet": { label: "Link gesendet", color: "bg-primary/15 text-primary" },
   Signiert: { label: "Signiert", color: "bg-emerald-500/15 text-emerald-400" },
+  "Zur Prüfung eingereicht": { label: "Zur Prüfung eingereicht", color: "bg-amber-500/15 text-amber-500" },
+  Freigegeben: { label: "Freigegeben", color: "bg-emerald-500/15 text-emerald-400" },
+  "Nachbesserung nötig": { label: "Nachbesserung nötig", color: "bg-red-500/15 text-red-500" },
 };
 
 function AdminPage() {

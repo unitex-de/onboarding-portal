@@ -165,7 +165,7 @@ function DashboardPage() {
 
 function DashboardContent() {
   const { start: startTour } = useTour();
-  const { state, update } = useOnboarding();
+  const { state, update, submitForReview } = useOnboarding();
   const { stammdaten, uploads, signaturen, total } = getProgressBreakdown(state);
 
   // DESIGN 5: use manually set zrStartDate
@@ -213,9 +213,19 @@ function DashboardContent() {
   // ── Submission success modal ────────────────────────────────────────────────
   const [showSubmitSuccess, setShowSubmitSuccess] = useState(false);
 
-  const onSubmit = () => {
-    update({ submittedAt: new Date().toISOString() });
-    setShowSubmitSuccess(true);
+  const [submitting, setSubmitting] = useState(false);
+
+  const onSubmit = async () => {
+    setSubmitting(true);
+    try {
+      await submitForReview();
+      setShowSubmitSuccess(true);
+    } catch (e) {
+      console.error("Einreichung fehlgeschlagen:", e);
+      alert("Einreichen ist fehlgeschlagen. Bitte versuche es erneut oder kontaktiere den Support.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -287,11 +297,11 @@ function DashboardContent() {
                   Zur Prüfung eingereicht
                 </div>
               ) : canSubmit && !isAdmin ? (
-                <button type="button" onClick={onSubmit}
-                  className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors animate-pulse hover:animate-none"
+                <button type="button" onClick={onSubmit} disabled={submitting}
+                  className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors animate-pulse hover:animate-none disabled:opacity-60 disabled:cursor-not-allowed disabled:animate-none"
                 >
                   <SendHorizonal className="h-4 w-4" />
-                  Zur Prüfung freigeben
+                  {submitting ? "Wird eingereicht…" : "Zur Prüfung freigeben"}
                 </button>
               ) : null}
             </div>

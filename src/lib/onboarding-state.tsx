@@ -9,7 +9,7 @@ export type MemberType = "händler" | "lieferant";
 export type LegalForm = "eK" | "GbR" | "GmbH" | "GmbHCoKG" | "KG" | "OHG";
 export type ContractType = "probe" | "3jahre" | "5jahre";
 export type UserRole = "admin" | "kunde";
-export type CustomerStatus = "Entwurf" | "Link gesendet" | "Signiert";
+export type CustomerStatus = "Entwurf" | "Link gesendet" | "Signiert" | "Zur Prüfung eingereicht" | "Freigegeben" | "Nachbesserung nötig";
 
 export interface UploadedDoc {
   fileName: string;
@@ -392,6 +392,7 @@ interface Ctx {
   removeDoc: (id: string) => void;
   completeSection: (id: string) => void;
   updateFormData: (d: Partial<SavedFormData>) => void;
+  submitForReview: () => Promise<void>;
   inviteCollaborator: (email: string, firstName: string, lastName: string) => Promise<{ success: boolean; error?: string }>;
   fetchCollaborators: () => Promise<Collaborator[]>;
   removeCollaborator: (id: string) => Promise<void>;
@@ -683,6 +684,32 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   }, [resolveCustomerId]);
 
   // ---------------------------------------------------------------------------
+  // Zur Prüfung einreichen (Kunde) – setzt Status + Timestamp, resettet ggf. alte Review-Daten
+  // ---------------------------------------------------------------------------
+  const submitForReview = useCallback(async () => {
+    const customerId = await resolveCustomerId();
+    console.log("[DEBUG submitForReview] customerId:", customerId);
+    if (!customerId) {
+      console.warn("[DEBUG submitForReview] Abbruch: keine customerId gefunden");
+      return;
+    }
+    const now = new Date().toISOString();
+    const { error } = await supabase
+      .from("customers")
+      .update({
+        status: "Zur Prüfung eingereicht",
+        submitted_at: now,
+        reviewed_at: null,
+        reviewed_by: null,
+        review_note: null,
+      })
+      .eq("id", customerId);
+    console.log("[DEBUG submitForReview] update error:", error);
+    if (error) throw new Error(error.message);
+    setState((s) => ({ ...s, submittedAt: now }));
+  }, [resolveCustomerId]);
+
+  // ---------------------------------------------------------------------------
   // Mitbearbeiter einladen (Kunde oder Admin im Namen eines Kunden)
   // ---------------------------------------------------------------------------
   const inviteCollaborator = useCallback(async (email: string, firstName: string, lastName: string): Promise<{ success: boolean; error?: string }> => {
@@ -888,6 +915,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       removeDoc,
       completeSection,
       updateFormData,
+      submitForReview,
       inviteCollaborator,
       fetchCollaborators,
       removeCollaborator,
@@ -897,7 +925,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       refreshCustomers,
       reset,
     }),
-    [state, loading, update, uploadDoc, removeDoc, completeSection, updateFormData,
+    [state, loading, update, uploadDoc, removeDoc, completeSection, updateFormData, submitForReview,
      inviteCollaborator, fetchCollaborators, removeCollaborator, addCustomerAccount, updateCustomerAccount, sendMagicLink, refreshCustomers, reset]
   );
 
