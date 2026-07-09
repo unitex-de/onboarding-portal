@@ -28,7 +28,7 @@ function SignaturenPage() {
 // ─── Kunden-Flow: Schritt 3 – Onboarding abschließen ─────────────────────────
 
 function KundeAbschlussPage({ unlocked, readOnly = false }: { unlocked: boolean; readOnly?: boolean }) {
-  const { state, uploadDoc, completeSection } = useOnboarding();
+  const { state, uploadDoc, completeSection, submitForReview } = useOnboarding();
   const signed = !!state.completedSections["abschluss"];
   const isLieferant = state.memberType === "lieferant";
 
@@ -73,11 +73,16 @@ function KundeAbschlussPage({ unlocked, readOnly = false }: { unlocked: boolean;
     uploadDoc("neukundenformular_signed", file);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!uploadedForm) return;
     completeSection("abschluss");
     setSubmitted(true);
     setShowEtappe3Confetti(true);
+    try {
+      await submitForReview();
+    } catch (e) {
+      console.error("Einreichung zur Prüfung fehlgeschlagen:", e);
+    }
   };
 
   const formLabel = isLieferant ? "Lieferantenstammblatt" : "Neukundenformular";
