@@ -720,7 +720,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       })
       .eq("id", customerId);
     if (error) throw new Error(error.message);
-    setState((s) => ({ ...s, submittedAt: now }));
+    setState((s) => ({ ...s, submittedAt: now, reviewStatus: "Zur Prüfung eingereicht", reviewNote: null }));
     // Benachrichtigung an Tanja – Fehler hier sollen die Einreichung selbst nicht blockieren
     if (stateRef.current.memberType) {
       try {
