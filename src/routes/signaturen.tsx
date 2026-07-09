@@ -6,7 +6,7 @@ import {
   FileCheck2, Send, AlertTriangle,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
-import { useOnboarding, getProgressBreakdown } from "@/lib/onboarding-state";
+import { useOnboarding, getProgressBreakdown, getDownloadUrl } from "@/lib/onboarding-state";
 import { downloadPdf, isIOS } from "@/lib/pdf-generator";
 import { generateNeukundenPdfFilled, generateLieferantPdfFilled } from "@/lib/pdf-form-filler";
 import { ConfettiPopup } from "@/components/ui/ConfettiPopup";
@@ -34,9 +34,13 @@ function KundeAbschlussPage({ unlocked, readOnly = false }: { unlocked: boolean;
 
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
-  const [uploadedForm, setUploadedForm] = useState<{ name: string; size: number } | null>(
+  const [uploadedForm, setUploadedForm] = useState<{ name: string; size: number; storagePath?: string } | null>(
     state.uploadedDocs["neukundenformular_signed"]
-      ? { name: state.uploadedDocs["neukundenformular_signed"].fileName, size: state.uploadedDocs["neukundenformular_signed"].size }
+      ? {
+          name: state.uploadedDocs["neukundenformular_signed"].fileName,
+          size: state.uploadedDocs["neukundenformular_signed"].size,
+          storagePath: state.uploadedDocs["neukundenformular_signed"].storagePath,
+        }
       : null,
   );
   const [submitted, setSubmitted] = useState(signed);
@@ -245,6 +249,18 @@ function KundeAbschlussPage({ unlocked, readOnly = false }: { unlocked: boolean;
                       <p className="font-medium text-foreground truncate">{uploadedForm.name}</p>
                       <p className="text-xs text-secondary">Vom Kunden hochgeladen · bereit zur Prüfung</p>
                     </div>
+                    {uploadedForm.storagePath && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const url = await getDownloadUrl(uploadedForm.storagePath!);
+                          if (url) window.open(url, "_blank");
+                        }}
+                        className="shrink-0 inline-flex items-center gap-2 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:border-primary hover:text-primary transition-colors"
+                      >
+                        <Download className="h-3.5 w-3.5" /> Ansehen
+                      </button>
+                    )}
                   </div>
                 ) : (
                   <div className="rounded-xl border-2 border-dashed border-border p-8 flex flex-col items-center gap-2 text-center">

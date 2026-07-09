@@ -127,8 +127,8 @@ export function LeftSidebar({
           <span>Dashboard</span>
         </Link>
 
-        {/* ── Separator + 3-Schritt-Navigation (nur für Kunden) ── */}
-        {!isAdmin && (
+        {/* ── Separator + 3-Schritt-Navigation ── */}
+        {(
           <>
             <div className="my-2 border-t border-border" />
 
