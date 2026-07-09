@@ -25,7 +25,6 @@ export const notifyReviewSubmitted = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const apiKey = process.env.RESEND_API_KEY;
     const tanjaEmail = process.env.TANJA_EMAIL;
-    console.log("[DEBUG notify handler] apiKey present:", !!apiKey, "| tanjaEmail:", tanjaEmail);
     // Demo-Modus – keine echten Keys konfiguriert
     if (!apiKey || !tanjaEmail) {
       return { sent: false, demo: true };

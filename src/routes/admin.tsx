@@ -38,9 +38,10 @@ const STATUS_LABELS: Record<CustomerStatus, { label: string; color: string }> = 
 
 function AdminPage() {
   const navigate = useNavigate();
-  const { state, update, addCustomerAccount, sendMagicLink } = useOnboarding();
+  const { state, update, addCustomerAccount, sendMagicLink, reviewCustomer } = useOnboarding();
   const [showCreate, setShowCreate] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [reviewTarget, setReviewTarget] = useState<CustomerAccount | null>(null);
 
   // Filter state
   const [searchQuery, setSearchQuery] = useState("");
@@ -319,6 +320,7 @@ function AdminPage() {
                 onView={() => handleViewCustomer(acc)}
                 onSendLink={() => handleSendLink(acc)}
                 onCopyLink={() => handleCopyLink(acc)}
+                onReview={() => setReviewTarget(acc)}
               />
             ))}
           </div>
@@ -465,6 +467,126 @@ function AdminPage() {
           </div>
         </div>
       )}
+      {reviewTarget && (
+        <ReviewModal
+          acc={reviewTarget}
+          onClose={() => setReviewTarget(null)}
+          onDecide={async (decision, note) => {
+            await reviewCustomer(reviewTarget.id, decision, note);
+            setReviewTarget(null);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function ReviewModal({
+  acc,
+  onClose,
+  onDecide,
+}: {
+  acc: CustomerAccount;
+  onClose: () => void;
+  onDecide: (decision: "Freigegeben" | "Nachbesserung nötig", note?: string) => Promise<void>;
+}) {
+  const [mode, setMode] = useState<"view" | "reject">("view");
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+  const submittedDate = acc.submittedAt
+    ? new Date(acc.submittedAt).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })
+    : null;
+
+  const handleApprove = async () => {
+    setSaving(true);
+    try {
+      await onDecide("Freigegeben");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!note.trim()) return;
+    setSaving(true);
+    try {
+      await onDecide("Nachbesserung nötig", note.trim());
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-6">
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-wide text-secondary">Prüfung</p>
+            <h3 className="mt-1 font-display text-lg font-semibold">{acc.companyName}</h3>
+            <p className="text-sm text-secondary mt-0.5">
+              {acc.firstName} {acc.lastName} · {acc.email} · {acc.memberType === "lieferant" ? "Lieferant" : "Händler"}
+            </p>
+            {submittedDate && (
+              <p className="text-xs text-muted mt-1">Eingereicht am {submittedDate}</p>
+            )}
+          </div>
+          <button onClick={onClose} className="text-muted hover:text-foreground shrink-0">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {mode === "view" ? (
+          <div className="mt-6 flex gap-3">
+            <button
+              type="button"
+              onClick={() => setMode("reject")}
+              disabled={saving}
+              className="flex-1 rounded-md border border-red-500/40 px-4 py-2.5 text-sm font-medium text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+            >
+              Nachbesserung nötig
+            </button>
+            <button
+              type="button"
+              onClick={handleApprove}
+              disabled={saving}
+              className="flex-1 inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+            >
+              {saving ? "Wird gespeichert…" : "Freigeben"}
+            </button>
+          </div>
+        ) : (
+          <div className="mt-6 space-y-3">
+            <label className="text-xs font-medium text-secondary">
+              Was muss der Kunde korrigieren? (Pflichtfeld, wird dem Kunden angezeigt)
+            </label>
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              rows={4}
+              className="w-full rounded-md border border-border bg-popover px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+              placeholder="z. B. Bitte Handelsregisterauszug erneut hochladen, aktuelle Version fehlt."
+            />
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setMode("view")}
+                disabled={saving}
+                className="flex-1 rounded-md border border-border px-4 py-2.5 text-sm font-medium text-secondary hover:text-foreground transition-colors disabled:opacity-50"
+              >
+                Zurück
+              </button>
+              <button
+                type="button"
+                onClick={handleReject}
+                disabled={saving || !note.trim()}
+                className="flex-1 rounded-md bg-red-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {saving ? "Wird gespeichert…" : "Zurückweisen"}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -475,10 +597,12 @@ function CustomerCard({
   onView,
   onSendLink,
   onCopyLink,
+  onReview,
 }: {
   acc: CustomerAccount;
   isCopied: boolean;
   onView: () => void;
+  onReview: () => void;
   onSendLink: () => void;
   onCopyLink: () => void;
 }) {
@@ -550,6 +674,15 @@ function CustomerCard({
               className="rounded-md border border-border p-1.5 text-muted hover:border-primary hover:text-primary transition-colors"
             >
               <Copy className="h-3.5 w-3.5" />
+            </button>
+          )}
+          {/* Review – nur wenn eingereicht */}
+          {acc.status === "Zur Prüfung eingereicht" && (
+            <button
+              onClick={onReview}
+              className="inline-flex shrink-0 items-center gap-2 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+            >
+              Prüfen
             </button>
           )}
           {/* Open */}

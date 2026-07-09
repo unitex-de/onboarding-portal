@@ -91,6 +91,10 @@ export interface CustomerAccount {
   loggedInName?: string;
   isCollaborator?: boolean;
   savedFormData?: SavedFormData;
+  submittedAt?: string | null;
+  reviewedAt?: string | null;
+  reviewedBy?: string | null;
+  reviewNote?: string | null;
 }
 
 export interface Collaborator {
@@ -244,6 +248,10 @@ async function fetchAllCustomers(): Promise<CustomerAccount[]> {
         completedSections,
         dashboardSeen: c.dashboard_seen ?? false,
         savedFormData,
+        submittedAt: c.submitted_at ?? null,
+        reviewedAt: c.reviewed_at ?? null,
+        reviewedBy: c.reviewed_by ?? null,
+        reviewNote: c.review_note ?? null,
       };
     })
   );
@@ -338,6 +346,10 @@ export async function fetchCustomerByEmail(email: string): Promise<CustomerAccou
     loggedInName: collaboratorName,
     isCollaborator: !!collaboratorName,
     savedFormData,
+    submittedAt: c.submitted_at ?? null,
+    reviewedAt: c.reviewed_at ?? null,
+    reviewedBy: c.reviewed_by ?? null,
+    reviewNote: c.review_note ?? null,
   };
 }
 
@@ -399,6 +411,7 @@ interface Ctx {
   removeCollaborator: (id: string) => Promise<void>;
   addCustomerAccount: (acc: Omit<CustomerAccount, "id" | "createdAt" | "magicLinkSent" | "magicToken" | "status" | "linkSentAt" | "uploadedDocs" | "completedSections">) => Promise<CustomerAccount>;
   updateCustomerAccount: (id: string, patch: Partial<CustomerAccount>) => Promise<void>;
+  reviewCustomer: (id: string, decision: "Freigegeben" | "Nachbesserung nötig", note?: string) => Promise<void>;
   sendMagicLink: (id: string) => Promise<void>;
   refreshCustomers: () => Promise<void>;
   reset: () => void;
@@ -713,7 +726,6 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
             customerId,
           },
         });
-        console.log("[DEBUG notifyReviewSubmitted] result:", result);
       } catch (e) {
         console.error("[submitForReview] Benachrichtigung an Tanja fehlgeschlagen:", e);
       }
@@ -875,11 +887,40 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       .eq("id", id);
 
     if (error) throw new Error(error.message);
-
     setState((s) => ({
       ...s,
       customerAccounts: s.customerAccounts.map((a) =>
         a.id === id ? { ...a, ...patch } : a
+      ),
+    }));
+  }, []);
+  // ---------------------------------------------------------------------------
+  // Prüfung entscheiden (Admin/Tanja): Freigabe oder Nachbesserung nötig
+  // ---------------------------------------------------------------------------
+  const reviewCustomer = useCallback(async (
+    id: string,
+    decision: "Freigegeben" | "Nachbesserung nötig",
+    note?: string,
+  ) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const actorEmail = session?.user?.email ?? null;
+    const now = new Date().toISOString();
+    const { error } = await supabase
+      .from("customers")
+      .update({
+        status: decision,
+        reviewed_at: now,
+        reviewed_by: actorEmail,
+        review_note: decision === "Nachbesserung nötig" ? (note ?? null) : null,
+      })
+      .eq("id", id);
+    if (error) throw new Error(error.message);
+    setState((s) => ({
+      ...s,
+      customerAccounts: s.customerAccounts.map((a) =>
+        a.id === id
+          ? { ...a, status: decision, reviewedAt: now, reviewedBy: actorEmail, reviewNote: decision === "Nachbesserung nötig" ? (note ?? null) : null }
+          : a
       ),
     }));
   }, []);
@@ -932,12 +973,13 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       removeCollaborator,
       addCustomerAccount,
       updateCustomerAccount,
+      reviewCustomer,
       sendMagicLink,
       refreshCustomers,
       reset,
     }),
     [state, loading, update, uploadDoc, removeDoc, completeSection, updateFormData, submitForReview,
-     inviteCollaborator, fetchCollaborators, removeCollaborator, addCustomerAccount, updateCustomerAccount, sendMagicLink, refreshCustomers, reset]
+     inviteCollaborator, fetchCollaborators, removeCollaborator, addCustomerAccount, updateCustomerAccount, reviewCustomer, sendMagicLink, refreshCustomers, reset]
   );
 
   return <OnboardingCtx.Provider value={value}>{children}</OnboardingCtx.Provider>;
