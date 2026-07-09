@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, useCallback, useRef, type ReactNode } from "react";
 import { supabase } from "./supabase";
-import { notifyReviewSubmitted } from "./api/notify.functions";
+import { notifyReviewSubmitted, notifyCustomerRejected } from "./api/notify.functions";
 
 // ---------------------------------------------------------------------------
 // Types & Interfaces
@@ -937,6 +937,17 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
           updated_at: now,
           updated_by: actorEmail,
         }, { onConflict: "customer_id,section" });
+      }
+      // Kunde per Mail über die nötige Korrektur informieren
+      const target = stateRef.current.customerAccounts.find((a) => a.id === id);
+      if (target && note) {
+        try {
+          await notifyCustomerRejected({
+            data: { customerEmail: target.email, companyName: target.companyName, note },
+          });
+        } catch (e) {
+          console.error("[reviewCustomer] Benachrichtigung an Kunden fehlgeschlagen:", e);
+        }
       }
     }
     setState((s) => ({

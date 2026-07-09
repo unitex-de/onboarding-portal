@@ -48,3 +48,39 @@ export const notifyReviewSubmitted = createServerFn({ method: "POST" })
     }
     return { sent: true, demo: false };
   });
+
+// ---------------------------------------------------------------------------
+// Kunde benachrichtigen: Nachbesserung nötig
+// ---------------------------------------------------------------------------
+export const notifyCustomerRejected = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      customerEmail: z.string().email(),
+      companyName: z.string(),
+      note: z.string(),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+      return { sent: false, demo: true };
+    }
+    const resend = new Resend(apiKey);
+    const { error } = await resend.emails.send({
+      from: ABSENDER,
+      to: data.customerEmail,
+      subject: `Onboarding: Bitte korrigieren Sie einige Angaben`,
+      html: `
+        <p>Hallo,</p>
+        <p>vielen Dank für die Einreichung Ihrer Onboarding-Unterlagen für <strong>${data.companyName}</strong>.</p>
+        <p>Bei der Prüfung ist uns aufgefallen, dass noch etwas korrigiert werden muss:</p>
+        <p style="padding:12px; background:#f5f5f5; border-radius:6px;">${data.note}</p>
+        <p>Bitte loggen Sie sich im Portal ein, um die Korrektur vorzunehmen und erneut einzureichen.</p>
+      `,
+    });
+    if (error) {
+      console.error("[notifyCustomerRejected] Resend error:", error);
+      return { sent: false, demo: false, error: error.message };
+    }
+    return { sent: true, demo: false };
+  });
