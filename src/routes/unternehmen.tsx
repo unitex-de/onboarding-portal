@@ -237,6 +237,8 @@ function UnternehmenPage() {
         telefon: c.telefon,
         email: c.email,
         jobbezeichnung: c.jobbezeichnung || undefined,
+        newsletterHandy: c.newsletterHandy,
+        newsletterEmail: c.newsletterEmail,
       })),
     });
     checkEtappe1Done("kontakt");

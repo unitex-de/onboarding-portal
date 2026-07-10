@@ -133,6 +133,8 @@ interface ContactSyncInput {
   telefon?: string;
   email: string;
   jobbezeichnung?: string;
+  newsletterHandy?: boolean;
+  newsletterEmail?: boolean;
 }
 
 /** Mappt die freie Formular-Jobbezeichnung auf die 12 HubSpot-Optionen von
@@ -171,6 +173,8 @@ function buildContactProperties(
   if (contact.jobbezeichnung) props.jobtitle = contact.jobbezeichnung;
   if (contact.handy) props.mobilephone = contact.handy;
   if (contact.telefon) props.phone = contact.telefon;
+  if (contact.newsletterHandy) props.onboarding_newsletter_einwilligung_sms = "true";
+  if (contact.newsletterEmail) props.onboarding_newsletter_einwilligung_mail = "true";
   return props;
 }
 
@@ -279,6 +283,8 @@ export const syncCustomerToHubspot = createServerFn({ method: "POST" })
             telefon: z.string().optional(),
             email: z.string().email(),
             jobbezeichnung: z.string().optional(),
+            newsletterHandy: z.boolean().optional(),
+            newsletterEmail: z.boolean().optional(),
           }),
         )
         .min(1),
