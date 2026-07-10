@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, useCallback, useRef, type ReactNode } from "react";
 import { supabase } from "./supabase";
 import { notifyReviewSubmitted, notifyCustomerRejected } from "./api/notify.functions";
+import { syncCustomerToHubspot } from "./api/hubspot.functions";
 
 // ---------------------------------------------------------------------------
 // Types & Interfaces
@@ -947,6 +948,21 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
           });
         } catch (e) {
           console.error("[reviewCustomer] Benachrichtigung an Kunden fehlgeschlagen:", e);
+        }
+      }
+    } else if (decision === "Freigegeben") {
+      const target = stateRef.current.customerAccounts.find((a) => a.id === id);
+      if (target) {
+        try {
+          await syncCustomerToHubspot({
+            data: {
+              customerId: id,
+              companyName: target.companyName,
+              email: target.email,
+            },
+          });
+        } catch (e) {
+          console.error("[reviewCustomer] HubSpot-Sync fehlgeschlagen:", e);
         }
       }
     }
