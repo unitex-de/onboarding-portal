@@ -285,7 +285,7 @@ function Index() {
             Flexibel, sicher und ohne Papierkram.
           </p>
           <ul className="space-y-3 pt-2">
-            {["Frei navigierbar", "Digital signieren via PandaDoc", "DSGVO-konform"].map((t) => (
+            {["Frei navigierbar", "Digital signieren", "DSGVO-konform"].map((t) => (
               <li key={t} className="flex items-center gap-3 text-sm text-secondary">
                 <CheckCircle2 className="h-4 w-4 text-primary" />
                 {t}
