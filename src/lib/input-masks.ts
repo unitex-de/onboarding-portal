@@ -1,4 +1,4 @@
-export type MaskType = 'mobile' | 'phone' | 'iban';
+export type MaskType = 'mobile' | 'phone' | 'iban' | 'digits';
 
 // ─── Format functions ────────────────────────────────────────────────────────
 
@@ -22,6 +22,10 @@ export function formatPhone(input: string): string {
   return r;
 }
 
+/** Strips everything except digits */
+export function formatDigits(input: string): string {
+  return input.replace(/\D/g, '');
+}
 /** Groups of 4 separated by spaces — DE=22, AT=20, CH=21, else max 34 chars */
 export function formatIBAN(input: string): string {
   const c = input.replace(/[^A-Z0-9]/gi, '').toUpperCase();
@@ -42,6 +46,7 @@ export const MASK_CONFIG: Record<
   mobile: { format: formatMobile, isContent: (c) => /\d/.test(c) },
   phone:  { format: formatPhone,  isContent: (c) => /\d/.test(c) },
   iban:   { format: formatIBAN,   isContent: (c) => /[A-Z0-9]/i.test(c) },
+  digits: { format: formatDigits, isContent: (c) => /\d/.test(c) },
 };
 
 // ─── Cursor helpers ───────────────────────────────────────────────────────────

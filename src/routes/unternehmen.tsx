@@ -268,6 +268,24 @@ function UnternehmenPage() {
   };
 
   // ── Validate helpers ────────────────────────────────────────────────────────
+  const isValidEmail = (value: string) => value.includes("@") && value.includes(".");
+
+  const validateGrunddaten = (): string | null => {
+    if (emailFirma && !isValidEmail(emailFirma)) {
+      return "Bitte eine gültige E-Mail-Adresse eingeben (muss @ und . enthalten).";
+    }
+    return null;
+  };
+
+  const validateKontakt = (): string | null => {
+    for (const c of contacts) {
+      if (c.email && !isValidEmail(c.email)) {
+        return "Bitte für alle Kontakte eine gültige E-Mail-Adresse eingeben (muss @ und . enthalten).";
+      }
+    }
+    return null;
+  };
+
   const validateGeschaeftsdaten = (): string | null => {
     // Sortiment pills aren't standard inputs; require at least one selection
     if (sortiment.length === 0) return "Bitte wähle mindestens einen Sortimentsschwerpunkt aus.";
@@ -314,6 +332,7 @@ function UnternehmenPage() {
           title="Grunddaten"
           description="Geben Sie hier den offiziellen Sitz Ihres Unternehmens an."
           onSave={handleSaveGrunddaten}
+          validate={validateGrunddaten}
         >
           <div className="grid md:grid-cols-2 gap-4">
             <Field label="Firmenname">
@@ -367,6 +386,7 @@ function UnternehmenPage() {
           title="Kontaktinformationen"
           description="Ansprechpartner für die Geschäftsführung und Ihre Buchhaltung."
           onSave={handleSaveKontakt}
+          validate={validateKontakt}
         >
           {contacts.map((c) => {
             const isGf = c.kind === "gf";
@@ -538,7 +558,8 @@ function UnternehmenPage() {
               </Field>
               <Field label="Webseite">
                 <AutoSaveInput className={inputClass} placeholder="https://www.beispiel.de"
-                  value={webseite} onChange={(e) => setWebseite(e.target.value)} />
+                  value={webseite} onChange={(e) => setWebseite(e.target.value)}
+                  onFocus={() => { if (!webseite) setWebseite("www."); }} />
               </Field>
               <Field label="GLN-Nr." required={false}>
                 <AutoSaveInput className={inputClass} placeholder="4012345678900"
@@ -689,12 +710,12 @@ function UnternehmenPage() {
                       )}
                     </div>
                   </div>
-                  <AutoSaveInput className={inputClass} placeholder="z.B. 800.000"
+                  <MaskedInput mask="digits" inputMode="numeric" className={inputClass} placeholder="z.B. 800000"
                     value={umsatz} onChange={(e) => setUmsatz(e.target.value)} required />
                 </div>
 
                 <Field label="Mitarbeiterzahl">
-                  <AutoSaveInput type="number" className={inputClass}
+                  <MaskedInput mask="digits" inputMode="numeric" className={inputClass}
                     placeholder="z.B. 50"
                     value={mitarbeiter} onChange={(e) => setMitarbeiter(e.target.value)} required />
                 </Field>
@@ -704,17 +725,17 @@ function UnternehmenPage() {
                 </Field>
 
                 <Field label="ZR-Volumen (€)" required={false}>
-                  <AutoSaveInput type="number" className={inputClass} placeholder="z.B. 350.000"
+                  <MaskedInput mask="digits" inputMode="numeric" className={inputClass} placeholder="z.B. 350000"
                     value={zrVolumen} onChange={(e) => setZrVolumen(e.target.value)} />
                 </Field>
 
                 <Field label="Bilanzsumme (€)" required={false}>
-                  <AutoSaveInput type="number" className={inputClass} placeholder="z.B. 860.000"
+                  <MaskedInput mask="digits" inputMode="numeric" className={inputClass} placeholder="z.B. 860000"
                     value={bilanzsumme} onChange={(e) => setBilanzsumme(e.target.value)} />
                 </Field>
 
                 <Field label="WKV Deckungsbeitrag (€)" required={false}>
-                  <AutoSaveInput type="number" className={inputClass} placeholder="z.B. 800.000"
+                  <MaskedInput mask="digits" inputMode="numeric" className={inputClass} placeholder="z.B. 800000"
                     value={wkvDeckungsbeitrag} onChange={(e) => setWkvDeckungsbeitrag(e.target.value)} />
                 </Field>
               </div>
@@ -733,7 +754,7 @@ function UnternehmenPage() {
                 )}
               </Field>
 
-              <Field label="Wichtige Marken" required={false}>
+              <Field label="Wichtige Marken (mit Komma getrennt)" required={false}>
                 <AutoSaveInput className={inputClass} placeholder="z.B. Hugo Boss, Gerry Weber"
                   value={marken} onChange={(e) => setMarken(e.target.value)} />
               </Field>
