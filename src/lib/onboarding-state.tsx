@@ -954,11 +954,20 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       const target = stateRef.current.customerAccounts.find((a) => a.id === id);
       if (target) {
         try {
+          const { data: stammdaten } = await supabase
+            .from("form_data")
+            .select("data")
+            .eq("customer_id", id)
+            .eq("section", "stammdaten")
+            .maybeSingle();
+          const website = (stammdaten?.data as Record<string, unknown> | undefined)
+            ?.webseite as string | undefined;
           await syncCustomerToHubspot({
             data: {
               customerId: id,
               companyName: target.companyName,
               email: target.email,
+              website,
             },
           });
         } catch (e) {
