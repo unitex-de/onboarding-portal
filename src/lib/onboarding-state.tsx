@@ -39,6 +39,8 @@ export interface SavedFormData {
     telefon: string;
     email: string;
     jobbezeichnung?: string;
+    newsletterHandy?: boolean;
+    newsletterEmail?: boolean;
   }>;
   branches?: Array<{
     name: string;

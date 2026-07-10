@@ -109,9 +109,9 @@ function UnternehmenPage() {
       return saved.map((c) => ({
         ...c,
         id: `c_${Date.now()}_${Math.random()}`,
-        jobbezeichnung: "" as JobType | "",
-        newsletterHandy: false,
-        newsletterEmail: false,
+        jobbezeichnung: (c.jobbezeichnung ?? "") as JobType,
+        newsletterHandy: c.newsletterHandy ?? false,
+        newsletterEmail: c.newsletterEmail ?? false,
       }));
     }
     return [newContact("gf"), newContact("buchhaltung")];
@@ -224,7 +224,7 @@ function UnternehmenPage() {
   };
 
   const handleSaveBankdaten = () => {
-    updateFormData({ bankname, bic, iban, steuernummer, ustId });
+    updateFormData({ bankname, bic, swiftCode, iban, steuernummer, ustId });
     checkEtappe1Done("bankdaten");
   };
 
