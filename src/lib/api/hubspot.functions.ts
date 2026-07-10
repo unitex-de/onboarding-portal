@@ -111,7 +111,7 @@ function buildCompanyProperties(
   if (input.ustId) props.ust_idnr_ = input.ustId;
   if (input.glnNr) props.n04__gln = input.glnNr;
   if (input.sortiment && input.sortiment.length > 0) {
-    props.n01__sortiment__geklont_ = input.sortiment.join(", ");
+    props.n01__sortiment__geklont_ = input.sortiment.join(";");
   }
   if (input.marken) props.n03__marken__nur_lieferanten_ = input.marken;
   if (input.zrVolumen) props.n05__umsatz_zr__ca____autom__ = input.zrVolumen;
