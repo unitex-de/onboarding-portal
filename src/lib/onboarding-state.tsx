@@ -954,20 +954,66 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       const target = stateRef.current.customerAccounts.find((a) => a.id === id);
       if (target) {
         try {
-          const { data: stammdaten } = await supabase
+          const { data: stammdatenRow } = await supabase
             .from("form_data")
             .select("data")
             .eq("customer_id", id)
             .eq("section", "stammdaten")
             .maybeSingle();
-          const website = (stammdaten?.data as Record<string, unknown> | undefined)
-            ?.webseite as string | undefined;
+          const sd = (stammdatenRow?.data ?? {}) as SavedFormData;
+
+          // liefSortiment ist laut Typ ein string, kommt in der Praxis aber
+          // teils als Array vor – defensiv behandeln (siehe bekannte Stolperfalle)
+          const sortimentArray = Array.isArray(sd.sortiment) ? sd.sortiment : [];
+          const liefSortimentRaw = sd.liefSortiment as unknown;
+          const liefSortimentArray = Array.isArray(liefSortimentRaw)
+            ? (liefSortimentRaw as string[])
+            : typeof liefSortimentRaw === "string" && liefSortimentRaw
+              ? [liefSortimentRaw]
+              : [];
+          const sortiment = [...sortimentArray, ...liefSortimentArray];
+
+          const marken = target.memberType === "lieferant" ? sd.liefMarken : sd.marken;
+
+          const rawContacts = Array.isArray(sd.contacts) && sd.contacts.length > 0
+            ? sd.contacts
+            : [{
+                kind: "gf" as const,
+                vorname: target.firstName,
+                nachname: target.lastName,
+                email: target.email,
+                handy: "",
+                telefon: "",
+                jobbezeichnung: "",
+              }];
+
           await syncCustomerToHubspot({
             data: {
               customerId: id,
               companyName: target.companyName,
-              email: target.email,
-              website,
+              memberType: target.memberType,
+              website: sd.webseite,
+              strasse: sd.strasse,
+              plz: sd.plz,
+              ort: sd.ort,
+              land: sd.land,
+              umsatz: sd.umsatz,
+              mitarbeiter: sd.mitarbeiter,
+              gruendung: sd.gruendung,
+              ustId: sd.ustId,
+              glnNr: sd.glnNr,
+              sortiment,
+              marken,
+              zrVolumen: sd.zrVolumen,
+              contacts: rawContacts.map((c) => ({
+                kind: c.kind,
+                vorname: c.vorname,
+                nachname: c.nachname,
+                handy: c.handy,
+                telefon: c.telefon,
+                email: c.email,
+                jobbezeichnung: c.jobbezeichnung,
+              })),
             },
           });
         } catch (e) {
