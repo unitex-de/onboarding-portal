@@ -493,7 +493,7 @@ function UnternehmenPage() {
           >
             <div className="space-y-4">
               {/* BUG 4: Sortiment als Pills */}
-              <Field label="Sortimentsschwerpunkte">
+              <Field label="Sortimentsschwerpunkte" as="div">
                 <div className="flex flex-wrap gap-2">
                   {SORTIMENT_OPTIONS.map((opt) => (
                     <Pill
@@ -700,7 +700,7 @@ function UnternehmenPage() {
                 </Field>
               </div>
 
-              <Field label="Sortimentsschwerpunkte">
+              <Field label="Sortimentsschwerpunkte" as="div">
                 <div className="flex flex-wrap gap-2">
                   {SORTIMENT_OPTIONS.map((c) => (
                     <Pill key={c} label={c}

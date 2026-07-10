@@ -126,15 +126,18 @@ export function Field({
   hint,
   required,
   className,
+  as = "label",
 }: {
   label: string;
   children: ReactNode;
   hint?: string;
   required?: boolean;
   className?: string;
+  as?: "label" | "div";
 }) {
+  const Wrapper = as;
   return (
-    <label className={["block space-y-1.5", className].filter(Boolean).join(" ")}>
+    <Wrapper className={["block space-y-1.5", className].filter(Boolean).join(" ")}>
       <span className="block text-xs font-medium uppercase tracking-wide text-secondary">
         {label}
         {required !== false && (
@@ -143,7 +146,7 @@ export function Field({
       </span>
       {children}
       {hint && <span className="block text-xs text-muted">{hint}</span>}
-    </label>
+    </Wrapper>
   );
 }
 
