@@ -101,6 +101,25 @@ function UnternehmenPage() {
   const [ort, setOrt] = useState(state.savedFormData?.ort ?? "");
   const [land, setLand] = useState(state.savedFormData?.land ?? "DE");
   const [emailFirma, setEmailFirma] = useState(state.savedFormData?.emailFirma ?? "");
+  // PLZ → Ort Autofill (nur DE, nur wenn Ort noch leer)
+  useEffect(() => {
+    if (land !== "DE" || !/^\d{5}$/.test(plz) || ort.trim() !== "") return;
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      fetch(`https://openplzapi.org/de/Localities?postalCode=${plz}`, { signal: controller.signal })
+        .then((res) => (res.ok ? res.json() : []))
+        .then((data: Array<{ name: string }>) => {
+          if (data.length > 0 && data[0].name) setOrt(data[0].name);
+        })
+        .catch(() => {
+          // Autofill ist ein Komfort-Feature, Fehler hier bewusst ignorieren
+        });
+    }, 400);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [plz, land, ort]);
 
   // ── Kontakt ─────────────────────────────────────────────────────────────────
   const [contacts, setContacts] = useState<ContactBlock[]>(() => {
