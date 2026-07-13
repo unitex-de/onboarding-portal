@@ -694,14 +694,6 @@ function CustomerCard({
           </button>
         </div>
       </div>
-      {/* Magic Link Preview (collapsed) */}
-      {acc.magicToken && (
-        <div className="mt-3 pt-3 border-t border-border">
-          <p className="text-[10px] text-muted font-mono truncate">
-            🔗 {buildMagicLink(acc.magicToken, acc.email)}
-          </p>
-        </div>
-      )}
     </div>
   );
 }
