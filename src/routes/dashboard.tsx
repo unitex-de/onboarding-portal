@@ -106,18 +106,60 @@ function ProgressRing({ pct }: { pct: number }) {
   );
 }
 
+// ── Photo marquee columns ─────────────────────────────────────────────────────
+const TEAM_PHOTOS_COL_1 = ["ah", "ga", "kb", "lm", "ma"];
+const TEAM_PHOTOS_COL_2 = ["ob", "ss", "tl", "tr", "xa"];
+
+function PhotoColumn({ images, direction }: { images: string[]; direction: "up" | "down" }) {
+  const doubled = [...images, ...images]; // verdoppelt für nahtlosen Loop
+  return (
+    <div className="relative h-full w-40 overflow-hidden -skew-x-6">
+      <div
+        className={`flex flex-col gap-4 ${
+          direction === "up" ? "animate-marquee-up" : "animate-marquee-down"
+        }`}
+      >
+        {doubled.map((name, i) => (
+          <div key={`${name}-${i}`} className="h-56 w-full shrink-0 overflow-hidden rounded-lg">
+            <img src={`/images/team/${name}.png`} alt="" className="h-full w-full skew-x-6 object-cover" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Animated dashboard entrance ───────────────────────────────────────────────
 function DashboardEntrance({ name, onDone }: { name: string; onDone: () => void }) {
   const { displayed, done } = useTypewriter(`Willkommen ${name} im unitex Onboarding Portal`, 55, 300);
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-background">
-      <div className="text-center space-y-6">
+    <div className="fixed inset-0 z-40 flex items-center bg-background overflow-hidden">
+      <style>{`
+        @keyframes marquee-up {
+          from { transform: translateY(0); }
+          to { transform: translateY(-50%); }
+        }
+        @keyframes marquee-down {
+          from { transform: translateY(-50%); }
+          to { transform: translateY(0); }
+        }
+        .animate-marquee-up { animation: marquee-up 22s linear infinite; }
+        .animate-marquee-down { animation: marquee-down 22s linear infinite; }
+      `}</style>
+
+      {/* Foto-Spalten – nur Desktop */}
+      <div className="hidden lg:flex absolute left-16 top-0 h-full items-center gap-4">
+        <PhotoColumn images={TEAM_PHOTOS_COL_1} direction="up" />
+        <PhotoColumn images={TEAM_PHOTOS_COL_2} direction="down" />
+      </div>
+
+      <div className="relative z-10 w-full text-center lg:text-right lg:pr-24 space-y-6">
         <h1 className="font-display text-4xl font-bold text-foreground">
           {displayed}
           {!done && <span className="inline-block w-0.5 h-9 bg-primary ml-1 animate-pulse" />}
         </h1>
-        <div className="min-h-[2.5rem] flex flex-col items-center gap-3">
+        <div className="min-h-[2.5rem] flex flex-col items-center lg:items-end gap-3">
           {done && (
             <button
               type="button"
