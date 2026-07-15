@@ -107,8 +107,8 @@ function ProgressRing({ pct }: { pct: number }) {
 }
 
 // ── Photo marquee columns ─────────────────────────────────────────────────────
-const TEAM_PHOTOS_COL_1 = ["ah", "ga", "kb", "lm", "ma"];
-const TEAM_PHOTOS_COL_2 = ["ob", "ss", "tl", "tr", "xa"];
+const TEAM_PHOTOS_COL_1 = ["ah", "ga", "kb", "lm", "ma", "ob", "ss", "tl", "tr", "xa"];
+const TEAM_PHOTOS_COL_2 = ["xa", "tr", "tl", "ss", "ob", "ma", "lm", "kb", "ga", "ah"];
 
 function PhotoColumn({ images, direction }: { images: string[]; direction: "up" | "down" }) {
   const doubled = [...images, ...images]; // verdoppelt für nahtlosen Loop
@@ -121,7 +121,7 @@ function PhotoColumn({ images, direction }: { images: string[]; direction: "up" 
       >
         {doubled.map((name, i) => (
           <div key={`${name}-${i}`} className="h-56 w-full shrink-0 overflow-hidden rounded-lg">
-            <img src={`/images/team/${name}.png`} alt="" className="h-full w-full skew-x-6 object-cover" />
+            <img src={`/team/${name}.png`} alt="" className="h-full w-full skew-x-6 object-cover scale-120" />
           </div>
         ))}
       </div>
@@ -144,22 +144,22 @@ function DashboardEntrance({ name, onDone }: { name: string; onDone: () => void 
           from { transform: translateY(-50%); }
           to { transform: translateY(0); }
         }
-        .animate-marquee-up { animation: marquee-up 22s linear infinite; }
-        .animate-marquee-down { animation: marquee-down 22s linear infinite; }
+        .animate-marquee-up { animation: marquee-up 38s linear infinite; }
+        .animate-marquee-down { animation: marquee-down 38s linear infinite; }
       `}</style>
 
       {/* Foto-Spalten – nur Desktop */}
-      <div className="hidden lg:flex absolute left-16 top-0 h-full items-center gap-4">
+      <div className="hidden lg:flex absolute left-30 top-0 h-full items-center gap-4 pl-8">
         <PhotoColumn images={TEAM_PHOTOS_COL_1} direction="up" />
         <PhotoColumn images={TEAM_PHOTOS_COL_2} direction="down" />
       </div>
 
-      <div className="relative z-10 w-full text-center lg:text-right lg:pr-24 space-y-6">
-        <h1 className="font-display text-4xl font-bold text-foreground">
+      <div className="relative z-10 w-full text-center lg:text-left lg:pl-[40rem] space-y-6">
+        <h1 className="font-display text-4xl font-bold text-foreground max-w-xl mx-auto lg:mx-0">
           {displayed}
           {!done && <span className="inline-block w-0.5 h-9 bg-primary ml-1 animate-pulse" />}
         </h1>
-        <div className="min-h-[2.5rem] flex flex-col items-center lg:items-end gap-3">
+        <div className="min-h-[2.5rem] flex flex-col items-center lg:items-start gap-3">
           {done && (
             <button
               type="button"
