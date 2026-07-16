@@ -21,6 +21,9 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ChecklisteRouteImport } from './routes/checkliste'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ZrReviewSessionIdRouteImport } from './routes/zr-review.$sessionId'
+import { Route as ZrOutputSessionIdRouteImport } from './routes/zr-output.$sessionId'
+import { Route as ZrCheckSessionIdRouteImport } from './routes/zr-check.$sessionId'
 
 const ZrUploadRoute = ZrUploadRouteImport.update({
   id: '/zr-upload',
@@ -82,6 +85,21 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ZrReviewSessionIdRoute = ZrReviewSessionIdRouteImport.update({
+  id: '/zr-review/$sessionId',
+  path: '/zr-review/$sessionId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ZrOutputSessionIdRoute = ZrOutputSessionIdRouteImport.update({
+  id: '/zr-output/$sessionId',
+  path: '/zr-output/$sessionId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ZrCheckSessionIdRoute = ZrCheckSessionIdRouteImport.update({
+  id: '/zr-check/$sessionId',
+  path: '/zr-check/$sessionId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -96,6 +114,9 @@ export interface FileRoutesByFullPath {
   '/verify': typeof VerifyRoute
   '/zr-lieferanten': typeof ZrLieferantenRoute
   '/zr-upload': typeof ZrUploadRoute
+  '/zr-check/$sessionId': typeof ZrCheckSessionIdRoute
+  '/zr-output/$sessionId': typeof ZrOutputSessionIdRoute
+  '/zr-review/$sessionId': typeof ZrReviewSessionIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -110,6 +131,9 @@ export interface FileRoutesByTo {
   '/verify': typeof VerifyRoute
   '/zr-lieferanten': typeof ZrLieferantenRoute
   '/zr-upload': typeof ZrUploadRoute
+  '/zr-check/$sessionId': typeof ZrCheckSessionIdRoute
+  '/zr-output/$sessionId': typeof ZrOutputSessionIdRoute
+  '/zr-review/$sessionId': typeof ZrReviewSessionIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -125,6 +149,9 @@ export interface FileRoutesById {
   '/verify': typeof VerifyRoute
   '/zr-lieferanten': typeof ZrLieferantenRoute
   '/zr-upload': typeof ZrUploadRoute
+  '/zr-check/$sessionId': typeof ZrCheckSessionIdRoute
+  '/zr-output/$sessionId': typeof ZrOutputSessionIdRoute
+  '/zr-review/$sessionId': typeof ZrReviewSessionIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -141,6 +168,9 @@ export interface FileRouteTypes {
     | '/verify'
     | '/zr-lieferanten'
     | '/zr-upload'
+    | '/zr-check/$sessionId'
+    | '/zr-output/$sessionId'
+    | '/zr-review/$sessionId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -155,6 +185,9 @@ export interface FileRouteTypes {
     | '/verify'
     | '/zr-lieferanten'
     | '/zr-upload'
+    | '/zr-check/$sessionId'
+    | '/zr-output/$sessionId'
+    | '/zr-review/$sessionId'
   id:
     | '__root__'
     | '/'
@@ -169,6 +202,9 @@ export interface FileRouteTypes {
     | '/verify'
     | '/zr-lieferanten'
     | '/zr-upload'
+    | '/zr-check/$sessionId'
+    | '/zr-output/$sessionId'
+    | '/zr-review/$sessionId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -184,6 +220,9 @@ export interface RootRouteChildren {
   VerifyRoute: typeof VerifyRoute
   ZrLieferantenRoute: typeof ZrLieferantenRoute
   ZrUploadRoute: typeof ZrUploadRoute
+  ZrCheckSessionIdRoute: typeof ZrCheckSessionIdRoute
+  ZrOutputSessionIdRoute: typeof ZrOutputSessionIdRoute
+  ZrReviewSessionIdRoute: typeof ZrReviewSessionIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -272,6 +311,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/zr-review/$sessionId': {
+      id: '/zr-review/$sessionId'
+      path: '/zr-review/$sessionId'
+      fullPath: '/zr-review/$sessionId'
+      preLoaderRoute: typeof ZrReviewSessionIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/zr-output/$sessionId': {
+      id: '/zr-output/$sessionId'
+      path: '/zr-output/$sessionId'
+      fullPath: '/zr-output/$sessionId'
+      preLoaderRoute: typeof ZrOutputSessionIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/zr-check/$sessionId': {
+      id: '/zr-check/$sessionId'
+      path: '/zr-check/$sessionId'
+      fullPath: '/zr-check/$sessionId'
+      preLoaderRoute: typeof ZrCheckSessionIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -288,6 +348,9 @@ const rootRouteChildren: RootRouteChildren = {
   VerifyRoute: VerifyRoute,
   ZrLieferantenRoute: ZrLieferantenRoute,
   ZrUploadRoute: ZrUploadRoute,
+  ZrCheckSessionIdRoute: ZrCheckSessionIdRoute,
+  ZrOutputSessionIdRoute: ZrOutputSessionIdRoute,
+  ZrReviewSessionIdRoute: ZrReviewSessionIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

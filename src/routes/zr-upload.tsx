@@ -186,12 +186,13 @@ function ZrUploadPage() {
                 {summary.fileErrors.map((e) => <div key={e}>⚠️ {e}</div>)}
               </div>
             )}
-            <a
-              href={`/zr-review/${summary.sessionId}`}
+            <Link
+              to="/zr-review/$sessionId"
+              params={{ sessionId: String(summary.sessionId) }}
               className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
             >
               Zur Prüfung ({summary.review} offen) →
-            </a>
+            </Link>
           </div>
         )}
 
@@ -280,12 +281,13 @@ function ZrUploadPage() {
                       {new Date(s.createdAt).toLocaleString("de-DE")}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <a
-                        href={`/zr-review/${s.id}`}
+                      <Link
+                        to="/zr-review/$sessionId"
+                        params={{ sessionId: String(s.id) }}
                         className="text-primary hover:underline"
                       >
                         Review öffnen →
-                      </a>
+                      </Link>
                     </td>
                   </tr>
                 ))}

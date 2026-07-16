@@ -7,7 +7,7 @@ export type ParsedRow = {
   wertTyp: string;
 };
 
-type Grid = (string | number)[][];
+export type Grid = (string | number)[][];
 
 // ── Kleine Hilfsfunktionen, Port aus parser.py ──────────────────────────────
 
@@ -80,7 +80,7 @@ const isValueHeader = (h: string) => VALUE_HINTS.some((k) => h.toLowerCase().inc
 
 // ── Sheet als gleichmäßiges Grid einlesen (statt sheet_to_json, für volle
 // Kontrolle über Zellentypen — analog zu pandas' NaN-gefülltem DataFrame) ────
-function sheetToGrid(ws: XLSX.WorkSheet): Grid {
+export function sheetToGrid(ws: XLSX.WorkSheet): Grid {
   const ref = ws["!ref"];
   if (!ref) return [];
   const range = XLSX.utils.decode_range(ref);
