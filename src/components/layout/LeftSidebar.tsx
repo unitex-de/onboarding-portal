@@ -1,7 +1,7 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   Home, MessageCircleQuestion, ShieldCheck, LogOut, Check, Circle,
-  CheckSquare, HelpCircle, X,
+  CheckSquare, HelpCircle, X, ClipboardCheck,
 } from "lucide-react";
 import { UnitexLogo } from "../ui/UnitexLogo";
 import { useOnboarding, getSectionIds, getRequiredDocIds } from "@/lib/onboarding-state";
@@ -34,6 +34,8 @@ export function LeftSidebar({
   const navigate = useNavigate();
   const { state, update } = useOnboarding();
   const isAdmin = state.role === "admin";
+  const activeAccount = state.customerAccounts.find((a) => a.id === state.activeCustomerId);
+  const pendingReview = isAdmin && activeAccount?.status === "Zur Prüfung eingereicht";
 
   const handleLogout = () => {
     update({ signedIn: false, role: "kunde", activeCustomerId: null });
@@ -196,6 +198,16 @@ export function LeftSidebar({
               )}
               <CheckSquare className="h-5 w-5" strokeWidth={1.75} />
               <span>Signaturen</span>
+            </Link>
+            <Link to="/pruefung" className={navItemClass("/pruefung")} onClick={handleNavClick}>
+              {isActive("/pruefung") && (
+                <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full bg-primary" />
+              )}
+              <ClipboardCheck className="h-5 w-5" strokeWidth={1.75} />
+              <span>Prüfung</span>
+              {pendingReview && (
+                <span className="ml-auto h-2 w-2 rounded-full bg-amber-500" title="Wartet auf Prüfung" />
+              )}
             </Link>
           </>
         )}

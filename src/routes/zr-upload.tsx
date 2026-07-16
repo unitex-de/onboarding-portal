@@ -150,8 +150,8 @@ function ZrUploadPage() {
               <UnitexLogo className="h-4 w-[60px] text-slate-900" />
             </div>
           </div>
-          <Link to="/admin" className="inline-flex items-center gap-1.5 text-sm text-secondary hover:text-foreground">
-            <ArrowLeft className="h-4 w-4" /> Zurück zum Admin-Bereich
+          <Link to="/zr-abgleich" className="inline-flex items-center gap-1.5 text-sm text-secondary hover:text-foreground">
+            <ArrowLeft className="h-4 w-4" /> Zurück zum ZR-Abgleich
           </Link>
         </div>
         <span className="rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs text-primary font-medium">

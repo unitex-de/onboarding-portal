@@ -11,11 +11,13 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ZrUploadRouteImport } from './routes/zr-upload'
 import { Route as ZrLieferantenRouteImport } from './routes/zr-lieferanten'
+import { Route as ZrAbgleichRouteImport } from './routes/zr-abgleich'
 import { Route as VerifyRouteImport } from './routes/verify'
 import { Route as UploadCenterRouteImport } from './routes/upload-center'
 import { Route as UnternehmenRouteImport } from './routes/unternehmen'
 import { Route as SupportRouteImport } from './routes/support'
 import { Route as SignaturenRouteImport } from './routes/signaturen'
+import { Route as PruefungRouteImport } from './routes/pruefung'
 import { Route as InternRouteImport } from './routes/intern'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ChecklisteRouteImport } from './routes/checkliste'
@@ -33,6 +35,11 @@ const ZrUploadRoute = ZrUploadRouteImport.update({
 const ZrLieferantenRoute = ZrLieferantenRouteImport.update({
   id: '/zr-lieferanten',
   path: '/zr-lieferanten',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ZrAbgleichRoute = ZrAbgleichRouteImport.update({
+  id: '/zr-abgleich',
+  path: '/zr-abgleich',
   getParentRoute: () => rootRouteImport,
 } as any)
 const VerifyRoute = VerifyRouteImport.update({
@@ -58,6 +65,11 @@ const SupportRoute = SupportRouteImport.update({
 const SignaturenRoute = SignaturenRouteImport.update({
   id: '/signaturen',
   path: '/signaturen',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PruefungRoute = PruefungRouteImport.update({
+  id: '/pruefung',
+  path: '/pruefung',
   getParentRoute: () => rootRouteImport,
 } as any)
 const InternRoute = InternRouteImport.update({
@@ -107,11 +119,13 @@ export interface FileRoutesByFullPath {
   '/checkliste': typeof ChecklisteRoute
   '/dashboard': typeof DashboardRoute
   '/intern': typeof InternRoute
+  '/pruefung': typeof PruefungRoute
   '/signaturen': typeof SignaturenRoute
   '/support': typeof SupportRoute
   '/unternehmen': typeof UnternehmenRoute
   '/upload-center': typeof UploadCenterRoute
   '/verify': typeof VerifyRoute
+  '/zr-abgleich': typeof ZrAbgleichRoute
   '/zr-lieferanten': typeof ZrLieferantenRoute
   '/zr-upload': typeof ZrUploadRoute
   '/zr-check/$sessionId': typeof ZrCheckSessionIdRoute
@@ -124,11 +138,13 @@ export interface FileRoutesByTo {
   '/checkliste': typeof ChecklisteRoute
   '/dashboard': typeof DashboardRoute
   '/intern': typeof InternRoute
+  '/pruefung': typeof PruefungRoute
   '/signaturen': typeof SignaturenRoute
   '/support': typeof SupportRoute
   '/unternehmen': typeof UnternehmenRoute
   '/upload-center': typeof UploadCenterRoute
   '/verify': typeof VerifyRoute
+  '/zr-abgleich': typeof ZrAbgleichRoute
   '/zr-lieferanten': typeof ZrLieferantenRoute
   '/zr-upload': typeof ZrUploadRoute
   '/zr-check/$sessionId': typeof ZrCheckSessionIdRoute
@@ -142,11 +158,13 @@ export interface FileRoutesById {
   '/checkliste': typeof ChecklisteRoute
   '/dashboard': typeof DashboardRoute
   '/intern': typeof InternRoute
+  '/pruefung': typeof PruefungRoute
   '/signaturen': typeof SignaturenRoute
   '/support': typeof SupportRoute
   '/unternehmen': typeof UnternehmenRoute
   '/upload-center': typeof UploadCenterRoute
   '/verify': typeof VerifyRoute
+  '/zr-abgleich': typeof ZrAbgleichRoute
   '/zr-lieferanten': typeof ZrLieferantenRoute
   '/zr-upload': typeof ZrUploadRoute
   '/zr-check/$sessionId': typeof ZrCheckSessionIdRoute
@@ -161,11 +179,13 @@ export interface FileRouteTypes {
     | '/checkliste'
     | '/dashboard'
     | '/intern'
+    | '/pruefung'
     | '/signaturen'
     | '/support'
     | '/unternehmen'
     | '/upload-center'
     | '/verify'
+    | '/zr-abgleich'
     | '/zr-lieferanten'
     | '/zr-upload'
     | '/zr-check/$sessionId'
@@ -178,11 +198,13 @@ export interface FileRouteTypes {
     | '/checkliste'
     | '/dashboard'
     | '/intern'
+    | '/pruefung'
     | '/signaturen'
     | '/support'
     | '/unternehmen'
     | '/upload-center'
     | '/verify'
+    | '/zr-abgleich'
     | '/zr-lieferanten'
     | '/zr-upload'
     | '/zr-check/$sessionId'
@@ -195,11 +217,13 @@ export interface FileRouteTypes {
     | '/checkliste'
     | '/dashboard'
     | '/intern'
+    | '/pruefung'
     | '/signaturen'
     | '/support'
     | '/unternehmen'
     | '/upload-center'
     | '/verify'
+    | '/zr-abgleich'
     | '/zr-lieferanten'
     | '/zr-upload'
     | '/zr-check/$sessionId'
@@ -213,11 +237,13 @@ export interface RootRouteChildren {
   ChecklisteRoute: typeof ChecklisteRoute
   DashboardRoute: typeof DashboardRoute
   InternRoute: typeof InternRoute
+  PruefungRoute: typeof PruefungRoute
   SignaturenRoute: typeof SignaturenRoute
   SupportRoute: typeof SupportRoute
   UnternehmenRoute: typeof UnternehmenRoute
   UploadCenterRoute: typeof UploadCenterRoute
   VerifyRoute: typeof VerifyRoute
+  ZrAbgleichRoute: typeof ZrAbgleichRoute
   ZrLieferantenRoute: typeof ZrLieferantenRoute
   ZrUploadRoute: typeof ZrUploadRoute
   ZrCheckSessionIdRoute: typeof ZrCheckSessionIdRoute
@@ -239,6 +265,13 @@ declare module '@tanstack/react-router' {
       path: '/zr-lieferanten'
       fullPath: '/zr-lieferanten'
       preLoaderRoute: typeof ZrLieferantenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/zr-abgleich': {
+      id: '/zr-abgleich'
+      path: '/zr-abgleich'
+      fullPath: '/zr-abgleich'
+      preLoaderRoute: typeof ZrAbgleichRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/verify': {
@@ -274,6 +307,13 @@ declare module '@tanstack/react-router' {
       path: '/signaturen'
       fullPath: '/signaturen'
       preLoaderRoute: typeof SignaturenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pruefung': {
+      id: '/pruefung'
+      path: '/pruefung'
+      fullPath: '/pruefung'
+      preLoaderRoute: typeof PruefungRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/intern': {
@@ -341,11 +381,13 @@ const rootRouteChildren: RootRouteChildren = {
   ChecklisteRoute: ChecklisteRoute,
   DashboardRoute: DashboardRoute,
   InternRoute: InternRoute,
+  PruefungRoute: PruefungRoute,
   SignaturenRoute: SignaturenRoute,
   SupportRoute: SupportRoute,
   UnternehmenRoute: UnternehmenRoute,
   UploadCenterRoute: UploadCenterRoute,
   VerifyRoute: VerifyRoute,
+  ZrAbgleichRoute: ZrAbgleichRoute,
   ZrLieferantenRoute: ZrLieferantenRoute,
   ZrUploadRoute: ZrUploadRoute,
   ZrCheckSessionIdRoute: ZrCheckSessionIdRoute,

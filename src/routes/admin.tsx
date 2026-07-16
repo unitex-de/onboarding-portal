@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState, useMemo, useEffect } from "react";
 import {
-  Users, Plus, ArrowRight, Building2, UserCheck, Mail, Calendar,
+  Users, Plus, ArrowRight, UserCheck, Mail, Calendar,
   ExternalLink, X, Lock, Search, Filter, RefreshCw, Copy, CheckCircle2,
   Clock, FileEdit, ChevronDown, FileSpreadsheet
 } from "lucide-react";
@@ -38,7 +38,7 @@ const STATUS_LABELS: Record<CustomerStatus, { label: string; color: string }> = 
 
 function AdminPage() {
   const navigate = useNavigate();
-  const { state, update, addCustomerAccount, sendMagicLink, reviewCustomer } = useOnboarding();
+  const { state, update, addCustomerAccount, sendMagicLink } = useOnboarding();
 
   // Zugriffsschutz: ohne eingeloggten Admin geht's zurück zur internen Anmeldung
   useEffect(() => {
@@ -48,8 +48,8 @@ function AdminPage() {
   }, [state.loading, state.signedIn, state.role, navigate]);
 
   const [showCreate, setShowCreate] = useState(false);
+  const [showExport, setShowExport] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [reviewTarget, setReviewTarget] = useState<CustomerAccount | null>(null);
 
   // Filter state
   const [searchQuery, setSearchQuery] = useState("");
@@ -146,7 +146,9 @@ function AdminPage() {
       zrStartDate: acc.zrStartDate,
       savedFormData: acc.savedFormData ?? {},
     });
-    navigate({ to: "/dashboard" });
+    // "Prüfen" ersetzt "Öffnen": bei eingereichten Accounts direkt zur
+    // Prüfungsseite, sonst wie gehabt ins Dashboard des Kunden.
+    navigate({ to: acc.status === "Zur Prüfung eingereicht" ? "/pruefung" : "/dashboard" });
   };
 
   const handleSendLink = async (acc: CustomerAccount) => {
@@ -198,16 +200,10 @@ function AdminPage() {
             🛡 Admin-Bereich
           </span>
           <Link
-            to="/zr-lieferanten"
+            to="/zr-abgleich"
             className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-secondary hover:text-foreground hover:bg-popover transition-colors"
           >
-            🏷 ZR-Lieferanten
-          </Link>
-          <Link
-            to="/zr-upload"
-            className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-secondary hover:text-foreground hover:bg-popover transition-colors"
-          >
-            📤 ZR-Upload
+            🔁 ZR-Abgleich
           </Link>
           <button
             onClick={() => { supabase.auth.signOut(); update({ signedIn: false, role: "kunde" }); navigate({ to: "/intern" }); }}
@@ -314,11 +310,11 @@ function AdminPage() {
               </button>
             )}
             <button
-              onClick={() => exportCustomersToExcel(filtered)}
+              onClick={() => setShowExport(true)}
               disabled={filtered.length === 0}
               className="flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs text-secondary hover:text-foreground hover:border-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              <FileSpreadsheet className="h-3.5 w-3.5" /> Als Excel exportieren ({filtered.length})
+              <FileSpreadsheet className="h-3.5 w-3.5" /> Als Excel exportieren
             </button>
           </div>
         )}
@@ -344,7 +340,6 @@ function AdminPage() {
                 onView={() => handleViewCustomer(acc)}
                 onSendLink={() => handleSendLink(acc)}
                 onCopyLink={() => handleCopyLink(acc)}
-                onReview={() => setReviewTarget(acc)}
               />
             ))}
           </div>
@@ -491,126 +486,13 @@ function AdminPage() {
           </div>
         </div>
       )}
-      {reviewTarget && (
-        <ReviewModal
-          acc={reviewTarget}
-          onClose={() => setReviewTarget(null)}
-          onDecide={async (decision, note) => {
-            await reviewCustomer(reviewTarget.id, decision, note);
-            setReviewTarget(null);
-          }}
+      {showExport && (
+        <ExportModal
+          allAccounts={state.customerAccounts}
+          filteredAccounts={filtered}
+          onClose={() => setShowExport(false)}
         />
       )}
-    </div>
-  );
-}
-
-function ReviewModal({
-  acc,
-  onClose,
-  onDecide,
-}: {
-  acc: CustomerAccount;
-  onClose: () => void;
-  onDecide: (decision: "Freigegeben" | "Nachbesserung nötig", note?: string) => Promise<void>;
-}) {
-  const [mode, setMode] = useState<"view" | "reject">("view");
-  const [note, setNote] = useState("");
-  const [saving, setSaving] = useState(false);
-  const submittedDate = acc.submittedAt
-    ? new Date(acc.submittedAt).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })
-    : null;
-
-  const handleApprove = async () => {
-    setSaving(true);
-    try {
-      await onDecide("Freigegeben");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleReject = async () => {
-    if (!note.trim()) return;
-    setSaving(true);
-    try {
-      await onDecide("Nachbesserung nötig", note.trim());
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-6">
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-wide text-secondary">Prüfung</p>
-            <h3 className="mt-1 font-display text-lg font-semibold">{acc.companyName}</h3>
-            <p className="text-sm text-secondary mt-0.5">
-              {acc.firstName} {acc.lastName} · {acc.email} · {acc.memberType === "lieferant" ? "Lieferant" : "Händler"}
-            </p>
-            {submittedDate && (
-              <p className="text-xs text-muted mt-1">Eingereicht am {submittedDate}</p>
-            )}
-          </div>
-          <button onClick={onClose} className="text-muted hover:text-foreground shrink-0">
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
-        {mode === "view" ? (
-          <div className="mt-6 flex gap-3">
-            <button
-              type="button"
-              onClick={() => setMode("reject")}
-              disabled={saving}
-              className="flex-1 rounded-md border border-red-500/40 px-4 py-2.5 text-sm font-medium text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-50"
-            >
-              Nachbesserung nötig
-            </button>
-            <button
-              type="button"
-              onClick={handleApprove}
-              disabled={saving}
-              className="flex-1 inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
-            >
-              {saving ? "Wird gespeichert…" : "Freigeben"}
-            </button>
-          </div>
-        ) : (
-          <div className="mt-6 space-y-3">
-            <label className="text-xs font-medium text-secondary">
-              Was muss der Kunde korrigieren? (Pflichtfeld, wird dem Kunden angezeigt)
-            </label>
-            <textarea
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              rows={4}
-              className="w-full rounded-md border border-border bg-popover px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
-              placeholder="z. B. Bitte Handelsregisterauszug erneut hochladen, aktuelle Version fehlt."
-            />
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={() => setMode("view")}
-                disabled={saving}
-                className="flex-1 rounded-md border border-border px-4 py-2.5 text-sm font-medium text-secondary hover:text-foreground transition-colors disabled:opacity-50"
-              >
-                Zurück
-              </button>
-              <button
-                type="button"
-                onClick={handleReject}
-                disabled={saving || !note.trim()}
-                className="flex-1 rounded-md bg-red-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {saving ? "Wird gespeichert…" : "Zurückweisen"}
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
     </div>
   );
 }
@@ -621,12 +503,10 @@ function CustomerCard({
   onView,
   onSendLink,
   onCopyLink,
-  onReview,
 }: {
   acc: CustomerAccount;
   isCopied: boolean;
   onView: () => void;
-  onReview: () => void;
   onSendLink: () => void;
   onCopyLink: () => void;
 }) {
@@ -642,18 +522,20 @@ function CustomerCard({
   return (
     <div className="rounded-xl border border-border bg-card p-5">
       <div className="flex items-center gap-5">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-popover border border-border">
-          <Building2 className="h-5 w-5 text-primary" />
+        <div
+          title={acc.memberType === "händler" ? "Händler" : "Lieferant"}
+          className={[
+            "flex h-10 w-10 shrink-0 items-center justify-center rounded-full border font-display text-sm font-bold",
+            acc.memberType === "händler"
+              ? "bg-sky-500/10 border-sky-500/30 text-sky-500"
+              : "bg-violet-500/10 border-violet-500/30 text-violet-500",
+          ].join(" ")}
+        >
+          {acc.memberType === "händler" ? "H" : "L"}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <p className="font-medium text-sm text-foreground truncate">{acc.companyName}</p>
-            <span className={[
-              "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium capitalize",
-              acc.memberType === "händler" ? "bg-primary/15 text-primary" : "bg-amber-500/15 text-amber-400",
-            ].join(" ")}>
-              {acc.memberType}
-            </span>
             <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${status.color}`}>
               {status.label}
             </span>
@@ -700,21 +582,128 @@ function CustomerCard({
               <Copy className="h-3.5 w-3.5" />
             </button>
           )}
-          {/* Review – nur wenn eingereicht */}
-          {acc.status === "Zur Prüfung eingereicht" && (
-            <button
-              onClick={onReview}
-              className="inline-flex shrink-0 items-center gap-2 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
-            >
-              Prüfen
-            </button>
-          )}
-          {/* Open */}
+          {/* Prüfen — ersetzt den früheren "Öffnen"-Button; führt bei
+              eingereichten Accounts direkt zur Prüfungsseite (siehe
+              handleViewCustomer), sonst ins Kunden-Dashboard */}
           <button
             onClick={onView}
-            className="inline-flex shrink-0 items-center gap-2 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:border-primary hover:text-primary transition-colors"
+            className={[
+              "inline-flex shrink-0 items-center gap-2 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors",
+              acc.status === "Zur Prüfung eingereicht"
+                ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                : "border border-border text-foreground hover:border-primary hover:text-primary",
+            ].join(" ")}
           >
-            Öffnen <ExternalLink className="h-3.5 w-3.5" />
+            Prüfen <ExternalLink className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type ExportScope = "filtered" | "all" | "haendler" | "lieferant";
+
+function ExportModal({
+  allAccounts,
+  filteredAccounts,
+  onClose,
+}: {
+  allAccounts: CustomerAccount[];
+  filteredAccounts: CustomerAccount[];
+  onClose: () => void;
+}) {
+  const [scope, setScope] = useState<ExportScope>("filtered");
+  const [exporting, setExporting] = useState(false);
+
+  const haendlerCount = allAccounts.filter((a) => a.memberType === "händler").length;
+  const lieferantCount = allAccounts.filter((a) => a.memberType === "lieferant").length;
+
+  const getSelection = (): CustomerAccount[] => {
+    switch (scope) {
+      case "filtered": return filteredAccounts;
+      case "all": return allAccounts;
+      case "haendler": return allAccounts.filter((a) => a.memberType === "händler");
+      case "lieferant": return allAccounts.filter((a) => a.memberType === "lieferant");
+    }
+  };
+  const selection = getSelection();
+
+  const options: { value: ExportScope; label: string; count: number }[] = [
+    { value: "filtered", label: "Aktuelle Filterauswahl", count: filteredAccounts.length },
+    { value: "all", label: "Alle Accounts", count: allAccounts.length },
+    { value: "haendler", label: "Nur Händler", count: haendlerCount },
+    { value: "lieferant", label: "Nur Lieferanten", count: lieferantCount },
+  ];
+
+  const handleExport = () => {
+    if (selection.length === 0) return;
+    setExporting(true);
+    try {
+      exportCustomersToExcel(selection);
+      onClose();
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6">
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <h3 className="font-display text-lg font-semibold">Als Excel exportieren</h3>
+            <p className="text-sm text-secondary mt-0.5">Welche Datensätze sollen exportiert werden?</p>
+          </div>
+          <button onClick={onClose} className="text-muted hover:text-foreground shrink-0">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="space-y-2">
+          {options.map((opt) => (
+            <label
+              key={opt.value}
+              className={[
+                "flex items-center justify-between rounded-md border px-4 py-3 text-sm cursor-pointer transition-colors",
+                scope === opt.value ? "border-primary bg-primary/5" : "border-border hover:border-primary/40",
+              ].join(" ")}
+            >
+              <span className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="export-scope"
+                  checked={scope === opt.value}
+                  onChange={() => setScope(opt.value)}
+                  className="accent-primary"
+                />
+                {opt.label}
+              </span>
+              <span className="text-xs text-muted">{opt.count} Account{opt.count !== 1 ? "s" : ""}</span>
+            </label>
+          ))}
+        </div>
+
+        <div className="mt-5 rounded-md border border-border bg-popover px-4 py-3 text-xs text-secondary">
+          Es werden zwei Sheets erzeugt (Händler / Lieferanten), jeweils mit allen Stammdaten- und Kontaktfeldern.
+        </div>
+
+        <div className="mt-5 flex gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 rounded-md border border-border px-4 py-2.5 text-sm font-medium text-secondary hover:text-foreground transition-colors"
+          >
+            Abbrechen
+          </button>
+          <button
+            type="button"
+            onClick={handleExport}
+            disabled={selection.length === 0 || exporting}
+            className="flex-1 inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
+          >
+            <FileSpreadsheet className="h-4 w-4" />
+            {exporting ? "Exportiert…" : `${selection.length} exportieren`}
           </button>
         </div>
       </div>
