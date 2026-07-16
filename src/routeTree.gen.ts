@@ -9,16 +9,29 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ZrUploadRouteImport } from './routes/zr-upload'
+import { Route as ZrLieferantenRouteImport } from './routes/zr-lieferanten'
 import { Route as VerifyRouteImport } from './routes/verify'
 import { Route as UploadCenterRouteImport } from './routes/upload-center'
 import { Route as UnternehmenRouteImport } from './routes/unternehmen'
 import { Route as SupportRouteImport } from './routes/support'
 import { Route as SignaturenRouteImport } from './routes/signaturen'
+import { Route as InternRouteImport } from './routes/intern'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ChecklisteRouteImport } from './routes/checkliste'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 
+const ZrUploadRoute = ZrUploadRouteImport.update({
+  id: '/zr-upload',
+  path: '/zr-upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ZrLieferantenRoute = ZrLieferantenRouteImport.update({
+  id: '/zr-lieferanten',
+  path: '/zr-lieferanten',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const VerifyRoute = VerifyRouteImport.update({
   id: '/verify',
   path: '/verify',
@@ -42,6 +55,11 @@ const SupportRoute = SupportRouteImport.update({
 const SignaturenRoute = SignaturenRouteImport.update({
   id: '/signaturen',
   path: '/signaturen',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InternRoute = InternRouteImport.update({
+  id: '/intern',
+  path: '/intern',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -70,22 +88,28 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/checkliste': typeof ChecklisteRoute
   '/dashboard': typeof DashboardRoute
+  '/intern': typeof InternRoute
   '/signaturen': typeof SignaturenRoute
   '/support': typeof SupportRoute
   '/unternehmen': typeof UnternehmenRoute
   '/upload-center': typeof UploadCenterRoute
   '/verify': typeof VerifyRoute
+  '/zr-lieferanten': typeof ZrLieferantenRoute
+  '/zr-upload': typeof ZrUploadRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/checkliste': typeof ChecklisteRoute
   '/dashboard': typeof DashboardRoute
+  '/intern': typeof InternRoute
   '/signaturen': typeof SignaturenRoute
   '/support': typeof SupportRoute
   '/unternehmen': typeof UnternehmenRoute
   '/upload-center': typeof UploadCenterRoute
   '/verify': typeof VerifyRoute
+  '/zr-lieferanten': typeof ZrLieferantenRoute
+  '/zr-upload': typeof ZrUploadRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -93,11 +117,14 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/checkliste': typeof ChecklisteRoute
   '/dashboard': typeof DashboardRoute
+  '/intern': typeof InternRoute
   '/signaturen': typeof SignaturenRoute
   '/support': typeof SupportRoute
   '/unternehmen': typeof UnternehmenRoute
   '/upload-center': typeof UploadCenterRoute
   '/verify': typeof VerifyRoute
+  '/zr-lieferanten': typeof ZrLieferantenRoute
+  '/zr-upload': typeof ZrUploadRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -106,33 +133,42 @@ export interface FileRouteTypes {
     | '/admin'
     | '/checkliste'
     | '/dashboard'
+    | '/intern'
     | '/signaturen'
     | '/support'
     | '/unternehmen'
     | '/upload-center'
     | '/verify'
+    | '/zr-lieferanten'
+    | '/zr-upload'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/admin'
     | '/checkliste'
     | '/dashboard'
+    | '/intern'
     | '/signaturen'
     | '/support'
     | '/unternehmen'
     | '/upload-center'
     | '/verify'
+    | '/zr-lieferanten'
+    | '/zr-upload'
   id:
     | '__root__'
     | '/'
     | '/admin'
     | '/checkliste'
     | '/dashboard'
+    | '/intern'
     | '/signaturen'
     | '/support'
     | '/unternehmen'
     | '/upload-center'
     | '/verify'
+    | '/zr-lieferanten'
+    | '/zr-upload'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -140,15 +176,32 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   ChecklisteRoute: typeof ChecklisteRoute
   DashboardRoute: typeof DashboardRoute
+  InternRoute: typeof InternRoute
   SignaturenRoute: typeof SignaturenRoute
   SupportRoute: typeof SupportRoute
   UnternehmenRoute: typeof UnternehmenRoute
   UploadCenterRoute: typeof UploadCenterRoute
   VerifyRoute: typeof VerifyRoute
+  ZrLieferantenRoute: typeof ZrLieferantenRoute
+  ZrUploadRoute: typeof ZrUploadRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/zr-upload': {
+      id: '/zr-upload'
+      path: '/zr-upload'
+      fullPath: '/zr-upload'
+      preLoaderRoute: typeof ZrUploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/zr-lieferanten': {
+      id: '/zr-lieferanten'
+      path: '/zr-lieferanten'
+      fullPath: '/zr-lieferanten'
+      preLoaderRoute: typeof ZrLieferantenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/verify': {
       id: '/verify'
       path: '/verify'
@@ -182,6 +235,13 @@ declare module '@tanstack/react-router' {
       path: '/signaturen'
       fullPath: '/signaturen'
       preLoaderRoute: typeof SignaturenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/intern': {
+      id: '/intern'
+      path: '/intern'
+      fullPath: '/intern'
+      preLoaderRoute: typeof InternRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -220,11 +280,14 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   ChecklisteRoute: ChecklisteRoute,
   DashboardRoute: DashboardRoute,
+  InternRoute: InternRoute,
   SignaturenRoute: SignaturenRoute,
   SupportRoute: SupportRoute,
   UnternehmenRoute: UnternehmenRoute,
   UploadCenterRoute: UploadCenterRoute,
   VerifyRoute: VerifyRoute,
+  ZrLieferantenRoute: ZrLieferantenRoute,
+  ZrUploadRoute: ZrUploadRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect, useRef } from "react";
-import { ArrowRight, Mail, ShieldCheck, CheckCircle2, UserCog, User, Lock, Sparkles } from "lucide-react";
-import { useOnboarding, type UserRole, type MemberType, type LegalForm, fetchCustomerByEmail, markDashboardSeen } from "@/lib/onboarding-state";
+import { ArrowRight, Mail, ShieldCheck, CheckCircle2, Sparkles } from "lucide-react";
+import { useOnboarding, fetchCustomerByEmail, markDashboardSeen } from "@/lib/onboarding-state";
 import { supabase } from "@/lib/supabase";
 import { UnitexLogo } from "@/components/ui/UnitexLogo";
 import { z } from "zod";
@@ -107,14 +107,13 @@ function Index() {
   const { email: prefillEmail, verify } = Route.useSearch();
 
   const navigate = useNavigate();
-  const { state, loading, update, refreshCustomers } = useOnboarding();
+  const { state, loading, update } = useOnboarding();
     useEffect(() => {
       if (!state.loading && state.signedIn) {
         navigate({ to: state.role === "admin" ? "/admin" : "/dashboard" });
       }
     }, [state.loading, state.signedIn, state.role, navigate]);
   const [email, setEmail] = useState(prefillEmail ?? "");
-  const [role, setRole] = useState<UserRole>("kunde");
   const [sent, setSent] = useState(verify === "1");
   const [verifyCode, setVerifyCode] = useState("");
   const [codeError, setCodeError] = useState(false);
@@ -122,45 +121,6 @@ function Index() {
   const [showWelcome, setShowWelcome] = useState(false);
   const pendingNav = useRef<() => void>(() => {});
   const pendingName = useRef<string>("");
-
-  // Admin fields
-  const [adminEmail, setAdminEmail] = useState("");
-  const [adminPassword, setAdminPassword] = useState("");
-  const [adminEmailError, setAdminEmailError] = useState("");
-  const [adminPassError, setAdminPassError] = useState(false);
-
-  const validateAdminEmail = (val: string) => {
-    if (!val.includes("@")) return "Bitte eine gültige E-Mail eingeben.";
-    if (!val.toLowerCase().endsWith("@unitex.de")) return "Nur @unitex.de E-Mail-Adressen sind erlaubt.";
-    return "";
-  };
-
-  const onAdminSubmit = async () => {
-    const emailErr = validateAdminEmail(adminEmail);
-    if (emailErr) { setAdminEmailError(emailErr); return; }
-
-    const { error } = await supabase.auth.signInWithPassword({
-      email: adminEmail,
-      password: adminPassword,
-    });
-
-    if (error) { setAdminPassError(true); return; }
-
-    await refreshCustomers();
-
-    const prefix = adminEmail.split("@")[0];
-    const parts = prefix.split(".");
-    const userName = parts.map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(" ");
-    update({
-      email: adminEmail,
-      legalFormLockedByAdmin: false,
-      userName,
-      role: "admin",
-      signedIn: true,
-      activeCustomerId: null,
-    });
-    navigate({ to: "/admin" });
-  };
 
   const onKundeRequest = async () => {
     if (!email.includes("@")) return;
@@ -296,81 +256,7 @@ function Index() {
 
         <section className="w-full max-w-md justify-self-end">
           <div className="rounded-2xl border border-border bg-card p-8 shadow-2xl">
-            {/* Role switcher */}
-            <div className="mb-6">
-              <label className="text-xs font-medium text-secondary uppercase tracking-wide">Ich bin</label>
-              <div className="mt-2 grid grid-cols-2 gap-2 p-1 rounded-lg bg-popover">
-                {([
-                  { value: "kunde" as UserRole, label: "Kunde", icon: User },
-                  { value: "admin" as UserRole, label: "Admin (unitex)", icon: UserCog },
-                ]).map(({ value, label, icon: Icon }) => (
-                  <button key={value} type="button" onClick={() => setRole(value)}
-                    className={[
-                      "flex items-center justify-center gap-2 rounded-md py-2 text-sm font-medium transition-colors",
-                      role === value ? "bg-primary text-primary-foreground" : "text-secondary hover:text-foreground",
-                    ].join(" ")}
-                  >
-                    <Icon className="h-4 w-4" />{label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {role === "admin" ? (
-              <div className="space-y-4">
-                <div>
-                  <h2 className="font-display text-xl font-semibold">Admin-Anmeldung</h2>
-                  <p className="mt-1 text-sm text-secondary">Nur für unitex-Mitarbeiter.</p>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs text-secondary uppercase tracking-wide">E-Mail</label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
-                    <input
-                      type="email"
-                      className={[
-                        "w-full rounded-md border bg-popover pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:ring-1",
-                        adminEmailError
-                          ? "border-destructive focus:ring-destructive"
-                          : "border-border focus:border-primary focus:ring-primary",
-                      ].join(" ")}
-                      value={adminEmail}
-                      onChange={(e) => { setAdminEmail(e.target.value); setAdminEmailError(""); }}
-                      placeholder="name@unitex.de"
-                    />
-                  </div>
-                  {adminEmailError && <p className="text-xs text-destructive">{adminEmailError}</p>}
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs text-secondary uppercase tracking-wide flex items-center gap-1.5">
-                    <Lock className="h-3 w-3" /> Passwort
-                  </label>
-                  <input
-                    type="password"
-                    className={[
-                      "w-full rounded-md border bg-popover px-3 py-2.5 text-sm focus:outline-none focus:ring-1",
-                      adminPassError
-                        ? "border-destructive focus:ring-destructive"
-                        : "border-border focus:border-primary focus:ring-primary",
-                    ].join(" ")}
-                    value={adminPassword}
-                    onChange={(e) => { setAdminPassword(e.target.value); setAdminPassError(false); }}
-                    placeholder="••••••••"
-                    onKeyDown={(e) => { if (e.key === "Enter") onAdminSubmit(); }}
-                  />
-                  {adminPassError && <p className="text-xs text-destructive">Falsches Passwort.</p>}
-                </div>
-                <button
-                  type="button"
-                  onClick={onAdminSubmit}
-                  disabled={!adminEmail || !adminPassword}
-                  className="group inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Anmelden
-                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-                </button>
-              </div>
-            ) : !sent ? (
+            {!sent ? (
               <div className="space-y-5">
                 <div>
                   <h2 className="font-display text-xl font-semibold">Anmelden</h2>

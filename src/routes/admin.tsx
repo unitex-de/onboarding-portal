@@ -1,5 +1,5 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState, useMemo } from "react";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { useState, useMemo, useEffect } from "react";
 import {
   Users, Plus, ArrowRight, Building2, UserCheck, Mail, Calendar,
   ExternalLink, X, Lock, Search, Filter, RefreshCw, Copy, CheckCircle2,
@@ -39,6 +39,14 @@ const STATUS_LABELS: Record<CustomerStatus, { label: string; color: string }> = 
 function AdminPage() {
   const navigate = useNavigate();
   const { state, update, addCustomerAccount, sendMagicLink, reviewCustomer } = useOnboarding();
+
+  // Zugriffsschutz: ohne eingeloggten Admin geht's zurück zur internen Anmeldung
+  useEffect(() => {
+    if (!state.loading && (!state.signedIn || state.role !== "admin")) {
+      navigate({ to: "/intern" });
+    }
+  }, [state.loading, state.signedIn, state.role, navigate]);
+
   const [showCreate, setShowCreate] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [reviewTarget, setReviewTarget] = useState<CustomerAccount | null>(null);
@@ -169,6 +177,10 @@ function AdminPage() {
     setTimeout(() => setCopiedId(null), 3000);
   };
 
+  if (state.loading || !state.signedIn || state.role !== "admin") {
+    return <div className="min-h-screen bg-background" />;
+  }
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Header */}
@@ -185,8 +197,20 @@ function AdminPage() {
           <span className="rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs text-primary font-medium">
             🛡 Admin-Bereich
           </span>
+          <Link
+            to="/zr-lieferanten"
+            className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-secondary hover:text-foreground hover:bg-popover transition-colors"
+          >
+            🏷 ZR-Lieferanten
+          </Link>
+          <Link
+            to="/zr-upload"
+            className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-secondary hover:text-foreground hover:bg-popover transition-colors"
+          >
+            📤 ZR-Upload
+          </Link>
           <button
-            onClick={() => { update({ signedIn: false, role: "kunde" }); navigate({ to: "/" }); }}
+            onClick={() => { supabase.auth.signOut(); update({ signedIn: false, role: "kunde" }); navigate({ to: "/intern" }); }}
             className="text-xs text-secondary hover:text-foreground transition-colors"
           >
             Abmelden
