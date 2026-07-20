@@ -643,10 +643,8 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   const completeSection = useCallback(async (sectionId: string) => {
     const customerId = await resolveCustomerId();
     if (!customerId) return;
-
     const { data: { session } } = await supabase.auth.getSession();
     const actorEmail = session?.user?.email ?? null;
-
     // Aktuelle completed-Sections laden und mergen
     const { data: existing } = await supabase
       .from("form_data")
@@ -654,9 +652,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       .eq("customer_id", customerId)
       .eq("section", "_completed")
       .maybeSingle();
-
     const merged = { ...(existing?.data ?? {}), [sectionId]: true };
-
     await supabase.from("form_data").upsert({
       customer_id: customerId,
       section: "_completed",
@@ -664,23 +660,24 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       updated_at: new Date().toISOString(),
       updated_by: actorEmail,
     }, { onConflict: "customer_id,section" });
-
     setState((s) => ({
       ...s,
       completedSections: { ...s.completedSections, [sectionId]: true },
+      customerAccounts: s.customerAccounts.map((a) =>
+        a.id === customerId
+          ? { ...a, completedSections: { ...a.completedSections, [sectionId]: true } }
+          : a
+      ),
     }));
   }, [resolveCustomerId]);
-
   // ---------------------------------------------------------------------------
   // Formulardaten speichern (Kunde oder Admin im Namen eines Kunden)
   // ---------------------------------------------------------------------------
   const updateFormData = useCallback(async (d: Partial<SavedFormData>) => {
     const customerId = await resolveCustomerId();
     if (!customerId) return;
-
     const { data: { session } } = await supabase.auth.getSession();
     const actorEmail = session?.user?.email ?? null;
-
     // Aktuelle Daten laden und mergen
     const { data: existing } = await supabase
       .from("form_data")
@@ -688,9 +685,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       .eq("customer_id", customerId)
       .eq("section", "stammdaten")
       .maybeSingle();
-
     const merged = { ...(existing?.data ?? {}), ...d };
-
     await supabase.from("form_data").upsert({
       customer_id: customerId,
       section: "stammdaten",
@@ -698,10 +693,14 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       updated_at: new Date().toISOString(),
       updated_by: actorEmail,
     }, { onConflict: "customer_id,section" });
-
     setState((s) => ({
       ...s,
       savedFormData: { ...s.savedFormData, ...d },
+      customerAccounts: s.customerAccounts.map((a) =>
+        a.id === customerId
+          ? { ...a, savedFormData: { ...(a.savedFormData ?? {}), ...d } }
+          : a
+      ),
     }));
   }, [resolveCustomerId]);
 
