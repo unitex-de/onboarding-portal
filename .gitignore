@@ -35,3 +35,5 @@ onboarding-portal.zip
 # API
 .env
 .env.*
+.vercel
+.env*
