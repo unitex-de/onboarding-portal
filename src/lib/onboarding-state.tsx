@@ -113,6 +113,7 @@ export interface Collaborator {
 export interface OnboardingState {
   loading: any;
   email: string | null;
+  customerId: string | null;
   signedIn: boolean;
   role: UserRole;
   userName: string;
@@ -142,6 +143,7 @@ export interface OnboardingState {
 const DEFAULT_STATE: OnboardingState = {
   loading: false,
   email: null,
+  customerId: null,
   signedIn: false,
   role: "kunde",
   userName: "Max Mustermensch",
@@ -508,6 +510,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
             email,
             signedIn: true,
             role: "kunde",
+            customerId: customer.id,
             userName: customer.loggedInName || `${customer.firstName} ${customer.lastName}`.trim(),
             companyName: customer.companyName,
             memberType: customer.memberType,

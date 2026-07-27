@@ -104,7 +104,7 @@ function KundeAbschlussPage({ unlocked, readOnly = false }: { unlocked: boolean;
           recipientFirstName: gf?.vorname ?? state.companyName ?? "Kunde",
           recipientLastName: gf?.nachname ?? "",
           documentName: `unitex Onboarding – ${state.companyName ?? ""}`,
-          customerId: recipientEmail,
+          customerId: state.customerId ?? "",
         },
       });
       setSigningUrl(result.signingUrl);
