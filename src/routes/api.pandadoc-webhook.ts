@@ -74,11 +74,21 @@ export const Route = createFileRoute("/api/pandadoc-webhook")({
           // Signiertes, digital versiegeltes PDF von PandaDoc laden und in Supabase Storage ablegen
           // WICHTIG: /download-protected funktioniert NUR mit Production-Key, nicht im Sandbox.
           try {
-            const pdfRes = await fetch(`${PANDADOC_BASE}/documents/${documentId}/download-protected`, {
-              headers: { Authorization: `API-Key ${process.env.PANDADOC_API_KEY}` },
+            const apiKey = process.env.PANDADOC_API_KEY;
+            let pdfRes = await fetch(`${PANDADOC_BASE}/documents/${documentId}/download-protected`, {
+              headers: { Authorization: `API-Key ${apiKey}` },
             });
             if (!pdfRes.ok) {
-              throw new Error(`PandaDoc download-protected fehlgeschlagen: ${pdfRes.status}`);
+              // Fallback: /download-protected funktioniert nur mit Production-Key (401 im Sandbox).
+              // /download liefert kein digital versiegeltes PDF, ist aber rechtlich ausreichend
+              // (keins unserer Dokumente erfordert QES) und funktioniert in beiden Modi.
+              console.warn(`[pandadoc-webhook] download-protected fehlgeschlagen (${pdfRes.status}), Fallback auf /download`);
+              pdfRes = await fetch(`${PANDADOC_BASE}/documents/${documentId}/download`, {
+                headers: { Authorization: `API-Key ${apiKey}` },
+              });
+            }
+            if (!pdfRes.ok) {
+              throw new Error(`PandaDoc PDF-Download fehlgeschlagen (beide Endpunkte): ${pdfRes.status}`);
             }
             const pdfBuffer = Buffer.from(await pdfRes.arrayBuffer());
             const storagePath = `${customer.id}/signiert-${documentId}.pdf`;
