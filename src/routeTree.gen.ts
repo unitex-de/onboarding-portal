@@ -26,6 +26,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ZrReviewSessionIdRouteImport } from './routes/zr-review.$sessionId'
 import { Route as ZrOutputSessionIdRouteImport } from './routes/zr-output.$sessionId'
 import { Route as ZrCheckSessionIdRouteImport } from './routes/zr-check.$sessionId'
+import { Route as ApiPandadocWebhookRouteImport } from './routes/api.pandadoc-webhook'
 
 const ZrUploadRoute = ZrUploadRouteImport.update({
   id: '/zr-upload',
@@ -112,6 +113,11 @@ const ZrCheckSessionIdRoute = ZrCheckSessionIdRouteImport.update({
   path: '/zr-check/$sessionId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPandadocWebhookRoute = ApiPandadocWebhookRouteImport.update({
+  id: '/api/pandadoc-webhook',
+  path: '/api/pandadoc-webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -128,6 +134,7 @@ export interface FileRoutesByFullPath {
   '/zr-abgleich': typeof ZrAbgleichRoute
   '/zr-lieferanten': typeof ZrLieferantenRoute
   '/zr-upload': typeof ZrUploadRoute
+  '/api/pandadoc-webhook': typeof ApiPandadocWebhookRoute
   '/zr-check/$sessionId': typeof ZrCheckSessionIdRoute
   '/zr-output/$sessionId': typeof ZrOutputSessionIdRoute
   '/zr-review/$sessionId': typeof ZrReviewSessionIdRoute
@@ -147,6 +154,7 @@ export interface FileRoutesByTo {
   '/zr-abgleich': typeof ZrAbgleichRoute
   '/zr-lieferanten': typeof ZrLieferantenRoute
   '/zr-upload': typeof ZrUploadRoute
+  '/api/pandadoc-webhook': typeof ApiPandadocWebhookRoute
   '/zr-check/$sessionId': typeof ZrCheckSessionIdRoute
   '/zr-output/$sessionId': typeof ZrOutputSessionIdRoute
   '/zr-review/$sessionId': typeof ZrReviewSessionIdRoute
@@ -167,6 +175,7 @@ export interface FileRoutesById {
   '/zr-abgleich': typeof ZrAbgleichRoute
   '/zr-lieferanten': typeof ZrLieferantenRoute
   '/zr-upload': typeof ZrUploadRoute
+  '/api/pandadoc-webhook': typeof ApiPandadocWebhookRoute
   '/zr-check/$sessionId': typeof ZrCheckSessionIdRoute
   '/zr-output/$sessionId': typeof ZrOutputSessionIdRoute
   '/zr-review/$sessionId': typeof ZrReviewSessionIdRoute
@@ -188,6 +197,7 @@ export interface FileRouteTypes {
     | '/zr-abgleich'
     | '/zr-lieferanten'
     | '/zr-upload'
+    | '/api/pandadoc-webhook'
     | '/zr-check/$sessionId'
     | '/zr-output/$sessionId'
     | '/zr-review/$sessionId'
@@ -207,6 +217,7 @@ export interface FileRouteTypes {
     | '/zr-abgleich'
     | '/zr-lieferanten'
     | '/zr-upload'
+    | '/api/pandadoc-webhook'
     | '/zr-check/$sessionId'
     | '/zr-output/$sessionId'
     | '/zr-review/$sessionId'
@@ -226,6 +237,7 @@ export interface FileRouteTypes {
     | '/zr-abgleich'
     | '/zr-lieferanten'
     | '/zr-upload'
+    | '/api/pandadoc-webhook'
     | '/zr-check/$sessionId'
     | '/zr-output/$sessionId'
     | '/zr-review/$sessionId'
@@ -246,6 +258,7 @@ export interface RootRouteChildren {
   ZrAbgleichRoute: typeof ZrAbgleichRoute
   ZrLieferantenRoute: typeof ZrLieferantenRoute
   ZrUploadRoute: typeof ZrUploadRoute
+  ApiPandadocWebhookRoute: typeof ApiPandadocWebhookRoute
   ZrCheckSessionIdRoute: typeof ZrCheckSessionIdRoute
   ZrOutputSessionIdRoute: typeof ZrOutputSessionIdRoute
   ZrReviewSessionIdRoute: typeof ZrReviewSessionIdRoute
@@ -372,6 +385,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ZrCheckSessionIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/pandadoc-webhook': {
+      id: '/api/pandadoc-webhook'
+      path: '/api/pandadoc-webhook'
+      fullPath: '/api/pandadoc-webhook'
+      preLoaderRoute: typeof ApiPandadocWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -390,6 +410,7 @@ const rootRouteChildren: RootRouteChildren = {
   ZrAbgleichRoute: ZrAbgleichRoute,
   ZrLieferantenRoute: ZrLieferantenRoute,
   ZrUploadRoute: ZrUploadRoute,
+  ApiPandadocWebhookRoute: ApiPandadocWebhookRoute,
   ZrCheckSessionIdRoute: ZrCheckSessionIdRoute,
   ZrOutputSessionIdRoute: ZrOutputSessionIdRoute,
   ZrReviewSessionIdRoute: ZrReviewSessionIdRoute,

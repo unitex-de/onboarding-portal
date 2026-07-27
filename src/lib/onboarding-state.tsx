@@ -98,6 +98,7 @@ export interface CustomerAccount {
   reviewedAt?: string | null;
   reviewedBy?: string | null;
   reviewNote?: string | null;
+  signedDocumentPath?: string | null;
 }
 
 export interface Collaborator {
@@ -259,6 +260,7 @@ async function fetchAllCustomers(): Promise<CustomerAccount[]> {
         reviewedAt: c.reviewed_at ?? null,
         reviewedBy: c.reviewed_by ?? null,
         reviewNote: c.review_note ?? null,
+        signedDocumentPath: c.signed_document_path ?? null,
       };
     })
   );
@@ -357,6 +359,7 @@ export async function fetchCustomerByEmail(email: string): Promise<CustomerAccou
     reviewedAt: c.reviewed_at ?? null,
     reviewedBy: c.reviewed_by ?? null,
     reviewNote: c.review_note ?? null,
+    signedDocumentPath: c.signed_document_path ?? null,
   };
 }
 
