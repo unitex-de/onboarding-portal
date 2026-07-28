@@ -19,6 +19,8 @@ import { Route as SupportRouteImport } from './routes/support'
 import { Route as SignaturenRouteImport } from './routes/signaturen'
 import { Route as PruefungRouteImport } from './routes/pruefung'
 import { Route as InternRouteImport } from './routes/intern'
+import { Route as ImpressumRouteImport } from './routes/impressum'
+import { Route as DatenschutzRouteImport } from './routes/datenschutz'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ChecklisteRouteImport } from './routes/checkliste'
 import { Route as AdminRouteImport } from './routes/admin'
@@ -78,6 +80,16 @@ const InternRoute = InternRouteImport.update({
   path: '/intern',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ImpressumRoute = ImpressumRouteImport.update({
+  id: '/impressum',
+  path: '/impressum',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DatenschutzRoute = DatenschutzRouteImport.update({
+  id: '/datenschutz',
+  path: '/datenschutz',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -124,6 +136,8 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/checkliste': typeof ChecklisteRoute
   '/dashboard': typeof DashboardRoute
+  '/datenschutz': typeof DatenschutzRoute
+  '/impressum': typeof ImpressumRoute
   '/intern': typeof InternRoute
   '/pruefung': typeof PruefungRoute
   '/signaturen': typeof SignaturenRoute
@@ -144,6 +158,8 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/checkliste': typeof ChecklisteRoute
   '/dashboard': typeof DashboardRoute
+  '/datenschutz': typeof DatenschutzRoute
+  '/impressum': typeof ImpressumRoute
   '/intern': typeof InternRoute
   '/pruefung': typeof PruefungRoute
   '/signaturen': typeof SignaturenRoute
@@ -165,6 +181,8 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/checkliste': typeof ChecklisteRoute
   '/dashboard': typeof DashboardRoute
+  '/datenschutz': typeof DatenschutzRoute
+  '/impressum': typeof ImpressumRoute
   '/intern': typeof InternRoute
   '/pruefung': typeof PruefungRoute
   '/signaturen': typeof SignaturenRoute
@@ -187,6 +205,8 @@ export interface FileRouteTypes {
     | '/admin'
     | '/checkliste'
     | '/dashboard'
+    | '/datenschutz'
+    | '/impressum'
     | '/intern'
     | '/pruefung'
     | '/signaturen'
@@ -207,6 +227,8 @@ export interface FileRouteTypes {
     | '/admin'
     | '/checkliste'
     | '/dashboard'
+    | '/datenschutz'
+    | '/impressum'
     | '/intern'
     | '/pruefung'
     | '/signaturen'
@@ -227,6 +249,8 @@ export interface FileRouteTypes {
     | '/admin'
     | '/checkliste'
     | '/dashboard'
+    | '/datenschutz'
+    | '/impressum'
     | '/intern'
     | '/pruefung'
     | '/signaturen'
@@ -248,6 +272,8 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   ChecklisteRoute: typeof ChecklisteRoute
   DashboardRoute: typeof DashboardRoute
+  DatenschutzRoute: typeof DatenschutzRoute
+  ImpressumRoute: typeof ImpressumRoute
   InternRoute: typeof InternRoute
   PruefungRoute: typeof PruefungRoute
   SignaturenRoute: typeof SignaturenRoute
@@ -336,6 +362,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InternRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/impressum': {
+      id: '/impressum'
+      path: '/impressum'
+      fullPath: '/impressum'
+      preLoaderRoute: typeof ImpressumRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/datenschutz': {
+      id: '/datenschutz'
+      path: '/datenschutz'
+      fullPath: '/datenschutz'
+      preLoaderRoute: typeof DatenschutzRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard': {
       id: '/dashboard'
       path: '/dashboard'
@@ -400,6 +440,8 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   ChecklisteRoute: ChecklisteRoute,
   DashboardRoute: DashboardRoute,
+  DatenschutzRoute: DatenschutzRoute,
+  ImpressumRoute: ImpressumRoute,
   InternRoute: InternRoute,
   PruefungRoute: PruefungRoute,
   SignaturenRoute: SignaturenRoute,

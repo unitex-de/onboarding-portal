@@ -12,6 +12,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../unitex.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { OnboardingProvider, useOnboarding } from "../lib/onboarding-state";
+import { Footer } from "../components/layout/Footer";
 
 function NotFoundComponent() {
   return (
@@ -136,8 +137,13 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <OnboardingProvider>
         <AuthGate>
-          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-          <Outlet />
+          <div className="flex min-h-screen flex-col">
+            <div className="flex-1">
+              {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+              <Outlet />
+            </div>
+            <Footer />
+          </div>
         </AuthGate>
       </OnboardingProvider>
     </QueryClientProvider>
