@@ -3,7 +3,7 @@ import { useState, useMemo, useEffect } from "react";
 import {
   Users, Plus, ArrowRight, UserCheck, Mail, Calendar,
   ExternalLink, X, Lock, Search, Filter, RefreshCw, Copy, CheckCircle2,
-  Clock, FileEdit, ChevronDown, FileSpreadsheet
+  Clock, FileEdit, ChevronDown, FileSpreadsheet, Loader2, Cloud, Pencil
 } from "lucide-react";
 import {
   useOnboarding, type MemberType, type LegalForm, type CustomerAccount,
@@ -12,6 +12,7 @@ import {
 import { UnitexLogo } from "@/components/ui/UnitexLogo";
 import { supabase } from "@/lib/supabase";
 import { exportCustomersToExcel } from "../lib/excel-export";
+import { searchHubspotCandidates, type HubspotCandidate } from "@/lib/api/hubspot.functions";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({ meta: [{ title: "Admin-Übersicht | unitex Onboarding" }] }),
@@ -69,6 +70,14 @@ function AdminPage() {
   const [country, setCountry] = useState("DE");
   const [zrStartDate, setZrStartDate] = useState("");
 
+  // HubSpot-Übernahme im "Neuer Kunde"-Dialog
+  const [createSource, setCreateSource] = useState<"manual" | "hubspot">("manual");
+  const [hubspotSearchMode, setHubspotSearchMode] = useState<"email" | "company">("email");
+  const [hubspotQuery, setHubspotQuery] = useState("");
+  const [hubspotSearching, setHubspotSearching] = useState(false);
+  const [hubspotHasSearched, setHubspotHasSearched] = useState(false);
+  const [hubspotCandidates, setHubspotCandidates] = useState<HubspotCandidate[]>([]);
+
   // Filtered accounts
   const filtered = useMemo(() => {
     return state.customerAccounts.filter((acc) => {
@@ -90,6 +99,54 @@ function AdminPage() {
       return matchesSearch && matchesType && matchesStatus && matchesFrom && matchesTo;
     });
   }, [state.customerAccounts, searchQuery, filterType, filterStatus, filterDateFrom, filterDateTo]);
+
+  const resetHubspotSearch = () => {
+    setCreateSource("manual");
+    setHubspotSearchMode("email");
+    setHubspotQuery("");
+    setHubspotSearching(false);
+    setHubspotHasSearched(false);
+    setHubspotCandidates([]);
+  };
+
+  const handleOpenCreate = () => {
+    resetHubspotSearch();
+    setShowCreate(true);
+  };
+
+  const handleCloseCreate = () => {
+    setShowCreate(false);
+    resetHubspotSearch();
+  };
+
+  const handleHubspotSearch = async () => {
+    if (!hubspotQuery.trim()) return;
+    setHubspotSearching(true);
+    setHubspotHasSearched(false);
+    try {
+      const result = await searchHubspotCandidates({
+        data: { mode: hubspotSearchMode, query: hubspotQuery.trim() },
+      });
+      setHubspotCandidates(result.candidates);
+    } catch (err) {
+      console.error("Fehler bei der HubSpot-Suche:", err);
+      setHubspotCandidates([]);
+    } finally {
+      setHubspotSearching(false);
+      setHubspotHasSearched(true);
+    }
+  };
+
+  const handleSelectHubspotCandidate = (candidate: HubspotCandidate) => {
+    setFirstName(candidate.firstName);
+    setLastName(candidate.lastName);
+    setEmail(candidate.email);
+    setCompanyName(candidate.companyName);
+    if (candidate.postalCode) setPostalCode(candidate.postalCode);
+    if (candidate.country) setCountry(candidate.country);
+    if (candidate.memberTypeGuess) setMemberType(candidate.memberTypeGuess);
+    setCreateSource("manual");
+  };
 
   const handleCreate = async () => {
     if (!firstName || !lastName || !email || !companyName) return;
@@ -226,7 +283,7 @@ function AdminPage() {
             </p>
           </div>
           <button
-            onClick={() => setShowCreate(true)}
+            onClick={handleOpenCreate}
             className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
           >
             <Plus className="h-4 w-4" />
@@ -352,11 +409,111 @@ function AdminPage() {
           <div className="w-full max-w-lg rounded-2xl border border-border bg-card overflow-hidden max-h-[90vh] overflow-y-auto">
             <header className="flex items-center justify-between border-b border-border px-6 py-4 sticky top-0 bg-card z-10">
               <h2 className="font-display text-lg font-semibold">Neuen ZR-Account anlegen</h2>
-              <button onClick={() => setShowCreate(false)} className="text-muted hover:text-foreground">
+              <button onClick={handleCloseCreate} className="text-muted hover:text-foreground">
                 <X className="h-5 w-5" />
               </button>
             </header>
             <div className="p-6 space-y-4">
+              {/* Quelle: manuell oder aus HubSpot übernehmen */}
+              <div className="grid grid-cols-2 gap-2 p-1 rounded-lg bg-popover">
+                <button
+                  type="button" onClick={() => setCreateSource("manual")}
+                  className={[
+                    "inline-flex items-center justify-center gap-1.5 rounded-md py-2 text-sm font-medium transition-colors",
+                    createSource === "manual" ? "bg-primary text-primary-foreground" : "text-secondary hover:text-foreground",
+                  ].join(" ")}
+                >
+                  <Pencil className="h-3.5 w-3.5" /> Manuell eingeben
+                </button>
+                <button
+                  type="button" onClick={() => setCreateSource("hubspot")}
+                  className={[
+                    "inline-flex items-center justify-center gap-1.5 rounded-md py-2 text-sm font-medium transition-colors",
+                    createSource === "hubspot" ? "bg-primary text-primary-foreground" : "text-secondary hover:text-foreground",
+                  ].join(" ")}
+                >
+                  <Cloud className="h-3.5 w-3.5" /> Aus HubSpot laden
+                </button>
+              </div>
+
+              {createSource === "hubspot" ? (
+                <div className="space-y-4">
+                  <div className="space-y-1">
+                    <label className="text-xs text-secondary uppercase tracking-wide">Suche nach</label>
+                    <div className="grid grid-cols-2 gap-2 p-1 rounded-lg bg-popover">
+                      {(["email", "company"] as const).map((m) => (
+                        <button
+                          key={m} type="button" onClick={() => setHubspotSearchMode(m)}
+                          className={[
+                            "rounded-md py-2 text-sm font-medium transition-colors",
+                            hubspotSearchMode === m ? "bg-primary text-primary-foreground" : "text-secondary hover:text-foreground",
+                          ].join(" ")}
+                        >
+                          {m === "email" ? "E-Mail" : "Firmenname"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs text-secondary uppercase tracking-wide">
+                      {hubspotSearchMode === "email" ? "E-Mail-Adresse" : "Firmenname"}
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type={hubspotSearchMode === "email" ? "email" : "text"}
+                        className="w-full rounded-md border border-border bg-popover px-3 py-2 text-sm focus:border-primary focus:outline-none"
+                        value={hubspotQuery} onChange={(e) => setHubspotQuery(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && handleHubspotSearch()}
+                        placeholder={hubspotSearchMode === "email" ? "name@firma.de" : "Muster Textil"}
+                      />
+                      <button
+                        type="button" onClick={handleHubspotSearch}
+                        disabled={!hubspotQuery.trim() || hubspotSearching}
+                        className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {hubspotSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                        Suchen
+                      </button>
+                    </div>
+                  </div>
+
+                  {hubspotSearching && (
+                    <div className="rounded-lg border border-border px-4 py-6 text-center text-sm text-secondary">
+                      <Loader2 className="mx-auto h-5 w-5 animate-spin text-primary mb-2" />
+                      Suche läuft...
+                    </div>
+                  )}
+
+                  {!hubspotSearching && hubspotHasSearched && hubspotCandidates.length === 0 && (
+                    <div className="rounded-lg border border-border px-4 py-6 text-center text-sm text-secondary">
+                      Keine Treffer gefunden.
+                    </div>
+                  )}
+
+                  {!hubspotSearching && hubspotCandidates.length > 0 && (
+                    <div className="space-y-2">
+                      {hubspotCandidates.map((c) => (
+                        <button
+                          key={`${c.companyId}-${c.contactId}`}
+                          type="button"
+                          onClick={() => handleSelectHubspotCandidate(c)}
+                          className="w-full text-left rounded-md border border-border bg-popover px-3 py-2.5 text-sm hover:border-primary transition-colors"
+                        >
+                          <p className="font-medium text-foreground truncate">
+                            {c.companyName}
+                            {c.domain && <span className="text-secondary font-normal"> · {c.domain}</span>}
+                          </p>
+                          <p className="text-xs text-secondary mt-0.5 truncate">
+                            {c.firstName} {c.lastName} · {c.email}
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="text-xs text-secondary uppercase tracking-wide">Vorname *</label>
@@ -465,22 +622,26 @@ function AdminPage() {
               <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 px-4 py-3 text-xs text-amber-400">
                 <strong>Hinweis:</strong> Als Admin können Sie Felder vorausfüllen und Dokumente hochladen, aber <strong>nicht selbst signieren</strong>. Der Kunde erhält dafür den Magic Link.
               </div>
+                </>
+              )}
 
               <div className="pt-2 flex gap-3">
                 <button
-                  type="button" onClick={() => setShowCreate(false)}
+                  type="button" onClick={handleCloseCreate}
                   className="flex-1 rounded-md border border-border px-4 py-2.5 text-sm font-medium text-secondary hover:text-foreground transition-colors"
                 >
                   Abbrechen
                 </button>
-                <button
-                  type="button" onClick={handleCreate}
-                  disabled={!firstName || !lastName || !email || !companyName}
-                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  <FileEdit className="h-4 w-4" />
-                  Anlegen & Entwurf öffnen
-                </button>
+                {createSource === "manual" && (
+                  <button
+                    type="button" onClick={handleCreate}
+                    disabled={!firstName || !lastName || !email || !companyName}
+                    className="flex-1 inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <FileEdit className="h-4 w-4" />
+                    Anlegen & Entwurf öffnen
+                  </button>
+                )}
               </div>
             </div>
           </div>

@@ -1,0 +1,170 @@
+﻿diff --git a/src/lib/api/hubspot.functions.ts b/src/lib/api/hubspot.functions.ts
+index ca7b675..3e31eae 100644
+--- a/src/lib/api/hubspot.functions.ts
++++ b/src/lib/api/hubspot.functions.ts
+@@ -383,4 +383,164 @@ export const syncCustomerToHubspot = createServerFn({ method: "POST" })
+       companyAlreadyExisted,
+       contacts: contactResults,
+     };
++  });
++
++// ---------------------------------------------------------------------------
++// HubSpot -> Portal: Kontakt-/Firmenkandidaten f├╝r den "Neuer Kunde"-Dialog
++// ---------------------------------------------------------------------------
++
++const CANDIDATE_CONTACT_PROPERTIES = [
++  "firstname",
++  "lastname",
++  "email",
++  "phone",
++  "mobilephone",
++  "jobtitle",
++];
++const CANDIDATE_COMPANY_PROPERTIES = ["name", "domain", "zip", "country", "labels2"];
++
++export interface HubspotCandidate {
++  companyId: string;
++  companyName: string;
++  domain?: string;
++  postalCode?: string;
++  country?: string;
++  memberTypeGuess?: "h├ñndler" | "lieferant";
++  contactId: string;
++  firstName: string;
++  lastName: string;
++  email: string;
++}
++
++/** Leitet aus labels2 eine Klassifizierungs-Vermutung ab. Bei beiden oder
++ *  keinem der beiden Labels bleibt es undefined, der Admin w├ñhlt dann manuell. */
++function deriveMemberTypeGuess(labels2?: string): "h├ñndler" | "lieferant" | undefined {
++  if (!labels2) return undefined;
++  const hasHaendler = labels2.includes("H├ñndler");
++  const hasLieferant = labels2.includes("Lieferant");
++  if (hasHaendler === hasLieferant) return undefined;
++  return hasHaendler ? "h├ñndler" : "lieferant";
++}
++
++/** Liefert die IDs der verkn├╝pften Objekte ├╝ber die v4-Assoziations-API. */
++async function getAssociatedIds(
++  token: string,
++  fromObjectType: "contact" | "company",
++  fromId: string,
++  toObjectType: "company" | "contact",
++): Promise<string[]> {
++  const { ok, body } = await hubspotFetch(
++    token,
++    `/crm/v4/objects/${fromObjectType}/${fromId}/associations/${toObjectType}`,
++    { method: "GET" },
++  );
++  if (!ok) return [];
++  const results = body?.results ?? [];
++  return results.map((r: any) => String(r.toObjectId)).filter(Boolean);
++}
++
++async function getCompanyById(token: string, id: string): Promise<any | null> {
++  const { ok, body } = await hubspotFetch(
++    token,
++    `/crm/v3/objects/companies/${id}?properties=${CANDIDATE_COMPANY_PROPERTIES.join(",")}`,
++    { method: "GET" },
++  );
++  return ok ? body : null;
++}
++
++async function getContactById(token: string, id: string): Promise<any | null> {
++  const { ok, body } = await hubspotFetch(
++    token,
++    `/crm/v3/objects/contacts/${id}?properties=${CANDIDATE_CONTACT_PROPERTIES.join(",")}`,
++    { method: "GET" },
++  );
++  return ok ? body : null;
++}
++
++function buildCandidate(company: any, contact: any): HubspotCandidate | null {
++  if (!company?.id || !contact?.id) return null;
++  const companyProps = company.properties ?? {};
++  const contactProps = contact.properties ?? {};
++  return {
++    companyId: company.id,
++    companyName: companyProps.name ?? "",
++    domain: companyProps.domain || undefined,
++    postalCode: companyProps.zip || undefined,
++    country: companyProps.country || undefined,
++    memberTypeGuess: deriveMemberTypeGuess(companyProps.labels2),
++    contactId: contact.id,
++    firstName: contactProps.firstname ?? "",
++    lastName: contactProps.lastname ?? "",
++    email: contactProps.email ?? "",
++  };
++}
++
++async function searchCandidatesByEmail(token: string, email: string): Promise<HubspotCandidate[]> {
++  const { ok, body } = await hubspotFetch(token, "/crm/v3/objects/contacts/search", {
++    method: "POST",
++    body: JSON.stringify({
++      filterGroups: [{ filters: [{ propertyName: "email", operator: "EQ", value: email }] }],
++      properties: CANDIDATE_CONTACT_PROPERTIES,
++      limit: 1,
++    }),
++  });
++  if (!ok) return [];
++  const contact = body?.results?.[0];
++  if (!contact) return [];
++
++  const companyIds = await getAssociatedIds(token, "contact", contact.id, "company");
++  const candidates: HubspotCandidate[] = [];
++  for (const companyId of companyIds) {
++    const company = await getCompanyById(token, companyId);
++    const candidate = company ? buildCandidate(company, contact) : null;
++    if (candidate) candidates.push(candidate);
++  }
++  return candidates;
++}
++
++async function searchCandidatesByCompanyName(token: string, name: string): Promise<HubspotCandidate[]> {
++  const { ok, body } = await hubspotFetch(token, "/crm/v3/objects/companies/search", {
++    method: "POST",
++    body: JSON.stringify({
++      filterGroups: [{ filters: [{ propertyName: "name", operator: "CONTAINS_TOKEN", value: name }] }],
++      properties: CANDIDATE_COMPANY_PROPERTIES,
++      limit: 10,
++    }),
++  });
++  if (!ok) return [];
++  const companies = body?.results ?? [];
++
++  const candidates: HubspotCandidate[] = [];
++  for (const company of companies) {
++    const contactIds = await getAssociatedIds(token, "company", company.id, "contact");
++    for (const contactId of contactIds) {
++      const contact = await getContactById(token, contactId);
++      const candidate = contact ? buildCandidate(company, contact) : null;
++      if (candidate) candidates.push(candidate);
++    }
++  }
++  return candidates;
++}
++
++/** Sucht HubSpot-Kandidaten (Firma + Kontakt) f├╝r den "Neuer Kunde"-Dialog,
++ *  entweder per Kontakt-E-Mail oder per Firmennamen-Teiltreffer. */
++export const searchHubspotCandidates = createServerFn({ method: "POST" })
++  .validator(
++    z.object({
++      mode: z.enum(["email", "company"]),
++      query: z.string().min(1),
++    }),
++  )
++  .handler(async ({ data }) => {
++    const token = process.env.HUBSPOT_ACCESS_TOKEN;
++    if (!token) {
++      return { candidates: [], demo: true };
++    }
++
++    const candidates =
++      data.mode === "email"
++        ? await searchCandidatesByEmail(token, data.query)
++        : await searchCandidatesByCompanyName(token, data.query);
++
++    return { candidates, demo: false };
+   });
+\ No newline at end of file
