@@ -5,6 +5,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { useOnboarding, getDownloadUrl, type LegalForm } from "@/lib/onboarding-state";
 import { REQUIRED_DOCS, REQUIRED_DOCS_LIEFERANT, formatBytes } from "@/lib/required-docs";
 import { ConfettiPopup } from "@/components/ui/ConfettiPopup";
+import { FieldReviewProvider, FieldFlag } from "@/components/forms/FormSection";
 
 const LEGAL_FORMS: { value: LegalForm; label: string }[] = [
   { value: "eK", label: "e.K." },
@@ -22,11 +23,14 @@ export const Route = createFileRoute("/upload-center")({
 
 function UploadCenterPage() {
   const navigate = useNavigate();
-  const { state, update, uploadDoc, removeDoc } = useOnboarding();
+  const { state, update, uploadDoc, removeDoc, setFieldCorrection } = useOnboarding();
   const legalForm: LegalForm = state.legalForm ?? "GmbH";
   const isLieferant = state.memberType === "lieferant";
   const isAdmin = state.role === "admin";
   const docs = isLieferant ? REQUIRED_DOCS_LIEFERANT : REQUIRED_DOCS[legalForm];
+  // Prüfmodus (Option B) – gleiches Prinzip wie in unternehmen.tsx
+  const canEditReview = isAdmin && !!state.activeCustomerId;
+  const reviewCustomerId = isAdmin ? state.activeCustomerId ?? "" : state.customerId ?? "";
 
   const requiredDocs = docs.filter((d) => d.required);
   const allRequiredDone = requiredDocs.every((d) => state.uploadedDocs[d.id]);
@@ -111,6 +115,13 @@ function UploadCenterPage() {
         )}
       </div>
 
+      <FieldReviewProvider
+        key={reviewCustomerId || "self"}
+        canEdit={canEditReview}
+        customerId={reviewCustomerId}
+        initialCorrections={state.fieldCorrections ?? {}}
+        onPersist={setFieldCorrection}
+      >
       <div className="space-y-3">
         {docs.map((doc) => {
           const uploaded = state.uploadedDocs[doc.id];
@@ -135,6 +146,7 @@ function UploadCenterPage() {
           );
         })}
       </div>
+      </FieldReviewProvider>
     </AppShell>
   );
 }
@@ -211,6 +223,7 @@ function DocumentRow({
       </div>
 
       <div className="flex items-center gap-3 shrink-0">
+        <FieldFlag fieldId={docId} />
         {uploaded ? (
           <span className="rounded-md bg-success-soft px-2.5 py-1 text-xs font-medium text-success">
             Hochgeladen

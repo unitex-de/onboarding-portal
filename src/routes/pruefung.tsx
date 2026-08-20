@@ -1,8 +1,62 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { CheckCircle2, XCircle, Building2, Mail, Calendar } from "lucide-react";
+import { CheckCircle2, XCircle, Building2, Mail, Calendar, Flag } from "lucide-react";
 import { useOnboarding } from "@/lib/onboarding-state";
 import { AppShell } from "@/components/layout/AppShell";
+import { REQUIRED_DOCS, REQUIRED_DOCS_LIEFERANT } from "@/lib/required-docs";
+
+// ─── Label-Auflösung für fieldCorrections-Keys ─────────────────────────────
+const STATIC_FIELD_LABELS: Record<string, string> = {
+  firmenname: "Firmenname",
+  legalForm: "Rechtsform",
+  strasse: "Straße & Hausnummer",
+  adresse: "PLZ / Ort / Land",
+  emailFirma: "Email Firma",
+  bankname: "Bankname",
+  bic: "BIC",
+  swiftCode: "SWIFT Code",
+  iban: "IBAN",
+  steuernummer: "Steuernummer",
+  ustId: "USt-IdNr.",
+  liefSortiment: "Sortimentsschwerpunkte (Lieferant)",
+  liefMarken: "Wichtigste Marken / Eigenmarken",
+  webseite: "Webseite",
+  glnNr: "GLN-Nr.",
+  mitarbeiter: "Mitarbeiterzahl",
+  gruendung: "Gründungsdatum",
+  zrVolumen: "ZR-Volumen (€)",
+  bilanzsumme: "Bilanzsumme (€)",
+  wkvDeckungsbeitrag: "WKV Deckungsbeitrag (€)",
+  sortiment: "Sortimentsschwerpunkte",
+  marken: "Wichtige Marken",
+  wirtschaftAbhaengig: "Wirtschaftliche Abhängigkeit",
+  wirtschaftAbhaengigText: "Erläuterung wirtschaftliche Abhängigkeit",
+  umsatz: "Jahresumsatz (€)",
+};
+
+const CONTACT_SUBFIELD_LABELS: Record<string, string> = {
+  vorname: "Vorname", nachname: "Nachname", jobbezeichnung: "Jobbezeichnung",
+  handy: "Handynummer", telefon: "Telefonnummer", email: "E-Mail-Adresse",
+};
+
+const DOC_LABELS: Record<string, string> = (() => {
+  const map: Record<string, string> = {};
+  for (const list of Object.values(REQUIRED_DOCS)) {
+    for (const d of list) map[d.id] = d.label;
+  }
+  for (const d of REQUIRED_DOCS_LIEFERANT) map[d.id] = d.label;
+  return map;
+})();
+
+function resolveFieldLabel(fieldId: string): string {
+  if (STATIC_FIELD_LABELS[fieldId]) return STATIC_FIELD_LABELS[fieldId];
+  if (DOC_LABELS[fieldId]) return `Dokument: ${DOC_LABELS[fieldId]}`;
+  const shareholderMatch = fieldId.match(/^shareholders\.(\d+)$/);
+  if (shareholderMatch) return `Gesellschafter ${Number(shareholderMatch[1]) + 1}`;
+  const contactMatch = fieldId.match(/^contact\.[^.]+\.(.+)$/);
+  if (contactMatch) return `Kontakt – ${CONTACT_SUBFIELD_LABELS[contactMatch[1]] ?? contactMatch[1]}`;
+  return fieldId;
+}
 
 export const Route = createFileRoute("/pruefung")({
   head: () => ({ meta: [{ title: "Prüfung | unitex Onboarding" }] }),
@@ -24,6 +78,8 @@ function PruefungPage() {
 
   const acc = state.customerAccounts.find((a) => a.id === state.activeCustomerId);
 
+  const correctionEntries = Object.entries(acc?.fieldCorrections ?? {}).filter(([, c]) => c.wrong);
+
   const submittedDate = acc?.submittedAt
     ? new Date(acc.submittedAt).toLocaleString("de-DE", {
         day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
@@ -42,7 +98,7 @@ function PruefungPage() {
   };
 
   const handleReject = async () => {
-    if (!acc || !note.trim()) return;
+    if (!acc || (!note.trim() && correctionEntries.length === 0)) return;
     setSaving(true);
     try {
       await reviewCustomer(acc.id, "Nachbesserung nötig", note.trim());
@@ -83,6 +139,23 @@ function PruefungPage() {
               </div>
             </div>
 
+            {correctionEntries.length > 0 && (
+              <div className="mt-6 rounded-md border border-destructive/30 bg-destructive/5 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-destructive mb-2 flex items-center gap-1.5">
+                  <Flag className="h-3.5 w-3.5" fill="currentColor" />
+                  {correctionEntries.length} {correctionEntries.length === 1 ? "Feld" : "Felder"} als falsch markiert
+                </p>
+                <ul className="space-y-1.5">
+                  {correctionEntries.map(([fieldId, c]) => (
+                    <li key={fieldId} className="text-sm">
+                      <span className="font-medium text-foreground">{resolveFieldLabel(fieldId)}</span>
+                      {c.comment.trim() && <span className="text-secondary"> — {c.comment.trim()}</span>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             {acc.status !== "Zur Prüfung eingereicht" ? (
               <div className="mt-6 rounded-md border border-border bg-popover px-4 py-3 text-sm text-secondary">
                 Aktueller Status: <b>{acc.status}</b>. Es liegt gerade nichts zur Prüfung vor.
@@ -110,7 +183,9 @@ function PruefungPage() {
             ) : (
               <div className="mt-6 space-y-3">
                 <label className="text-xs font-medium text-secondary">
-                  Was muss der Kunde korrigieren? (Pflichtfeld, wird dem Kunden angezeigt)
+                  {correctionEntries.length > 0
+                    ? "Zusätzlicher Kommentar an den Kunden (optional – die markierten Felder oben werden ihm ohnehin angezeigt)"
+                    : "Was muss der Kunde korrigieren? (Pflichtfeld, wird dem Kunden angezeigt)"}
                 </label>
                 <textarea
                   value={note}
@@ -131,7 +206,7 @@ function PruefungPage() {
                   <button
                     type="button"
                     onClick={handleReject}
-                    disabled={saving || !note.trim()}
+                    disabled={saving || (!note.trim() && correctionEntries.length === 0)}
                     className="flex-1 rounded-md bg-red-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {saving ? "Wird gespeichert…" : "Zurückweisen"}

@@ -177,6 +177,7 @@ function AdminPage() {
         country: acc.country,
         zrStartDate: acc.zrStartDate,
         savedFormData: {},
+        fieldCorrections: {},
       });
       navigate({ to: "/dashboard" });
     } catch (err) {
@@ -202,6 +203,7 @@ function AdminPage() {
       country: acc.country,
       zrStartDate: acc.zrStartDate,
       savedFormData: acc.savedFormData ?? {},
+      fieldCorrections: acc.fieldCorrections ?? {},
     });
     // "Prüfen" ersetzt "Öffnen": bei eingereichten Accounts direkt zur
     // Prüfungsseite, sonst wie gehabt ins Dashboard des Kunden.

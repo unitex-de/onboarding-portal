@@ -99,6 +99,7 @@ export interface CustomerAccount {
   reviewedBy?: string | null;
   reviewNote?: string | null;
   signedDocumentPath?: string | null;
+  fieldCorrections?: Record<string, { wrong: boolean; comment: string }>;
 }
 
 export interface Collaborator {
@@ -128,6 +129,7 @@ export interface OnboardingState {
   submittedAt: string | null;
   reviewStatus: CustomerStatus | null;
   reviewNote: string | null;
+  fieldCorrections: Record<string, { wrong: boolean; comment: string }>;
   customerAccounts: CustomerAccount[];
   activeCustomerId: string | null;
   tourSeen: boolean;
@@ -158,6 +160,7 @@ const DEFAULT_STATE: OnboardingState = {
   submittedAt: null,
   reviewStatus: null,
   reviewNote: null,
+  fieldCorrections: {},
   customerAccounts: [],
   activeCustomerId: null,
   tourSeen: false,
@@ -263,6 +266,7 @@ async function fetchAllCustomers(): Promise<CustomerAccount[]> {
         reviewedBy: c.reviewed_by ?? null,
         reviewNote: c.review_note ?? null,
         signedDocumentPath: c.signed_document_path ?? null,
+        fieldCorrections: (c.field_corrections as Record<string, { wrong: boolean; comment: string }>) ?? {},
       };
     })
   );
@@ -362,6 +366,7 @@ export async function fetchCustomerByEmail(email: string): Promise<CustomerAccou
     reviewedBy: c.reviewed_by ?? null,
     reviewNote: c.review_note ?? null,
     signedDocumentPath: c.signed_document_path ?? null,
+    fieldCorrections: (c.field_corrections as Record<string, { wrong: boolean; comment: string }>) ?? {},
   };
 }
 
@@ -424,6 +429,7 @@ interface Ctx {
   addCustomerAccount: (acc: Omit<CustomerAccount, "id" | "createdAt" | "magicLinkSent" | "magicToken" | "status" | "linkSentAt" | "uploadedDocs" | "completedSections">) => Promise<CustomerAccount>;
   updateCustomerAccount: (id: string, patch: Partial<CustomerAccount>) => Promise<void>;
   reviewCustomer: (id: string, decision: "Freigegeben" | "Nachbesserung nötig", note?: string) => Promise<void>;
+  setFieldCorrection: (customerId: string, fieldId: string, correction: { wrong: boolean; comment: string } | null) => Promise<void>;
   sendMagicLink: (id: string) => Promise<void>;
   refreshCustomers: () => Promise<void>;
   reset: () => void;
@@ -526,6 +532,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
             submittedAt: customer.submittedAt ?? null,
             reviewStatus: customer.status,
             reviewNote: customer.reviewNote ?? null,
+            fieldCorrections: customer.fieldCorrections ?? {},
           }));
         }
       }
@@ -946,15 +953,23 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
           updated_by: actorEmail,
         }, { onConflict: "customer_id,section" });
       }
-      // Kunde per Mail über die nötige Korrektur informieren
+            // Kunde per Mail über die nötige Korrektur informieren – auch dann, wenn
+      // Tanja nur Felder markiert hat, aber keinen globalen Kommentar schrieb.
       const target = stateRef.current.customerAccounts.find((a) => a.id === id);
-      if (target && note) {
-        try {
-          await notifyCustomerRejected({
-            data: { customerEmail: target.email, companyName: target.companyName, note },
-          });
-        } catch (e) {
-          console.error("[reviewCustomer] Benachrichtigung an Kunden fehlgeschlagen:", e);
+      if (target) {
+        const correctionCount = Object.values(target.fieldCorrections ?? {}).filter((c) => c.wrong).length;
+        const effectiveNote = note?.trim()
+          || (correctionCount > 0
+            ? `Bitte prüfen Sie die ${correctionCount} markierte${correctionCount === 1 ? "" : "n"} Angabe${correctionCount === 1 ? "" : "n"} in Ihrem Formular.`
+            : undefined);
+        if (effectiveNote) {
+          try {
+            await notifyCustomerRejected({
+              data: { customerEmail: target.email, companyName: target.companyName, note: effectiveNote },
+            });
+          } catch (e) {
+            console.error("[reviewCustomer] Benachrichtigung an Kunden fehlgeschlagen:", e);
+          }
         }
       }
     } else if (decision === "Freigegeben") {
@@ -1052,6 +1067,37 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // ---------------------------------------------------------------------------
+  // Feldgenaue Korrektur setzen/löschen (Admin/Tanja) – Punkt 1 Prüfmodus
+  // ---------------------------------------------------------------------------
+  const setFieldCorrection = useCallback(async (
+    customerId: string,
+    fieldId: string,
+    correction: { wrong: boolean; comment: string } | null,
+  ) => {
+    const target = stateRef.current.customerAccounts.find((a) => a.id === customerId);
+    const current = target?.fieldCorrections ?? {};
+    const next = { ...current };
+    if (correction === null || (!correction.wrong && !correction.comment.trim())) {
+      delete next[fieldId];
+    } else {
+      next[fieldId] = correction;
+    }
+
+    const { error } = await supabase
+      .from("customers")
+      .update({ field_corrections: next })
+      .eq("id", customerId);
+    if (error) throw new Error(error.message);
+
+    setState((s) => ({
+      ...s,
+      customerAccounts: s.customerAccounts.map((a) =>
+        a.id === customerId ? { ...a, fieldCorrections: next } : a
+      ),
+    }));
+  }, []);
+
+  // ---------------------------------------------------------------------------
   // Magic Link als gesendet markieren (Admin)
   // ---------------------------------------------------------------------------
   const sendMagicLink = useCallback(async (id: string) => {
@@ -1100,12 +1146,13 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       addCustomerAccount,
       updateCustomerAccount,
       reviewCustomer,
+      setFieldCorrection,
       sendMagicLink,
       refreshCustomers,
       reset,
     }),
     [state, loading, update, uploadDoc, removeDoc, completeSection, updateFormData, submitForReview,
-     inviteCollaborator, fetchCollaborators, removeCollaborator, addCustomerAccount, updateCustomerAccount, reviewCustomer, sendMagicLink, refreshCustomers, reset]
+     inviteCollaborator, fetchCollaborators, removeCollaborator, addCustomerAccount, updateCustomerAccount, reviewCustomer, setFieldCorrection, sendMagicLink, refreshCustomers, reset]
   );
 
   return <OnboardingCtx.Provider value={value}>{children}</OnboardingCtx.Provider>;

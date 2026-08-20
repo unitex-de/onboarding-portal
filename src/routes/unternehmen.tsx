@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { Check, Info, Lock, Plus, Trash2, HelpCircle } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
-import { FormSection, Field, AutoSaveInput, MaskedInput, inputClass } from "@/components/forms/FormSection";
+import { FormSection, Field, AutoSaveInput, MaskedInput, inputClass, FieldReviewProvider, FieldFlag } from "@/components/forms/FormSection";
 import { useOnboarding, type LegalForm, getSectionIds } from "@/lib/onboarding-state";
 import { ConfettiPopup } from "@/components/ui/ConfettiPopup";
 
@@ -89,10 +89,15 @@ const SORTIMENT_OPTIONS = ["DOB", "HAKA", "KIKO", "Schuhe", "Accessoires", "Wäs
 
 function UnternehmenPage() {
   const navigate = useNavigate();
-  const { state, update, updateFormData, completeSection } = useOnboarding();
+  const { state, update, updateFormData, completeSection, setFieldCorrection } = useOnboarding();
   const legalForm: LegalForm = state.legalForm ?? "GmbH";
   const isLieferant = state.memberType === "lieferant";
   const isAdmin = state.role === "admin";
+  // Prüfmodus (Option B): Tanja darf editieren, wenn sie im Admin-Modus einen
+  // konkreten Kunden geöffnet hat. Der Kunde selbst sieht (read-only) seine
+  // eigenen Markierungen, sobald "Nachbesserung nötig" gesetzt wurde.
+  const canEditReview = isAdmin && !!state.activeCustomerId;
+  const reviewCustomerId = isAdmin ? state.activeCustomerId ?? "" : state.customerId ?? "";
 
   // ── Grunddaten ──────────────────────────────────────────────────────────────
   const [firmenname, setFirmenname] = useState(state.companyName);
@@ -326,6 +331,13 @@ function UnternehmenPage() {
         />
       )}
 
+      <FieldReviewProvider
+        key={reviewCustomerId || "self"}
+        canEdit={canEditReview}
+        customerId={reviewCustomerId}
+        initialCorrections={state.fieldCorrections ?? {}}
+        onPersist={setFieldCorrection}
+      >
       <div className="space-y-6 max-w-4xl">
         {/* ── 1 · Grunddaten ─────────────────────────────────────────────────── */}
         <FormSection
@@ -337,7 +349,7 @@ function UnternehmenPage() {
           validate={validateGrunddaten}
         >
           <div className="grid md:grid-cols-2 gap-4">
-            <Field label="Firmenname">
+            <Field label="Firmenname" fieldId="firmenname">
               <AutoSaveInput
                 className={inputClass}
                 value={firmenname}
@@ -345,7 +357,7 @@ function UnternehmenPage() {
                 required
               />
             </Field>
-            <Field label="Rechtsform">
+            <Field label="Rechtsform" fieldId="legalForm">
               {state.legalFormLockedByAdmin ? (
                 <div className="flex items-center gap-2 rounded-md border border-border bg-popover/50 px-3 py-2.5">
                   <Lock className="h-4 w-4 text-muted shrink-0" />
@@ -360,11 +372,11 @@ function UnternehmenPage() {
                 </select>
               )}
             </Field>
-            <Field label="Straße & Hausnummer">
+            <Field label="Straße & Hausnummer" fieldId="strasse">
               <AutoSaveInput className={inputClass} placeholder="Musterstraße 12"
                 value={strasse} onChange={(e) => setStrasse(e.target.value)} required />
             </Field>
-            <Field label="PLZ / Ort / Land">
+            <Field label="PLZ / Ort / Land" fieldId="adresse">
               <div className="grid grid-cols-[80px_1fr_52px] sm:grid-cols-[100px_1fr_60px] gap-1.5 sm:gap-2">
                 <AutoSaveInput className={inputClass} placeholder="12345"
                   value={plz} onChange={(e) => setPlz(e.target.value)} required />
@@ -374,7 +386,7 @@ function UnternehmenPage() {
                   value={land} onChange={(e) => setLand(e.target.value)} required />
               </div>
             </Field>
-            <Field label="Email Firma">
+            <Field label="Email Firma" fieldId="emailFirma">
               <AutoSaveInput className={inputClass} type="email" placeholder="info@firma.de"
                 value={emailFirma} onChange={(e) => setEmailFirma(e.target.value)} required />
             </Field>
@@ -416,18 +428,18 @@ function UnternehmenPage() {
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-4">
-                  <Field label="Vorname">
+                  <Field label="Vorname" fieldId={`contact.${c.id}.vorname`}>
                     <AutoSaveInput className={inputClass} value={c.vorname}
                       onChange={(e) => updateContact(c.id, { vorname: e.target.value })} required />
                   </Field>
-                  <Field label="Nachname">
+                  <Field label="Nachname" fieldId={`contact.${c.id}.nachname`}>
                     <AutoSaveInput className={inputClass} value={c.nachname}
                       onChange={(e) => updateContact(c.id, { nachname: e.target.value })} required />
                   </Field>
                 </div>
 
                 {isExtra && (
-                  <Field label="Jobbezeichnung">
+                  <Field label="Jobbezeichnung" fieldId={`contact.${c.id}.jobbezeichnung`}>
                     <select className={selectClass(c.jobbezeichnung)} value={c.jobbezeichnung}
                       onChange={(e) => updateContact(c.id, { jobbezeichnung: e.target.value as JobType })}>
                       <option value="">— bitte wählen —</option>
@@ -438,7 +450,7 @@ function UnternehmenPage() {
 
                 <div className="grid md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Field label="Handynummer" required={false}>
+                    <Field label="Handynummer" required={false} fieldId={`contact.${c.id}.handy`}>
                       <MaskedInput mask="mobile" type="tel" className={inputClass} placeholder="+49 172 12345678"
                         value={c.handy} onChange={(e) => updateContact(c.id, { handy: e.target.value })} />
                     </Field>
@@ -451,14 +463,14 @@ function UnternehmenPage() {
                       </label>
                     )}
                   </div>
-                  <Field label="Telefonnummer" required={false}>
+                  <Field label="Telefonnummer" required={false} fieldId={`contact.${c.id}.telefon`}>
                     <MaskedInput mask="phone" type="tel" className={inputClass} placeholder="0731 56789 (12)"
                       value={c.telefon} onChange={(e) => updateContact(c.id, { telefon: e.target.value })} />
                   </Field>
                 </div>
 
                 <div className="space-y-2">
-                  <Field label="E-Mail-Adresse">
+                  <Field label="E-Mail-Adresse" fieldId={`contact.${c.id}.email`}>
                     <AutoSaveInput type="email" className={inputClass} placeholder="name@firma.de"
                       value={c.email} onChange={(e) => updateContact(c.id, { email: e.target.value })} required />
                   </Field>
@@ -493,29 +505,29 @@ function UnternehmenPage() {
           onSave={handleSaveBankdaten}
         >
           <div className="grid md:grid-cols-2 gap-4">
-            <Field label="Bankname">
+            <Field label="Bankname" fieldId="bankname">
               <AutoSaveInput className={inputClass} value={bankname}
                 onChange={(e) => setBankname(e.target.value)} required />
             </Field>
-            <Field label="BIC">
+            <Field label="BIC" fieldId="bic">
               <AutoSaveInput className={inputClass} placeholder="GENODEM1XXX"
                 value={bic} onChange={(e) => setBic(e.target.value)} required />
             </Field>
             {isLieferant && (
-              <Field label="SWIFT Code" required={false}>
+              <Field label="SWIFT Code" required={false} fieldId="swiftCode">
                 <AutoSaveInput className={inputClass} placeholder="GENODEM1XXX"
                   value={swiftCode} onChange={(e) => setSwiftCode(e.target.value)} />
               </Field>
             )}
-            <Field label="IBAN" className="md:col-span-2">
+            <Field label="IBAN" className="md:col-span-2" fieldId="iban">
               <MaskedInput mask="iban" className={inputClass} placeholder="DE89 3704 0044 0532 0130 00"
                 value={iban} onChange={(e) => setIban(e.target.value)} required />
             </Field>
-            <Field label="Steuernummer">
+            <Field label="Steuernummer" fieldId="steuernummer">
               <AutoSaveInput className={inputClass} value={steuernummer}
                 onChange={(e) => setSteuernummer(e.target.value)} required />
             </Field>
-            <Field label="USt-IdNr." required={false}>
+            <Field label="USt-IdNr." required={false} fieldId="ustId">
               <AutoSaveInput className={inputClass} placeholder="DE123456789"
                 value={ustId} onChange={(e) => setUstId(e.target.value)} />
             </Field>
@@ -534,7 +546,7 @@ function UnternehmenPage() {
           >
             <div className="space-y-4">
               {/* BUG 4: Sortiment als Pills */}
-              <Field label="Sortimentsschwerpunkte" as="div">
+              <Field label="Sortimentsschwerpunkte" as="div" fieldId="liefSortiment">
                 <div className="flex flex-wrap gap-2">
                   {SORTIMENT_OPTIONS.map((opt) => (
                     <Pill
@@ -554,16 +566,16 @@ function UnternehmenPage() {
                 )}
               </Field>
 
-              <Field label="Wichtigste Marken / Eigenmarken">
+              <Field label="Wichtigste Marken / Eigenmarken" fieldId="liefMarken">
                 <AutoSaveInput className={inputClass} placeholder="Komma-getrennt, z.B. Eigene Brand, Mustermarke"
                   value={liefMarken} onChange={(e) => setLiefMarken(e.target.value)} required />
               </Field>
-              <Field label="Webseite">
+              <Field label="Webseite" fieldId="webseite">
                 <AutoSaveInput className={inputClass} placeholder="https://www.beispiel.de"
                   value={webseite} onChange={(e) => setWebseite(e.target.value)}
                   onFocus={() => { if (!webseite) setWebseite("www."); }} />
               </Field>
-              <Field label="GLN-Nr." required={false}>
+              <Field label="GLN-Nr." required={false} fieldId="glnNr">
                 <AutoSaveInput className={inputClass} placeholder="4012345678900"
                   value={glnNr} onChange={(e) => setGlnNr(e.target.value)} />
               </Field>
@@ -711,38 +723,39 @@ function UnternehmenPage() {
                         </div>
                       )}
                     </div>
+                    <FieldFlag fieldId="umsatz" />
                   </div>
                   <MaskedInput mask="digits" inputMode="numeric" className={inputClass} placeholder="z.B. 800000"
                     value={umsatz} onChange={(e) => setUmsatz(e.target.value)} required />
                 </div>
 
-                <Field label="Mitarbeiterzahl">
+                <Field label="Mitarbeiterzahl" fieldId="mitarbeiter">
                   <MaskedInput mask="digits" inputMode="numeric" className={inputClass}
                     placeholder="z.B. 50"
                     value={mitarbeiter} onChange={(e) => setMitarbeiter(e.target.value)} required />
                 </Field>
-                <Field label="Gründungsdatum">
+                <Field label="Gründungsdatum" fieldId="gruendung">
                   <AutoSaveInput type="date" className={inputClass}
                     value={gruendung} onChange={(e) => setGruendung(e.target.value)} required />
                 </Field>
 
-                <Field label="ZR-Volumen (€)" required={false}>
+                <Field label="ZR-Volumen (€)" required={false} fieldId="zrVolumen">
                   <MaskedInput mask="digits" inputMode="numeric" className={inputClass} placeholder="z.B. 350000"
                     value={zrVolumen} onChange={(e) => setZrVolumen(e.target.value)} />
                 </Field>
 
-                <Field label="Bilanzsumme (€)" required={false}>
+                <Field label="Bilanzsumme (€)" required={false} fieldId="bilanzsumme">
                   <MaskedInput mask="digits" inputMode="numeric" className={inputClass} placeholder="z.B. 860000"
                     value={bilanzsumme} onChange={(e) => setBilanzsumme(e.target.value)} />
                 </Field>
 
-                <Field label="WKV Deckungsbeitrag (€)" required={false}>
+                <Field label="WKV Deckungsbeitrag (€)" required={false} fieldId="wkvDeckungsbeitrag">
                   <MaskedInput mask="digits" inputMode="numeric" className={inputClass} placeholder="z.B. 800000"
                     value={wkvDeckungsbeitrag} onChange={(e) => setWkvDeckungsbeitrag(e.target.value)} />
                 </Field>
               </div>
 
-              <Field label="Sortimentsschwerpunkte" as="div">
+              <Field label="Sortimentsschwerpunkte" as="div" fieldId="sortiment">
                 <div className="flex flex-wrap gap-2">
                   {SORTIMENT_OPTIONS.map((c) => (
                     <Pill key={c} label={c}
@@ -756,7 +769,7 @@ function UnternehmenPage() {
                 )}
               </Field>
 
-              <Field label="Wichtige Marken (mit Komma getrennt)" required={false}>
+              <Field label="Wichtige Marken (mit Komma getrennt)" required={false} fieldId="marken">
                 <AutoSaveInput className={inputClass} placeholder="z.B. Hugo Boss, Gerry Weber"
                   value={marken} onChange={(e) => setMarken(e.target.value)} />
               </Field>
@@ -783,10 +796,11 @@ function UnternehmenPage() {
                     <span className="text-sm text-foreground leading-relaxed">
                       Besteht eine wirtschaftliche Abhängigkeit zu einem einzelnen Lieferanten (mehr als 50% des Gesamtumsatzes)?
                     </span>
+                    <FieldFlag fieldId="wirtschaftAbhaengig" />
                   </label>
                   {wirtschaftAbhaengig && (
                     <div className="ml-7 animate-in fade-in slide-in-from-top-2 duration-200">
-                      <Field label="Bitte erläutern Sie die Abhängigkeit">
+                      <Field label="Bitte erläutern Sie die Abhängigkeit" fieldId="wirtschaftAbhaengigText">
                         <textarea
                           className={[inputClass, "resize-none h-24"].join(" ")}
                           value={wirtschaftAbhaengigText}
@@ -825,6 +839,7 @@ function UnternehmenPage() {
                             </div>
                           </th>
                           <th className="w-10" />
+                          <th className="w-8" />
                         </tr>
                       </thead>
                       <tbody>
@@ -871,6 +886,9 @@ function UnternehmenPage() {
                                 <Trash2 className="h-4 w-4" />
                               </button>
                             </td>
+                            <td className="p-1.5">
+                              <FieldFlag fieldId={`shareholders.${i}`} />
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -907,6 +925,7 @@ function UnternehmenPage() {
           Mit * markierte Felder sind Pflichtangaben.
         </p>
       </div>
+      </FieldReviewProvider>
     </AppShell>
   );
 }
