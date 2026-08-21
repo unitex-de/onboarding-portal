@@ -5,6 +5,12 @@ import {
 } from "lucide-react";
 import { UnitexLogo } from "../ui/UnitexLogo";
 import { useOnboarding, getSectionIds, getRequiredDocIds } from "@/lib/onboarding-state";
+import { REQUIRED_DOCS, REQUIRED_DOCS_LIEFERANT } from "@/lib/required-docs";
+
+const ALL_DOC_IDS = new Set<string>([
+  ...Object.values(REQUIRED_DOCS).flat().map((d) => d.id),
+  ...REQUIRED_DOCS_LIEFERANT.map((d) => d.id),
+]);
 
 function StepIcon({ done }: { done: boolean }) {
   if (done) {
@@ -36,6 +42,12 @@ export function LeftSidebar({
   const isAdmin = state.role === "admin";
   const activeAccount = state.customerAccounts.find((a) => a.id === state.activeCustomerId);
   const pendingReview = isAdmin && activeAccount?.status === "Zur Prüfung eingereicht";
+
+  // ── Markierte Felder: welcher Tab betroffen ist (Formulardaten vs. Dokumente) ──
+  const fieldCorrections = isAdmin ? (activeAccount?.fieldCorrections ?? {}) : (state.fieldCorrections ?? {});
+  const wrongFieldIds = Object.entries(fieldCorrections).filter(([, c]) => c.wrong).map(([id]) => id);
+  const hasUnternehmenIssue = wrongFieldIds.some((id) => !ALL_DOC_IDS.has(id));
+  const hasDokumenteIssue = wrongFieldIds.some((id) => ALL_DOC_IDS.has(id));
 
   const handleLogout = () => {
     update({ signedIn: false, role: "kunde", activeCustomerId: null });
@@ -141,6 +153,9 @@ export function LeftSidebar({
               )}
               <StepIcon done={step1Done} />
               <span>01. Unternehmensdaten</span>
+              {hasUnternehmenIssue && (
+                <span className="ml-auto h-2 w-2 rounded-full bg-destructive" title="Enthält markierte Angaben" />
+              )}
             </Link>
 
             {/* Schritt 2: Dokumente */}
@@ -150,6 +165,9 @@ export function LeftSidebar({
               )}
               <StepIcon done={step2Done} />
               <span>02. Dokumente</span>
+              {hasDokumenteIssue && (
+                <span className="ml-auto h-2 w-2 rounded-full bg-destructive" title="Enthält markierte Dokumente" />
+              )}
             </Link>
 
             {/* Schritt 3: Onboarding abschließen */}

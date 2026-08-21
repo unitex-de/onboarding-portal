@@ -1,6 +1,6 @@
 import type { ReactNode, ChangeEvent } from "react";
 import { useState, useCallback, useRef, useLayoutEffect, createContext, useContext } from "react";
-import { Check, Save, AlertCircle, Flag } from "lucide-react";
+import { Check, Save, AlertCircle, X } from "lucide-react";
 import { useOnboarding } from "@/lib/onboarding-state";
 import {
   MASK_CONFIG,
@@ -26,8 +26,8 @@ interface FieldReviewCtxValue {
   /** true = Tanja im Admin-Modus, darf Felder markieren/kommentieren */
   canEdit: boolean;
   corrections: Record<string, FieldCorrection>;
-  onToggleWrong: (fieldId: string) => void;
-  onCommentChange: (fieldId: string, comment: string) => void;
+  onConfirm: (fieldId: string, comment: string) => void;
+  onRemove: (fieldId: string) => void;
 }
 const FieldReviewCtx = createContext<FieldReviewCtxValue | null>(null);
 export function useFieldReview() { return useContext(FieldReviewCtx); }
@@ -51,42 +51,31 @@ export function FieldReviewProvider({
   children: ReactNode;
 }) {
   const [corrections, setCorrections] = useState(initialCorrections);
-  const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
-  const persist = useCallback((fieldId: string, next: FieldCorrection | null) => {
-    clearTimeout(timers.current[fieldId]);
-    timers.current[fieldId] = setTimeout(() => {
-      onPersist(customerId, fieldId, next).catch((e) =>
-        console.error("[FieldReview] Speichern der Markierung fehlgeschlagen:", e)
-      );
-    }, 600);
-  }, [customerId, onPersist]);
-
-  const onToggleWrong = useCallback((fieldId: string) => {
-    setCorrections((prev) => {
-      const wasWrong = prev[fieldId]?.wrong ?? false;
-      const next = { ...prev };
-      if (wasWrong) {
-        delete next[fieldId];
-        persist(fieldId, null);
-      } else {
-        next[fieldId] = { wrong: true, comment: prev[fieldId]?.comment ?? "" };
-        persist(fieldId, next[fieldId]);
-      }
-      return next;
-    });
-  }, [persist]);
-
-  const onCommentChange = useCallback((fieldId: string, comment: string) => {
+  // Explizites Bestätigen (Kommentar optional) – speichert sofort, kein Debounce.
+  const onConfirm = useCallback((fieldId: string, comment: string) => {
     setCorrections((prev) => {
       const next = { ...prev, [fieldId]: { wrong: true, comment } };
-      persist(fieldId, next[fieldId]);
+      onPersist(customerId, fieldId, next[fieldId]).catch((e) =>
+        console.error("[FieldReview] Speichern der Markierung fehlgeschlagen:", e)
+      );
       return next;
     });
-  }, [persist]);
+  }, [customerId, onPersist]);
+
+  const onRemove = useCallback((fieldId: string) => {
+    setCorrections((prev) => {
+      const next = { ...prev };
+      delete next[fieldId];
+      onPersist(customerId, fieldId, null).catch((e) =>
+        console.error("[FieldReview] Entfernen der Markierung fehlgeschlagen:", e)
+      );
+      return next;
+    });
+  }, [customerId, onPersist]);
 
   return (
-    <FieldReviewCtx.Provider value={{ canEdit, corrections, onToggleWrong, onCommentChange }}>
+    <FieldReviewCtx.Provider value={{ canEdit, corrections, onConfirm, onRemove }}>
       {children}
     </FieldReviewCtx.Provider>
   );
@@ -99,6 +88,8 @@ export function FieldReviewProvider({
  */
 export function FieldFlag({ fieldId }: { fieldId: string }) {
   const ctx = useContext(FieldReviewCtx);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
   if (!ctx) return null;
 
   const correction = ctx.corrections[fieldId];
@@ -109,42 +100,68 @@ export function FieldFlag({ fieldId }: { fieldId: string }) {
     if (!wrong) return null;
     return (
       <span className="flex w-full items-start gap-1.5 rounded-md bg-destructive/10 px-2 py-1.5 text-xs text-destructive">
-        <Flag className="h-3.5 w-3.5 shrink-0 mt-0.5" fill="currentColor" aria-hidden="true" />
+        <X className="h-3.5 w-3.5 shrink-0 mt-0.5" aria-hidden="true" />
         <span>{correction?.comment?.trim() || "Bitte prüfen Sie diese Angabe."}</span>
       </span>
     );
   }
 
-  // Tanja im Prüfmodus: klickbar, mit Kommentarfeld.
+  // Tanja im Prüfmodus: X zum Markieren, Kommentar optional, explizites Bestätigen.
+  const openEditor = (e: React.MouseEvent) => {
+    e.preventDefault(); e.stopPropagation();
+    setDraft(correction?.comment ?? "");
+    setEditing(true);
+  };
+  const remove = (e: React.MouseEvent) => {
+    e.preventDefault(); e.stopPropagation();
+    ctx.onRemove(fieldId);
+    setEditing(false);
+  };
+  const confirm = (e: React.MouseEvent) => {
+    e.preventDefault(); e.stopPropagation();
+    ctx.onConfirm(fieldId, draft.trim());
+    setEditing(false);
+  };
+
   return (
-    <span className="relative inline-flex items-center">
+    <span className="inline-flex flex-wrap items-center gap-1.5">
       <button
         type="button"
-        onClick={(e) => { e.preventDefault(); e.stopPropagation(); ctx.onToggleWrong(fieldId); }}
+        onClick={wrong ? remove : openEditor}
         className={[
-          "inline-flex h-5 w-5 items-center justify-center rounded transition-colors",
-          wrong ? "text-destructive" : "text-muted hover:text-destructive/70",
+          "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-colors",
+          wrong ? "bg-destructive text-white" : "border border-border text-muted hover:border-destructive/60 hover:text-destructive",
         ].join(" ")}
         title={wrong ? "Markierung entfernen" : "Als falsch markieren"}
         aria-label={wrong ? "Markierung entfernen" : "Als falsch markieren"}
       >
-        <Flag className="h-3.5 w-3.5" fill={wrong ? "currentColor" : "none"} />
+        <X className="h-3 w-3" />
       </button>
-      {wrong && (
-        <div
-          className="absolute left-0 top-6 z-20 w-64 rounded-md border border-destructive/30 bg-card p-2 shadow-lg"
+      {wrong && correction?.comment?.trim() && (
+        <span className="text-xs text-destructive">{correction.comment.trim()}</span>
+      )}
+      {editing && (
+        <span
+          className="flex w-full items-center gap-1.5 mt-1"
           onClick={(e) => e.stopPropagation()}
           onKeyDown={(e) => e.stopPropagation()}
         >
           <textarea
             autoFocus
-            rows={2}
-            value={correction?.comment ?? ""}
-            onChange={(e) => ctx.onCommentChange(fieldId, e.target.value)}
-            placeholder="Was ist an diesem Feld falsch?"
-            className="w-full resize-none rounded border border-border bg-popover px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-destructive"
+            rows={1}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="Kommentar (optional)"
+            className="flex-1 resize-none rounded border border-border bg-popover px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-destructive"
           />
-        </div>
+          <button
+            type="button"
+            onClick={confirm}
+            className="shrink-0 rounded bg-destructive px-2 py-1 text-xs font-medium text-white hover:bg-destructive/90"
+          >
+            Bestätigen
+          </button>
+        </span>
       )}
     </span>
   );
@@ -270,10 +287,12 @@ export function Field({
   required?: boolean;
   className?: string;
   as?: "label" | "div";
-  /** Wenn gesetzt und Prüfmodus aktiv: zeigt ein Flag-Icon zum Als-falsch-Markieren */
+  /** Wenn gesetzt: zeigt den X-Marker und ggf. eine rote Umrandung an */
   fieldId?: string;
 }) {
   const Wrapper = as;
+  const reviewCtx = useFieldReview();
+  const wrong = fieldId ? (reviewCtx?.corrections[fieldId]?.wrong ?? false) : false;
   return (
     <Wrapper className={["block space-y-1.5", className].filter(Boolean).join(" ")}>
       <span className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
@@ -285,7 +304,9 @@ export function Field({
         </span>
         {fieldId && <FieldFlag fieldId={fieldId} />}
       </span>
-      {children}
+      <div className={wrong ? "-m-1 rounded-md p-1 ring-1 ring-destructive/50 bg-destructive/5" : undefined}>
+        {children}
+      </div>
       {hint && <span className="block text-xs text-muted">{hint}</span>}
     </Wrapper>
   );
