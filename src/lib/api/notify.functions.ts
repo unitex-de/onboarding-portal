@@ -122,3 +122,46 @@ export const notifyCustomerRejected = createServerFn({ method: "POST" })
     }
     return { sent: true, demo: false };
   });
+
+// ---------------------------------------------------------------------------
+// Kundenbetreuer benachrichtigen: GWG-Bogen wurde nach Freigabe automatisch
+// erstellt, ist aber noch unvollständig (PEP-Status, Beherrschungsmöglichkeit
+// etc.) – bitte prüfen, ggf. ergänzen und an Tanja zur Ablage weiterleiten
+// (Punkt 6). Empfänger ist NICHT Tanja, sondern der laut getResponsibleAdmin()
+// zuständige Kundenbetreuer.
+// ---------------------------------------------------------------------------
+export const notifyGwgBogenReady = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      betreuerEmail: z.string().email(),
+      betreuerName: z.string(),
+      companyName: z.string(),
+      memberType: z.enum(["händler", "lieferant"]),
+      customerId: z.string(),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+      return { sent: false, demo: true };
+    }
+    const resend = new Resend(apiKey);
+    const memberLabel = data.memberType === "lieferant" ? "Lieferant" : "Händler";
+    const adminUrl = `https://onboarding.unitex.de/admin?customer=${data.customerId}`;
+    const { error } = await resend.emails.send({
+      from: ABSENDER,
+      to: data.betreuerEmail,
+      subject: `GWG-Bogen zur Prüfung: ${data.companyName} (${memberLabel})`,
+      html: `
+        <p>Hallo ${data.betreuerName},</p>
+        <p><strong>${data.companyName}</strong> (${memberLabel}) wurde freigegeben. Der GWG-Bogen wurde automatisch mit den vorhandenen Daten vorausgefüllt, ist aber nicht vollständig – u.a. PEP-Status, wirtschaftliche Abhängigkeit im Detail und der Bestätigungsblock fehlen noch.</p>
+        <p>Bitte prüfe den GWG-Bogen, ergänze die fehlenden Angaben und leite ihn anschließend an Tanja zur Ablage weiter.</p>
+        <p><a href="${adminUrl}">Im Admin-Portal ansehen</a></p>
+      `,
+    });
+    if (error) {
+      console.error("[notifyGwgBogenReady] Resend error:", error);
+      return { sent: false, demo: false, error: error.message };
+    }
+    return { sent: true, demo: false };
+  });

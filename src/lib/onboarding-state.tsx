@@ -1,8 +1,9 @@
 import { createContext, useContext, useEffect, useMemo, useState, useCallback, useRef, type ReactNode } from "react";
 import { supabase } from "./supabase";
-import { notifyReviewSubmitted, notifyCustomerRejected, notifyNeukundenformularReady } from "./api/notify.functions";
+import { notifyReviewSubmitted, notifyCustomerRejected, notifyNeukundenformularReady, notifyGwgBogenReady } from "./api/notify.functions";
 import { syncCustomerToHubspot } from "./api/hubspot.functions";
 import { generateNeukundenPdfFilled, generateLieferantPdfFilled } from "./pdf-form-filler";
+import { generateGwgBogenHaendlerPdf } from "./gwg_bogen_filler";
 
 // ---------------------------------------------------------------------------
 // Types & Interfaces
@@ -101,6 +102,7 @@ export interface CustomerAccount {
   reviewNote?: string | null;
   signedDocumentPath?: string | null;
   neukundenformularPath?: string | null;
+  gwgBogenPath?: string | null;
   fieldCorrections?: Record<string, { wrong: boolean; comment: string }>;
 }
 
@@ -269,6 +271,7 @@ async function fetchAllCustomers(): Promise<CustomerAccount[]> {
         reviewNote: c.review_note ?? null,
         signedDocumentPath: c.signed_document_path ?? null,
         neukundenformularPath: c.neukundenformular_path ?? null,
+        gwgBogenPath: c.gwg_bogen_path ?? null,
         fieldCorrections: (c.field_corrections as Record<string, { wrong: boolean; comment: string }>) ?? {},
       };
     })
@@ -370,6 +373,7 @@ export async function fetchCustomerByEmail(email: string): Promise<CustomerAccou
     reviewNote: c.review_note ?? null,
     signedDocumentPath: c.signed_document_path ?? null,
     neukundenformularPath: c.neukundenformular_path ?? null,
+    gwgBogenPath: c.gwg_bogen_path ?? null,
     fieldCorrections: (c.field_corrections as Record<string, { wrong: boolean; comment: string }>) ?? {},
   };
 }
@@ -940,6 +944,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       .eq("id", id);
     if (error) throw new Error(error.message);
     let neukundenformularPath: string | null = null;
+    let gwgBogenPath: string | null = null;
     // Bei Rückweisung: "abschluss" freigeben, damit der Kunde die Signaturen-Seite wieder bearbeiten kann
     if (decision === "Nachbesserung nötig") {
       const { data: existing } = await supabase
@@ -1092,6 +1097,70 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         } catch (e) {
           console.error("[reviewCustomer] Neukundenformular-Erstellung fehlgeschlagen:", e);
         }
+
+        // GWG-Bogen (Punkt 6) – eigener try/catch, damit ein Fehler hier weder
+        // die Freigabe noch das Neukundenformular blockiert. Aktuell nur für
+        // Händler umgesetzt (Lieferant-Vorlage folgt).
+        if (target.memberType !== "lieferant") {
+          try {
+            const { data: allSections } = await supabase
+              .from("form_data")
+              .select("*")
+              .eq("customer_id", id);
+            const freshFormData: SavedFormData = {};
+            for (const section of allSections ?? []) {
+              if (section.section !== "_completed") {
+                Object.assign(freshFormData, section.data);
+              }
+            }
+            const mockState: OnboardingState = {
+              ...DEFAULT_STATE,
+              companyName: target.companyName,
+              legalForm: target.legalForm,
+              memberType: target.memberType,
+              postalCode: target.postalCode,
+              country: target.country,
+              zrStartDate: target.zrStartDate,
+              savedFormData: freshFormData,
+            };
+            const { data: docsRows } = await supabase
+              .from("documents")
+              .select("storage_key")
+              .eq("customer_id", id);
+            const uploadedDocIds: Record<string, { fileName: string; size: number; uploadedAt: string; storagePath: string }> = {};
+            for (const d of docsRows ?? []) {
+              const docId = extractDocIdFromStorageKey(d.storage_key);
+              uploadedDocIds[docId] = { fileName: "", size: 0, uploadedAt: "", storagePath: d.storage_key };
+            }
+            mockState.uploadedDocs = uploadedDocIds;
+
+            const gwgBytes = await generateGwgBogenHaendlerPdf(mockState, {
+              neukundenformularUploaded: !!neukundenformularPath,
+            });
+
+            const gwgStoragePath = `${id}/gwg-bogen-${Date.now()}.pdf`;
+            const { error: gwgStorageError } = await supabase.storage
+              .from("documents")
+              .upload(gwgStoragePath, gwgBytes, { contentType: "application/pdf", upsert: true });
+            if (gwgStorageError) throw new Error(gwgStorageError.message);
+
+            await supabase.from("customers").update({ gwg_bogen_path: gwgStoragePath }).eq("id", id);
+            gwgBogenPath = gwgStoragePath;
+
+            const betreuer = getResponsibleAdmin(target.memberType, target.postalCode, target.country);
+            await notifyGwgBogenReady({
+              data: {
+                betreuerEmail: betreuer.email,
+                betreuerName: betreuer.name,
+                companyName: target.companyName,
+                memberType: target.memberType,
+                customerId: id,
+              },
+            });
+          } catch (e) {
+            console.error("[reviewCustomer] GWG-Bogen-Erstellung fehlgeschlagen:", e);
+          }
+        }
       }
     }
     setState((s) => ({
@@ -1108,6 +1177,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
                 ? { ...a.completedSections, abschluss: false }
                 : a.completedSections,
               neukundenformularPath: decision === "Freigegeben" ? (neukundenformularPath ?? a.neukundenformularPath) : a.neukundenformularPath,
+              gwgBogenPath: decision === "Freigegeben" ? (gwgBogenPath ?? a.gwgBogenPath) : a.gwgBogenPath,
             }
           : a
       ),
