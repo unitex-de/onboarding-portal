@@ -37,6 +37,14 @@ function drawCheck(page: PDFPage, font: PDFFont, x: number, y: number) {
   page.drawText("X", { x, y, size: 9, font, color: rgb(0, 0, 0.6) });
 }
 
+/** Formatiert ein Datum (ISO-String o.ä.) als DD.MM.YYYY, robust gegen leere/ungültige Werte. */
+function formatDateDE(value: string | undefined): string {
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value; // Rohwert anzeigen statt "Invalid Date"
+  return d.toLocaleDateString("de-DE");
+}
+
 // Rechtsform-Checkbox-Positionen (x0 der jeweiligen Box), Zeile y≈733
 const RECHTSFORM_X: Record<string, number> = {
   eK: 117,      // "e.K." (Einzelfirma wird ebenfalls hier markiert, s.u.)
@@ -77,10 +85,9 @@ export async function generateGwgBogenHaendlerPdf(
 
   // ── Angaben zur Zentralregulierung ────────────────────────────────────
   if (state.zrStartDate) {
-    const d = new Date(state.zrStartDate);
-    drawText(p1, font, d.toLocaleDateString("de-DE"), 172, 686);
+    drawText(p1, font, formatDateDE(state.zrStartDate), 195, 686);
   }
-  drawText(p1, font, fd.zrVolumen ?? "", 190, 663);
+  drawText(p1, font, fd.zrVolumen ?? "", 210, 663);
 
   // ── Prüfung Vollständigkeit der Unterlagen (aus uploadedDocs abgeleitet) ─
   // Linke Spalte x≈184, rechte Spalte x≈537. SEPA-Mandat hat keine
@@ -93,12 +100,13 @@ export async function generateGwgBogenHaendlerPdf(
   if (opts.neukundenformularUploaded) drawCheck(p1, font, 184, 564);       // Neukundenformular (links)
 
   // ── Angaben zum Unternehmen ────────────────────────────────────────────
-  drawText(p1, font, fd.umsatz ?? "", 115, 508);
-  drawText(p1, font, fd.mitarbeiter ?? "", 460, 508);
-  drawText(p1, font, fd.wkvDeckungsbeitrag ?? "", 130, 485);
-  drawText(p1, font, fd.gruendung ?? "", 470, 485);
-  drawText(p1, font, fd.bilanzsumme ?? "", 105, 463);
-  drawText(p1, font, fd.steuernummer ?? "", 460, 463);
+  // Y-Werte angehoben: vorher zu niedrig (unterhalb statt innerhalb der Box).
+  drawText(p1, font, fd.umsatz ?? "", 115, 519);
+  drawText(p1, font, fd.mitarbeiter ?? "", 460, 519);
+  drawText(p1, font, fd.wkvDeckungsbeitrag ?? "", 130, 496);
+  drawText(p1, font, formatDateDE(fd.gruendung), 470, 496);
+  drawText(p1, font, fd.bilanzsumme ?? "", 105, 474);
+  drawText(p1, font, fd.steuernummer ?? "", 460, 474);
 
   // ── Wirtschaftliche Abhängigkeit ───────────────────────────────────────
   // Nur "keine Abhängigkeiten" ist eindeutig aus unseren Daten ableitbar –
@@ -111,7 +119,7 @@ export async function generateGwgBogenHaendlerPdf(
   // ── Gesellschafter-Tabelle (bis zu 6 Zeilen) ──────────────────────────
   const rowY = [237, 212, 188, 164, 136, 112];
   (fd.shareholders ?? []).slice(0, 6).forEach((s, i) => {
-    drawText(p1, font, s.name ?? "", 116, rowY[i]);
+    drawText(p1, font, s.name ?? "", 132, rowY[i]);
     drawText(p1, font, s.capital ?? "", 355, rowY[i]);
     drawText(p1, font, s.voting ?? "", 435, rowY[i]);
     if (s.pep) drawCheck(p1, font, 523, rowY[i]);
