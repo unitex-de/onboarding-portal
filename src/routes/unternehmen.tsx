@@ -345,7 +345,7 @@ function UnternehmenPage() {
             type="button"
             onClick={async () => {
               try {
-                const { generateGwgBogenHaendlerPdf } = await import("@/lib/gwg-bogen-filler");
+                const { generateGwgBogenHaendlerPdf } = await import("@/lib/gwg_bogen_filler");
                 const { downloadPdf } = await import("@/lib/pdf-generator");
                 const bytes = await generateGwgBogenHaendlerPdf(state, { neukundenformularUploaded: false });
                 downloadPdf(bytes, "gwg-bogen-test.pdf");
