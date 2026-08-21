@@ -336,6 +336,31 @@ function UnternehmenPage() {
         />
       )}
 
+      {isAdmin && !isLieferant && (
+        <div className="mb-4 flex items-center gap-3 rounded-md border border-dashed border-border bg-popover/40 px-4 py-3">
+          <span className="text-xs text-secondary">
+            Nur für Koordinaten-Tests: erzeugt die PDF direkt im Browser, ohne Speichern oder Mailversand.
+          </span>
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                const { generateGwgBogenHaendlerPdf } = await import("@/lib/gwg-bogen-filler");
+                const { downloadPdf } = await import("@/lib/pdf-generator");
+                const bytes = await generateGwgBogenHaendlerPdf(state, { neukundenformularUploaded: false });
+                downloadPdf(bytes, "gwg-bogen-test.pdf");
+              } catch (e) {
+                console.error("[GWG-Bogen Vorschau] fehlgeschlagen:", e);
+                alert("Vorschau fehlgeschlagen, siehe Konsole.");
+              }
+            }}
+            className="ml-auto shrink-0 rounded-md border border-primary/40 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10"
+          >
+            GWG-Bogen Vorschau
+          </button>
+        </div>
+      )}
+
       <FieldReviewProvider
         key={reviewCustomerId || "self"}
         canEdit={canEditReview}

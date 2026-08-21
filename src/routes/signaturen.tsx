@@ -120,7 +120,7 @@ function KundeAbschlussPage({ unlocked, readOnly = false }: { unlocked: boolean;
                 ? "Der Kunde hat die Angaben bestätigt und zur Prüfung eingereicht."
                 : "Sie haben Ihre Angaben bestätigt und eingereicht. Wir kümmern uns nun darum und melden uns, sobald Ihr Onboarding abgeschlossen ist."}
             </p>
-            {readOnly && (activeCustomer?.signedDocumentPath || activeCustomer?.neukundenformularPath) && (
+            {readOnly && (activeCustomer?.signedDocumentPath || activeCustomer?.neukundenformularPath || activeCustomer?.gwgBogenPath) && (
               <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
                 {activeCustomer?.neukundenformularPath && (
                   <button
@@ -132,6 +132,18 @@ function KundeAbschlussPage({ unlocked, readOnly = false }: { unlocked: boolean;
                     className="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2.5 text-sm font-medium text-foreground hover:border-primary hover:text-primary transition-colors"
                   >
                     <Download className="h-4 w-4" /> {formLabel} ansehen
+                  </button>
+                )}
+                {activeCustomer?.gwgBogenPath && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const url = await getDownloadUrl(activeCustomer.gwgBogenPath!);
+                      if (url) window.open(url, "_blank");
+                    }}
+                    className="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2.5 text-sm font-medium text-foreground hover:border-primary hover:text-primary transition-colors"
+                  >
+                    <Download className="h-4 w-4" /> GWG-Bogen ansehen
                   </button>
                 )}
                 {activeCustomer?.signedDocumentPath && (
