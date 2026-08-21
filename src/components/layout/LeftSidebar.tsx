@@ -46,8 +46,10 @@ export function LeftSidebar({
   // ── Markierte Felder: welcher Tab betroffen ist (Formulardaten vs. Dokumente) ──
   const fieldCorrections = isAdmin ? (activeAccount?.fieldCorrections ?? {}) : (state.fieldCorrections ?? {});
   const wrongFieldIds = Object.entries(fieldCorrections).filter(([, c]) => c.wrong).map(([id]) => id);
-  const hasUnternehmenIssue = wrongFieldIds.some((id) => !ALL_DOC_IDS.has(id));
-  const hasDokumenteIssue = wrongFieldIds.some((id) => ALL_DOC_IDS.has(id));
+  const isDocumentFieldId = (id: string) =>
+    ALL_DOC_IDS.has(id) || Array.from(ALL_DOC_IDS).some((docId) => id.startsWith(`${docId}__`));
+  const hasUnternehmenIssue = wrongFieldIds.some((id) => !isDocumentFieldId(id));
+  const hasDokumenteIssue = wrongFieldIds.some((id) => isDocumentFieldId(id));
 
   const handleLogout = () => {
     update({ signedIn: false, role: "kunde", activeCustomerId: null });

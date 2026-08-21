@@ -51,6 +51,10 @@ const DOC_LABELS: Record<string, string> = (() => {
 function resolveFieldLabel(fieldId: string): string {
   if (STATIC_FIELD_LABELS[fieldId]) return STATIC_FIELD_LABELS[fieldId];
   if (DOC_LABELS[fieldId]) return `Dokument: ${DOC_LABELS[fieldId]}`;
+  const extraDocMatch = fieldId.match(/^(.+)__(\d+)$/);
+  if (extraDocMatch && DOC_LABELS[extraDocMatch[1]]) {
+    return `Dokument: ${DOC_LABELS[extraDocMatch[1]]} – weitere Kopie ${Number(extraDocMatch[2]) - 1}`;
+  }
   const shareholderMatch = fieldId.match(/^shareholders\.(\d+)$/);
   if (shareholderMatch) return `Gesellschafter ${Number(shareholderMatch[1]) + 1}`;
   const contactMatch = fieldId.match(/^contact\.[^.]+\.(.+)$/);

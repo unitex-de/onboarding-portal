@@ -1,9 +1,9 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useRef, useState, useEffect } from "react";
-import { CloudUpload, FileCheck2, FileText, MoreVertical, Trash2, RefreshCcw, Download, Shield } from "lucide-react";
+import { CloudUpload, FileCheck2, FileText, MoreVertical, Trash2, RefreshCcw, Download, Shield, Plus } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { useOnboarding, getDownloadUrl, type LegalForm } from "@/lib/onboarding-state";
-import { REQUIRED_DOCS, REQUIRED_DOCS_LIEFERANT, formatBytes } from "@/lib/required-docs";
+import { REQUIRED_DOCS, REQUIRED_DOCS_LIEFERANT, ADMIN_ONLY_DOCS, formatBytes } from "@/lib/required-docs";
 import { ConfettiPopup } from "@/components/ui/ConfettiPopup";
 import { FieldReviewProvider, FieldFlag } from "@/components/forms/FormSection";
 
@@ -38,6 +38,24 @@ function UploadCenterPage() {
   const requiredDocs = docs.filter((d) => d.required);
   const allRequiredDone = requiredDocs.every((d) => state.uploadedDocs[d.id]);
   const completed = docs.filter((d) => state.uploadedDocs[d.id]).length;
+
+  // ── Mehrere Uploads pro Dokument (z.B. mehrere Ausweiskopien) ──────────────
+  // Zusatz-Dateien liegen unter Keys wie "ausweiskopie_gf__2", "ausweiskopie_gf__3".
+  // extraCount hält, wie viele Zusatz-Slots diese Session manuell hinzugefügt
+  // wurden; kombiniert mit bereits vorhandenen Uploads aus der DB.
+  const [extraCount, setExtraCount] = useState<Record<string, number>>({});
+  const MAX_EXTRA_SLOTS = 5;
+  const getExtraSlotCount = (docId: string): number => {
+    let maxIndex = 1;
+    const prefix = `${docId}__`;
+    for (const key of Object.keys(state.uploadedDocs)) {
+      if (key.startsWith(prefix)) {
+        const n = Number(key.slice(prefix.length));
+        if (Number.isFinite(n)) maxIndex = Math.max(maxIndex, n);
+      }
+    }
+    return Math.max(maxIndex - 1, extraCount[docId] ?? 0);
+  };
 
   const [showConfetti, setShowConfetti] = useState(false);
   const prevAllDone = useRef(allRequiredDone);
@@ -90,7 +108,7 @@ function UploadCenterPage() {
       {/* Header strip */}
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h3 className="font-display text-lg font-semibold">Ihre Dokumente</h3>
+          <h3 className="font-display text-lg font-semibold">{isAdmin ? "Kunden Dokumente" : "Ihre Dokumente"}</h3>
           <p className="text-sm text-secondary">
             {completed} von {docs.length} hochgeladen · Laden Sie alle erforderlichen Dokumente hoch.
           </p>
@@ -129,8 +147,9 @@ function UploadCenterPage() {
         {docs.map((doc) => {
           const uploaded = state.uploadedDocs[doc.id];
           const isActive = effectiveActive === doc.id;
+          const extraSlots = doc.multi ? getExtraSlotCount(doc.id) : 0;
           return (
-            <div key={doc.id}>
+            <div key={doc.id} className="space-y-2">
               <DocumentRow
                 docId={doc.id}
                 label={doc.label}
@@ -145,11 +164,71 @@ function UploadCenterPage() {
               {isActive && !uploaded && (
                 <UploadDropZone onFile={(f) => uploadDoc(doc.id, f)} />
               )}
+
+              {doc.multi && Array.from({ length: extraSlots }, (_, i) => i + 2).map((n) => {
+                const extraId = `${doc.id}__${n}`;
+                const extraUploaded = state.uploadedDocs[extraId];
+                return (
+                  <div key={extraId} className="ml-6 pl-4 border-l-2 border-border/60 space-y-2">
+                    <DocumentRow
+                      docId={extraId}
+                      label={`${doc.label} – weitere Kopie ${n - 1}`}
+                      required={false}
+                      uploaded={extraUploaded}
+                      isActive={false}
+                      onSelect={() => {}}
+                      onRemove={() => removeDoc(extraId)}
+                      onFileNow={(f) => uploadDoc(extraId, f)}
+                    />
+                    {!extraUploaded && <UploadDropZone onFile={(f) => uploadDoc(extraId, f)} />}
+                  </div>
+                );
+              })}
+
+              {doc.multi && extraSlots < MAX_EXTRA_SLOTS && (
+                <button
+                  type="button"
+                  onClick={() => setExtraCount((prev) => ({ ...prev, [doc.id]: extraSlots + 1 }))}
+                  className="ml-6 inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Weitere Kopie hinzufügen
+                </button>
+              )}
             </div>
           );
         })}
       </div>
       </FieldReviewProvider>
+
+      {isAdmin && (
+        <div className="mt-10">
+          <div className="mb-3">
+            <h3 className="font-display text-lg font-semibold">Weitere Dokumente</h3>
+            <p className="text-sm text-secondary">Nur für Admins sichtbar, der Kunde sieht diese Sektion nicht.</p>
+          </div>
+          <div className="space-y-3">
+            {ADMIN_ONLY_DOCS.map((doc) => {
+              const uploaded = state.uploadedDocs[doc.id];
+              return (
+                <div key={doc.id}>
+                  <DocumentRow
+                    docId={doc.id}
+                    label={doc.label}
+                    hint={doc.hint}
+                    required={false}
+                    uploaded={uploaded}
+                    isActive={false}
+                    onSelect={() => {}}
+                    onRemove={() => removeDoc(doc.id)}
+                    onFileNow={(f) => uploadDoc(doc.id, f)}
+                  />
+                  {!uploaded && <UploadDropZone onFile={(f) => uploadDoc(doc.id, f)} />}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </AppShell>
   );
 }
