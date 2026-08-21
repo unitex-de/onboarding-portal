@@ -50,6 +50,44 @@ export const notifyReviewSubmitted = createServerFn({ method: "POST" })
   });
 
 // ---------------------------------------------------------------------------
+// Tanja benachrichtigen: Neukundenformular wurde nach Freigabe automatisch
+// erstellt und liegt zur Ablage bereit (Punkt 5)
+// ---------------------------------------------------------------------------
+export const notifyNeukundenformularReady = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      companyName: z.string(),
+      memberType: z.enum(["händler", "lieferant"]),
+      customerId: z.string(),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const apiKey = process.env.RESEND_API_KEY;
+    const tanjaEmail = process.env.TANJA_EMAIL;
+    if (!apiKey || !tanjaEmail) {
+      return { sent: false, demo: true };
+    }
+    const resend = new Resend(apiKey);
+    const memberLabel = data.memberType === "lieferant" ? "Lieferant" : "Händler";
+    const adminUrl = `https://onboarding.unitex.de/admin?customer=${data.customerId}`;
+    const { error } = await resend.emails.send({
+      from: ABSENDER,
+      to: tanjaEmail,
+      subject: `Neukundenformular bereit zur Ablage: ${data.companyName} (${memberLabel})`,
+      html: `
+        <p>Hallo Tanja,</p>
+        <p><strong>${data.companyName}</strong> (${memberLabel}) wurde freigegeben. Das Neukundenformular wurde automatisch erstellt und liegt zur Ablage bereit.</p>
+        <p><a href="${adminUrl}">Im Admin-Portal ansehen</a></p>
+      `,
+    });
+    if (error) {
+      console.error("[notifyNeukundenformularReady] Resend error:", error);
+      return { sent: false, demo: false, error: error.message };
+    }
+    return { sent: true, demo: false };
+  });
+
+// ---------------------------------------------------------------------------
 // Kunde benachrichtigen: Nachbesserung nötig
 // ---------------------------------------------------------------------------
 export const notifyCustomerRejected = createServerFn({ method: "POST" })

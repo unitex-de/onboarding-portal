@@ -1,7 +1,8 @@
 import { createContext, useContext, useEffect, useMemo, useState, useCallback, useRef, type ReactNode } from "react";
 import { supabase } from "./supabase";
-import { notifyReviewSubmitted, notifyCustomerRejected } from "./api/notify.functions";
+import { notifyReviewSubmitted, notifyCustomerRejected, notifyNeukundenformularReady } from "./api/notify.functions";
 import { syncCustomerToHubspot } from "./api/hubspot.functions";
+import { generateNeukundenPdfFilled, generateLieferantPdfFilled } from "./pdf-form-filler";
 
 // ---------------------------------------------------------------------------
 // Types & Interfaces
@@ -99,6 +100,7 @@ export interface CustomerAccount {
   reviewedBy?: string | null;
   reviewNote?: string | null;
   signedDocumentPath?: string | null;
+  neukundenformularPath?: string | null;
   fieldCorrections?: Record<string, { wrong: boolean; comment: string }>;
 }
 
@@ -266,6 +268,7 @@ async function fetchAllCustomers(): Promise<CustomerAccount[]> {
         reviewedBy: c.reviewed_by ?? null,
         reviewNote: c.review_note ?? null,
         signedDocumentPath: c.signed_document_path ?? null,
+        neukundenformularPath: c.neukundenformular_path ?? null,
         fieldCorrections: (c.field_corrections as Record<string, { wrong: boolean; comment: string }>) ?? {},
       };
     })
@@ -366,6 +369,7 @@ export async function fetchCustomerByEmail(email: string): Promise<CustomerAccou
     reviewedBy: c.reviewed_by ?? null,
     reviewNote: c.review_note ?? null,
     signedDocumentPath: c.signed_document_path ?? null,
+    neukundenformularPath: c.neukundenformular_path ?? null,
     fieldCorrections: (c.field_corrections as Record<string, { wrong: boolean; comment: string }>) ?? {},
   };
 }
@@ -935,6 +939,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       })
       .eq("id", id);
     if (error) throw new Error(error.message);
+    let neukundenformularPath: string | null = null;
     // Bei Rückweisung: "abschluss" freigeben, damit der Kunde die Signaturen-Seite wieder bearbeiten kann
     if (decision === "Nachbesserung nötig") {
       const { data: existing } = await supabase
@@ -953,7 +958,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
           updated_by: actorEmail,
         }, { onConflict: "customer_id,section" });
       }
-            // Kunde per Mail über die nötige Korrektur informieren – auch dann, wenn
+      // Kunde per Mail über die nötige Korrektur informieren – auch dann, wenn
       // Tanja nur Felder markiert hat, aber keinen globalen Kommentar schrieb.
       const target = stateRef.current.customerAccounts.find((a) => a.id === id);
       if (target) {
@@ -1045,6 +1050,48 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         } catch (e) {
           console.error("[reviewCustomer] HubSpot-Sync fehlgeschlagen:", e);
         }
+
+        // Neukundenformular automatisch erstellen (Punkt 5) – eigener try/catch,
+        // damit ein Fehler hier die Freigabe selbst nicht blockiert.
+        try {
+          const { data: allSections } = await supabase
+            .from("form_data")
+            .select("*")
+            .eq("customer_id", id);
+          const freshFormData: SavedFormData = {};
+          for (const section of allSections ?? []) {
+            if (section.section !== "_completed") {
+              Object.assign(freshFormData, section.data);
+            }
+          }
+          const mockState: OnboardingState = {
+            ...DEFAULT_STATE,
+            companyName: target.companyName,
+            legalForm: target.legalForm,
+            memberType: target.memberType,
+            postalCode: target.postalCode,
+            country: target.country,
+            savedFormData: freshFormData,
+          };
+          const pdfBytes = target.memberType === "lieferant"
+            ? await generateLieferantPdfFilled(mockState)
+            : await generateNeukundenPdfFilled(mockState);
+
+          const storagePath = `${id}/neukundenformular-${Date.now()}.pdf`;
+          const { error: storageError } = await supabase.storage
+            .from("documents")
+            .upload(storagePath, pdfBytes, { contentType: "application/pdf", upsert: true });
+          if (storageError) throw new Error(storageError.message);
+
+          await supabase.from("customers").update({ neukundenformular_path: storagePath }).eq("id", id);
+          neukundenformularPath = storagePath;
+
+          await notifyNeukundenformularReady({
+            data: { companyName: target.companyName, memberType: target.memberType, customerId: id },
+          });
+        } catch (e) {
+          console.error("[reviewCustomer] Neukundenformular-Erstellung fehlgeschlagen:", e);
+        }
       }
     }
     setState((s) => ({
@@ -1060,6 +1107,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
               completedSections: decision === "Nachbesserung nötig"
                 ? { ...a.completedSections, abschluss: false }
                 : a.completedSections,
+              neukundenformularPath: decision === "Freigegeben" ? (neukundenformularPath ?? a.neukundenformularPath) : a.neukundenformularPath,
             }
           : a
       ),

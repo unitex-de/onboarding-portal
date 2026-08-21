@@ -1,13 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import {
   Check, Lock, Loader2,
-  Shield, Info, AlertTriangle, PenLine, Download,
+  Shield, Info, AlertTriangle, FileCheck2, Download,
 } from "lucide-react";
 import { useOnboarding, getProgressBreakdown, getDownloadUrl } from "@/lib/onboarding-state";
 import { AppShell } from "@/components/layout/AppShell";
-import { generateNeukundenPdfFilled, generateLieferantPdfFilled } from "@/lib/pdf-form-filler";
-import { createSigningSession } from "@/lib/api/pandadoc.functions";
 import { ConfettiPopup } from "@/components/ui/ConfettiPopup";
 
 
@@ -25,19 +23,6 @@ function SignaturenPage() {
   return <KundeAbschlussPage unlocked={isAdmin || unlocked} readOnly={isAdmin} />;
 }
 
-// ─────────────────────────────────────────────────────────────────────────
-// Hilfsfunktion: Uint8Array (aus pdf-lib) → Base64-String für den Server-Call
-// ─────────────────────────────────────────────────────────────────────────
-function bytesToBase64(bytes: Uint8Array): string {
-  let binary = "";
-  const chunkSize = 0x8000; // in Chunks, um Stack-Limits bei großen PDFs zu vermeiden
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    const chunk = bytes.subarray(i, i + chunkSize);
-    binary += String.fromCharCode(...chunk);
-  }
-  return btoa(binary);
-}
-
 // ─── Kunden-Flow: Schritt 3 – Onboarding abschließen ─────────────────────────
 
 function KundeAbschlussPage({ unlocked, readOnly = false }: { unlocked: boolean; readOnly?: boolean }) {
@@ -46,73 +31,26 @@ function KundeAbschlussPage({ unlocked, readOnly = false }: { unlocked: boolean;
   const signed = !!state.completedSections["abschluss"];
   const isLieferant = state.memberType === "lieferant";
 
-  const [signingUrl, setSigningUrl] = useState<string | null>(null);
-  const [signingLoading, setSigningLoading] = useState(false);
-  const [signingError, setSigningError] = useState<string | null>(null);
+  const [confirmed, setConfirmed] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(signed);
   const [showEtappe3Confetti, setShowEtappe3Confetti] = useState(false);
 
-  const handleSigningComplete = useCallback(async () => {
-    completeSection("abschluss");
-    setSubmitted(true);
-    setShowEtappe3Confetti(true);
+  const handleSubmit = async () => {
+    if (!confirmed) return;
+    setSubmitting(true);
+    setSubmitError(null);
     try {
+      completeSection("abschluss");
       await submitForReview();
+      setSubmitted(true);
+      setShowEtappe3Confetti(true);
     } catch (e) {
       console.error("Einreichung zur Prüfung fehlgeschlagen:", e);
-    }
-  }, [completeSection, submitForReview]);
-
-  // Auf PandaDoc-Completion-Event lauschen, solange die Signiersitzung offen ist
-  useEffect(() => {
-    if (!signingUrl) return;
-    function handleMessage(event: MessageEvent) {
-      if (event.origin !== "https://app.pandadoc.com") return;
-      const type = (event.data as { type?: string } | undefined)?.type;
-      if (type === "session_view.document.completed") {
-        setSigningUrl(null);
-        void handleSigningComplete();
-      } else if (type === "session_view.document.exception") {
-        setSigningError("Beim Unterschreiben ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut.");
-      }
-    }
-    window.addEventListener("message", handleMessage);
-    return () => window.removeEventListener("message", handleMessage);
-  }, [signingUrl, handleSigningComplete]);
-
-  const handleStartSigning = async () => {
-    setSigningLoading(true);
-    setSigningError(null);
-    try {
-      const fd = state.savedFormData ?? {};
-      const gf = fd.contacts?.find((c) => c.kind === "gf");
-      const recipientEmail = gf?.email || fd.emailFirma;
-      if (!recipientEmail) {
-        setSigningError("Es ist keine E-Mail-Adresse für die Unterschrift hinterlegt. Bitte Unternehmensdaten prüfen.");
-        setSigningLoading(false);
-        return;
-      }
-      const pdfBytes = isLieferant
-        ? await generateLieferantPdfFilled(state)
-        : await generateNeukundenPdfFilled(state);
-
-      const result = await createSigningSession({
-        data: {
-          packageId: isLieferant ? "lieferant" : "neukunde",
-          pdfBase64: bytesToBase64(pdfBytes),
-          recipientEmail,
-          recipientFirstName: gf?.vorname ?? state.companyName ?? "Kunde",
-          recipientLastName: gf?.nachname ?? "",
-          documentName: `unitex Onboarding – ${state.companyName ?? ""}`,
-          customerId: state.customerId ?? "",
-        },
-      });
-      setSigningUrl(result.signingUrl);
-    } catch (err) {
-      setSigningError("Die Signatur konnte nicht vorbereitet werden. Bitte versuchen Sie es erneut.");
-      console.error("PandaDoc signing session error:", err);
+      setSubmitError("Die Einreichung konnte nicht abgeschlossen werden. Bitte versuchen Sie es erneut.");
     } finally {
-      setSigningLoading(false);
+      setSubmitting(false);
     }
   };
 
@@ -121,7 +59,7 @@ function KundeAbschlussPage({ unlocked, readOnly = false }: { unlocked: boolean;
   return (
     <AppShell
       title="Onboarding abschließen"
-      subtitle={`Letzter Schritt: ${formLabel} direkt hier im Portal digital unterschreiben.`}
+      subtitle={`Letzter Schritt: Angaben bestätigen und ${formLabel} zur Prüfung einreichen.`}
     >
       {/* Admin banner */}
       {readOnly && (
@@ -179,21 +117,35 @@ function KundeAbschlussPage({ unlocked, readOnly = false }: { unlocked: boolean;
             </h2>
             <p className="text-sm text-secondary max-w-md mx-auto leading-relaxed">
               {readOnly
-                ? "Der Kunde hat digital unterschrieben. Die Prüfung läuft."
-                : "Sie haben digital unterschrieben. Wir kümmern uns nun darum und melden uns, sobald Ihr Onboarding abgeschlossen ist."}
+                ? "Der Kunde hat die Angaben bestätigt und zur Prüfung eingereicht."
+                : "Sie haben Ihre Angaben bestätigt und eingereicht. Wir kümmern uns nun darum und melden uns, sobald Ihr Onboarding abgeschlossen ist."}
             </p>
-            {readOnly && activeCustomer?.signedDocumentPath && (
-              <div className="pt-2">
-                <button
-                  type="button"
-                  onClick={async () => {
-                    const url = await getDownloadUrl(activeCustomer.signedDocumentPath!);
-                    if (url) window.open(url, "_blank");
-                  }}
-                  className="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2.5 text-sm font-medium text-foreground hover:border-primary hover:text-primary transition-colors"
-                >
-                  <Download className="h-4 w-4" /> Signiertes PDF ansehen
-                </button>
+            {readOnly && (activeCustomer?.signedDocumentPath || activeCustomer?.neukundenformularPath) && (
+              <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
+                {activeCustomer?.neukundenformularPath && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const url = await getDownloadUrl(activeCustomer.neukundenformularPath!);
+                      if (url) window.open(url, "_blank");
+                    }}
+                    className="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2.5 text-sm font-medium text-foreground hover:border-primary hover:text-primary transition-colors"
+                  >
+                    <Download className="h-4 w-4" /> {formLabel} ansehen
+                  </button>
+                )}
+                {activeCustomer?.signedDocumentPath && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const url = await getDownloadUrl(activeCustomer.signedDocumentPath!);
+                      if (url) window.open(url, "_blank");
+                    }}
+                    className="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2.5 text-sm font-medium text-foreground hover:border-primary hover:text-primary transition-colors"
+                  >
+                    <Download className="h-4 w-4" /> Signiertes PDF ansehen (alt)
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -201,57 +153,60 @@ function KundeAbschlussPage({ unlocked, readOnly = false }: { unlocked: boolean;
 
         {!submitted && !readOnly && (
           <>
-            {/* ── Signatur-Karte ───────────────────────────────────────────── */}
+            {/* ── Bestätigung & Einreichung ────────────────────────────────── */}
             <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
               <div className="flex items-start gap-4">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
-                  <PenLine className="h-5 w-5" />
+                  <FileCheck2 className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="font-display text-base font-semibold">{formLabel} digital unterschreiben</h3>
+                  <h3 className="font-display text-base font-semibold">Angaben bestätigen & einreichen</h3>
                   <p className="text-sm text-secondary mt-1 leading-relaxed">
-                    Das Portal hat Ihr {formLabel} automatisch mit Ihren Daten ausgefüllt.
-                    Unterschreiben Sie direkt hier – kein Download, kein Ausdrucken, kein Hochladen nötig.
+                    Das {formLabel} wird nach erfolgreicher Prüfung automatisch für Sie erstellt –
+                    kein Download, kein Ausdrucken, kein Hochladen nötig.
                   </p>
                 </div>
               </div>
 
-              {!signingUrl && (
-                <button
-                  type="button"
-                  onClick={handleStartSigning}
-                  disabled={signingLoading}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-md bg-primary px-5 py-3 sm:py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60 transition-colors min-h-[44px]"
-                >
-                  {signingLoading ? (
-                    <><Loader2 className="h-4 w-4 animate-spin" /> Wird vorbereitet…</>
-                  ) : (
-                    <><PenLine className="h-4 w-4" /> Jetzt digital unterschreiben</>
-                  )}
-                </button>
-              )}
+              <label className="flex items-start gap-3 cursor-pointer rounded-lg border border-border bg-popover/50 p-4">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 accent-primary"
+                  checked={confirmed}
+                  onChange={(e) => setConfirmed(e.target.checked)}
+                />
+                <span className="text-sm text-foreground leading-relaxed">
+                  Ich bestätige, dass meine Angaben vollständig und korrekt sind, und akzeptiere die{" "}
+                  <a href="#" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                    AGB
+                  </a>{" "}
+                  von unitex.
+                </span>
+              </label>
 
-              {signingError && (
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={!confirmed || submitting}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-md bg-primary px-5 py-3 sm:py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed transition-colors min-h-[44px]"
+              >
+                {submitting ? (
+                  <><Loader2 className="h-4 w-4 animate-spin" /> Wird eingereicht…</>
+                ) : (
+                  <><FileCheck2 className="h-4 w-4" /> Zur Prüfung einreichen</>
+                )}
+              </button>
+
+              {submitError && (
                 <p className="text-sm text-destructive mt-2 flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 shrink-0" />{signingError}
+                  <AlertTriangle className="h-4 w-4 shrink-0" />{submitError}
                 </p>
               )}
 
-              {signingUrl && (
-                <div className="rounded-xl border border-border overflow-hidden">
-                  <iframe
-                    src={signingUrl}
-                    title="Dokument digital unterschreiben"
-                    className="w-full"
-                    style={{ height: "70vh", border: "none" }}
-                  />
-                </div>
-              )}
-
-              {!signingUrl && !signingLoading && !signingError && (
+              {!submitError && (
                 <p className="text-xs text-secondary mt-2 flex items-start gap-2">
                   <Info className="h-4 w-4 shrink-0 text-primary mt-0.5" />
-                  Die Unterschrift ist rechtsgültig (fortgeschrittene elektronische Signatur) und wird direkt an unitex übermittelt.
+                  Tanja prüft Ihre Angaben und meldet sich, falls noch etwas korrigiert werden muss.
                 </p>
               )}
             </div>
@@ -261,7 +216,7 @@ function KundeAbschlussPage({ unlocked, readOnly = false }: { unlocked: boolean;
         {!submitted && readOnly && (
           <div className="rounded-xl border-2 border-dashed border-border p-8 flex flex-col items-center gap-2 text-center">
             <Info className="h-5 w-5 text-muted" />
-            <p className="text-sm text-secondary">Kunde hat noch nicht digital unterschrieben.</p>
+            <p className="text-sm text-secondary">Kunde hat die Einreichung noch nicht bestätigt.</p>
           </div>
         )}
       </div>
