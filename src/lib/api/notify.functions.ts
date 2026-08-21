@@ -11,6 +11,20 @@ import { Resend } from "resend";
 
 const ABSENDER = "unitex Onboarding <onboarding@unitex.de>";
 
+/**
+ * Sicherheitsnetz fürs Testen: Wenn TEST_EMAIL_OVERRIDE gesetzt ist, geht JEDE
+ * Mail (Tanja, Kundenbetreuer, Kunde) an diese eine Adresse statt an den
+ * echten Empfänger – verhindert, dass Testkunden echte Kolleg:innen anmailen.
+ * Der eigentlich vorgesehene Empfänger bleibt im Betreff sichtbar.
+ */
+function resolveRecipient(realEmail: string, subject: string): { to: string; subject: string } {
+  const override = process.env.TEST_EMAIL_OVERRIDE;
+  if (override) {
+    return { to: override, subject: `[TEST → ${realEmail}] ${subject}` };
+  }
+  return { to: realEmail, subject };
+}
+
 // ---------------------------------------------------------------------------
 // Tanja benachrichtigen: Kunde hat Onboarding zur Prüfung eingereicht
 // ---------------------------------------------------------------------------
@@ -32,10 +46,11 @@ export const notifyReviewSubmitted = createServerFn({ method: "POST" })
     const resend = new Resend(apiKey);
     const memberLabel = data.memberType === "lieferant" ? "Lieferant" : "Händler";
     const reviewUrl = `https://onboarding.unitex.de/admin?customer=${data.customerId}`;
+    const { to, subject } = resolveRecipient(tanjaEmail, `Neue Prüfung erforderlich: ${data.companyName} (${memberLabel})`);
     const { error } = await resend.emails.send({
       from: ABSENDER,
-      to: tanjaEmail,
-      subject: `Neue Prüfung erforderlich: ${data.companyName} (${memberLabel})`,
+      to,
+      subject,
       html: `
         <p>Hallo Tanja,</p>
         <p><strong>${data.companyName}</strong> (${memberLabel}) hat das Onboarding vollständig ausgefüllt und zur Prüfung eingereicht.</p>
@@ -70,10 +85,11 @@ export const notifyNeukundenformularReady = createServerFn({ method: "POST" })
     const resend = new Resend(apiKey);
     const memberLabel = data.memberType === "lieferant" ? "Lieferant" : "Händler";
     const adminUrl = `https://onboarding.unitex.de/admin?customer=${data.customerId}`;
+    const { to, subject } = resolveRecipient(tanjaEmail, `Neukundenformular bereit zur Ablage: ${data.companyName} (${memberLabel})`);
     const { error } = await resend.emails.send({
       from: ABSENDER,
-      to: tanjaEmail,
-      subject: `Neukundenformular bereit zur Ablage: ${data.companyName} (${memberLabel})`,
+      to,
+      subject,
       html: `
         <p>Hallo Tanja,</p>
         <p><strong>${data.companyName}</strong> (${memberLabel}) wurde freigegeben. Das Neukundenformular wurde automatisch erstellt und liegt zur Ablage bereit.</p>
@@ -104,10 +120,11 @@ export const notifyCustomerRejected = createServerFn({ method: "POST" })
       return { sent: false, demo: true };
     }
     const resend = new Resend(apiKey);
+    const { to, subject } = resolveRecipient(data.customerEmail, `Onboarding: Bitte korrigieren Sie einige Angaben`);
     const { error } = await resend.emails.send({
       from: ABSENDER,
-      to: data.customerEmail,
-      subject: `Onboarding: Bitte korrigieren Sie einige Angaben`,
+      to,
+      subject,
       html: `
         <p>Hallo,</p>
         <p>vielen Dank für die Einreichung Ihrer Onboarding-Unterlagen für <strong>${data.companyName}</strong>.</p>
@@ -148,10 +165,11 @@ export const notifyGwgBogenReady = createServerFn({ method: "POST" })
     const resend = new Resend(apiKey);
     const memberLabel = data.memberType === "lieferant" ? "Lieferant" : "Händler";
     const adminUrl = `https://onboarding.unitex.de/admin?customer=${data.customerId}`;
+    const { to, subject } = resolveRecipient(data.betreuerEmail, `GWG-Bogen zur Prüfung: ${data.companyName} (${memberLabel})`);
     const { error } = await resend.emails.send({
       from: ABSENDER,
-      to: data.betreuerEmail,
-      subject: `GWG-Bogen zur Prüfung: ${data.companyName} (${memberLabel})`,
+      to,
+      subject,
       html: `
         <p>Hallo ${data.betreuerName},</p>
         <p><strong>${data.companyName}</strong> (${memberLabel}) wurde freigegeben. Der GWG-Bogen wurde automatisch mit den vorhandenen Daten vorausgefüllt, ist aber nicht vollständig – u.a. PEP-Status, wirtschaftliche Abhängigkeit im Detail und der Bestätigungsblock fehlen noch.</p>
