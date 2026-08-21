@@ -31,6 +31,9 @@ function UploadCenterPage() {
   // Prüfmodus (Option B) – gleiches Prinzip wie in unternehmen.tsx
   const canEditReview = isAdmin && !!state.activeCustomerId;
   const reviewCustomerId = isAdmin ? state.activeCustomerId ?? "" : state.customerId ?? "";
+  const initialCorrections = isAdmin
+    ? (state.customerAccounts.find((a) => a.id === state.activeCustomerId)?.fieldCorrections ?? {})
+    : (state.fieldCorrections ?? {});
 
   const requiredDocs = docs.filter((d) => d.required);
   const allRequiredDone = requiredDocs.every((d) => state.uploadedDocs[d.id]);
@@ -119,7 +122,7 @@ function UploadCenterPage() {
         key={reviewCustomerId || "self"}
         canEdit={canEditReview}
         customerId={reviewCustomerId}
-        initialCorrections={state.fieldCorrections ?? {}}
+        initialCorrections={initialCorrections}
         onPersist={setFieldCorrection}
       >
       <div className="space-y-3">

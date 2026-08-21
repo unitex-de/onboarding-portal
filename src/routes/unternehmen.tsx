@@ -98,6 +98,11 @@ function UnternehmenPage() {
   // eigenen Markierungen, sobald "Nachbesserung nötig" gesetzt wurde.
   const canEditReview = isAdmin && !!state.activeCustomerId;
   const reviewCustomerId = isAdmin ? state.activeCustomerId ?? "" : state.customerId ?? "";
+  // Admin: live aus customerAccounts lesen (wird bei jeder Markierung aktualisiert).
+  // Kunde selbst: aus dem beim Login geladenen Top-Level-State.
+  const initialCorrections = isAdmin
+    ? (state.customerAccounts.find((a) => a.id === state.activeCustomerId)?.fieldCorrections ?? {})
+    : (state.fieldCorrections ?? {});
 
   // ── Grunddaten ──────────────────────────────────────────────────────────────
   const [firmenname, setFirmenname] = useState(state.companyName);
@@ -335,7 +340,7 @@ function UnternehmenPage() {
         key={reviewCustomerId || "self"}
         canEdit={canEditReview}
         customerId={reviewCustomerId}
-        initialCorrections={state.fieldCorrections ?? {}}
+        initialCorrections={initialCorrections}
         onPersist={setFieldCorrection}
       >
       <div className="space-y-6 max-w-4xl">

@@ -131,7 +131,11 @@ export function FieldFlag({ fieldId }: { fieldId: string }) {
         <Flag className="h-3.5 w-3.5" fill={wrong ? "currentColor" : "none"} />
       </button>
       {wrong && (
-        <div className="absolute left-0 top-6 z-20 w-64 rounded-md border border-destructive/30 bg-card p-2 shadow-lg" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="absolute left-0 top-6 z-20 w-64 rounded-md border border-destructive/30 bg-card p-2 shadow-lg"
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+        >
           <textarea
             autoFocus
             rows={2}
