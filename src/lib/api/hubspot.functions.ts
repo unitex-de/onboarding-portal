@@ -83,6 +83,7 @@ interface CompanySyncInput {
   plz?: string;
   ort?: string;
   land?: string;
+  emailFirma?: string;
   umsatz?: string;
   mitarbeiter?: string;
   gruendung?: string;
@@ -90,7 +91,7 @@ interface CompanySyncInput {
   glnNr?: string;
   sortiment?: string[];
   marken?: string;
-  zrVolumen?: string;
+  zrStartDate?: string;
 }
 
 /** Baut die Company-Properties. Nur Felder, die im Formular ausgefüllt sind,
@@ -105,7 +106,10 @@ function buildCompanyProperties(
   if (input.plz) props.zip = input.plz;
   if (input.ort) props.city = input.ort;
   if (input.land) props.country = input.land;
-  if (input.umsatz) props.annualrevenue = input.umsatz;
+  if (input.emailFirma) props.e_mail_adresse = input.emailFirma;
+  // Jahresumsatz: NICHT das HubSpot-Standardfeld annualrevenue (das ist ein
+  // anderes Feld) – die tatsächlich genutzte Property ist n03__umsatz_haus.
+  if (input.umsatz) props.n03__umsatz_haus = input.umsatz;
   if (input.mitarbeiter) props.numberofemployees = input.mitarbeiter;
   if (input.gruendung) props.founded_year = input.gruendung;
   if (input.ustId) props.ust_idnr_ = input.ustId;
@@ -114,7 +118,10 @@ function buildCompanyProperties(
     props.n01__sortiment__geklont_ = input.sortiment.join(";");
   }
   if (input.marken) props.n03__marken__nur_lieferanten_ = input.marken;
-  if (input.zrVolumen) props.n05__umsatz_zr__ca____autom__ = input.zrVolumen;
+  // ZR-Volumen (n05__umsatz_zr__ca____autom__) wird in HubSpot automatisch
+  // berechnet – bewusst NICHT vom Portal aus beschrieben, sonst überschreiben
+  // wir die automatische Berechnung mit einer manuellen Schätzung.
+  if (input.zrStartDate) props.n06__zr_ab = input.zrStartDate;
   props.onboarding_status = "Freigegeben";
   return props;
 }
@@ -157,6 +164,15 @@ function mapJobklassifikation(kind: ContactKind, jobbezeichnung?: string): strin
   if (/geschäftsführ|gesellschafter|inhaber|\bgf\b/.test(text)) return "I/GF";
   if (/buchhaltung|finance|controlling|rechnungswesen/.test(text)) return "Buchhaltung";
   return "Sonstiges";
+}
+
+/** Kehrt mapJobklassifikation um: schätzt aus einer HubSpot-Jobklassifikation
+ *  die passende Portal-Kontaktrolle für den Import. Bei Unsicherheit "extra" –
+ *  der Kundenbetreuer/Kunde wählt die Rolle dann im Portal selbst nach. */
+function guessContactKind(jobklassifikation?: string): ContactKind {
+  if (jobklassifikation === "I/GF") return "gf";
+  if (jobklassifikation === "Buchhaltung") return "buchhaltung";
+  return "extra";
 }
 
 function buildContactProperties(
@@ -265,6 +281,7 @@ export const syncCustomerToHubspot = createServerFn({ method: "POST" })
       plz: z.string().optional(),
       ort: z.string().optional(),
       land: z.string().optional(),
+      emailFirma: z.string().optional(),
       umsatz: z.string().optional(),
       mitarbeiter: z.string().optional(),
       gruendung: z.string().optional(),
@@ -272,7 +289,7 @@ export const syncCustomerToHubspot = createServerFn({ method: "POST" })
       glnNr: z.string().optional(),
       sortiment: z.array(z.string()).optional(),
       marken: z.string().optional(),
-      zrVolumen: z.string().optional(),
+      zrStartDate: z.string().optional(),
       contacts: z
         .array(
           z.object({
@@ -523,7 +540,9 @@ async function searchCandidatesByCompanyName(token: string, name: string): Promi
 }
 
 /** Sucht HubSpot-Kandidaten (Firma + Kontakt) für den "Neuer Kunde"-Dialog,
- *  entweder per Kontakt-E-Mail oder per Firmennamen-Teiltreffer. */
+ *  entweder per Kontakt-E-Mail oder per Firmennamen-Teiltreffer. Bewusst
+ *  schlank gehalten (wenige Properties) – für die volle Vorbefüllung nach
+ *  Auswahl eines Treffers siehe importHubspotCompanyData unten. */
 export const searchHubspotCandidates = createServerFn({ method: "POST" })
   .validator(
     z.object({
@@ -543,4 +562,142 @@ export const searchHubspotCandidates = createServerFn({ method: "POST" })
         : await searchCandidatesByCompanyName(token, data.query);
 
     return { candidates, demo: false };
+  });
+
+// ---------------------------------------------------------------------------
+// HubSpot -> Portal: volle Firmen-/Kontaktdaten für die Stammdaten-
+// Vorbefüllung. Wird aufgerufen, NACHDEM der Nutzer eine Firma aus der
+// Trefferliste von searchHubspotCandidates ausgewählt hat.
+// ---------------------------------------------------------------------------
+
+const IMPORT_COMPANY_PROPERTIES = [
+  "name",
+  "address",
+  "address2",
+  "zip",
+  "city",
+  "country",
+  "e_mail_adresse",
+  "website",
+  "domain",
+  "n06__zr_ab",
+  "ust_idnr_",
+  "n04__gln",
+  "n03__umsatz_haus",
+  "n01__sortiment__geklont_",
+  "labels2",
+];
+
+const IMPORT_CONTACT_PROPERTIES = [
+  "firstname",
+  "lastname",
+  "mobilephone",
+  "phone",
+  "email",
+  "jobtitle",
+  "jobklassifikation",
+];
+
+export interface HubspotImportContact {
+  kind: ContactKind;
+  vorname: string;
+  nachname: string;
+  handy: string;
+  telefon: string;
+  email: string;
+  jobbezeichnung?: string;
+}
+
+export interface HubspotImportData {
+  companyName: string;
+  strasse?: string;
+  plz?: string;
+  ort?: string;
+  land?: string;
+  webseite?: string;
+  emailFirma?: string;
+  zrStartDate?: string;
+  ustId?: string;
+  glnNr?: string;
+  umsatz?: string;
+  sortiment?: string[];
+  memberTypeGuess?: "händler" | "lieferant";
+  contacts: HubspotImportContact[];
+}
+
+async function getCompanyContacts(token: string, companyId: string): Promise<any[]> {
+  const contactIds = await getAssociatedIds(token, "company", companyId, "contact");
+  const contacts: any[] = [];
+  for (const id of contactIds) {
+    const contact = await hubspotFetch(
+      token,
+      `/crm/v3/objects/contacts/${id}?properties=${IMPORT_CONTACT_PROPERTIES.join(",")}`,
+      { method: "GET" },
+    );
+    if (contact.ok && contact.body) contacts.push(contact.body);
+  }
+  return contacts;
+}
+
+export const importHubspotCompanyData = createServerFn({ method: "POST" })
+  .validator(z.object({ companyId: z.string() }))
+  .handler(async ({ data }) => {
+    const token = process.env.HUBSPOT_ACCESS_TOKEN;
+    if (!token) {
+      return { imported: false as const, demo: true };
+    }
+
+    const { ok, body: company } = await hubspotFetch(
+      token,
+      `/crm/v3/objects/companies/${data.companyId}?properties=${IMPORT_COMPANY_PROPERTIES.join(",")}`,
+      { method: "GET" },
+    );
+    if (!ok || !company) {
+      return { imported: false as const, demo: false, error: "Firma nicht gefunden" };
+    }
+    const p = company.properties ?? {};
+
+    const rawContacts = await getCompanyContacts(token, data.companyId);
+    const contacts: HubspotImportContact[] = rawContacts.map((c) => {
+      const cp = c.properties ?? {};
+      return {
+        kind: guessContactKind(cp.jobklassifikation),
+        vorname: cp.firstname ?? "",
+        nachname: cp.lastname ?? "",
+        handy: cp.mobilephone ?? "",
+        telefon: cp.phone ?? "",
+        email: cp.email ?? "",
+        jobbezeichnung: cp.jobtitle || undefined,
+      };
+    });
+
+    // Straße + Hausnummer: HubSpot trennt in address/address2, das Portal
+    // hat aktuell nur ein zusammenhängendes "strasse"-Feld -> zusammenfügen.
+    // Falls es im Portal doch ein separates Hausnummer-Feld gibt, hier Bescheid
+    // geben, dann trenne ich das sauber auf.
+    const strasse = [p.address, p.address2].filter(Boolean).join(" ").trim() || undefined;
+
+    const result: HubspotImportData = {
+      companyName: p.name ?? "",
+      strasse,
+      plz: p.zip || undefined,
+      ort: p.city || undefined,
+      land: p.country || undefined,
+      webseite: p.website || p.domain || undefined,
+      emailFirma: p.e_mail_adresse || undefined,
+      zrStartDate: p.n06__zr_ab || undefined,
+      ustId: p.ust_idnr_ || undefined,
+      glnNr: p.n04__gln || undefined,
+      umsatz: p.n03__umsatz_haus || undefined,
+      sortiment: p.n01__sortiment__geklont_
+        ? p.n01__sortiment__geklont_
+            .split(";")
+            .map((s: string) => s.trim())
+            .filter(Boolean)
+        : undefined,
+      memberTypeGuess: deriveMemberTypeGuess(p.labels2),
+      contacts,
+    };
+
+    return { imported: true as const, demo: false, data: result };
   });

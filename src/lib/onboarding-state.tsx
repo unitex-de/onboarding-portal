@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, useCallback, useRef, type ReactNode } from "react";
 import { supabase } from "./supabase";
 import { notifyReviewSubmitted, notifyCustomerRejected, notifyNeukundenformularReady, notifyGwgBogenReady } from "./api/notify.functions";
-import { syncCustomerToHubspot } from "./api/hubspot.functions";
+import { syncCustomerToHubspot, importHubspotCompanyData, type HubspotImportData } from "./api/hubspot.functions";
 import { generateNeukundenPdfFilled, generateLieferantPdfFilled } from "./pdf-form-filler";
 import { generateGwgBogenHaendlerPdf } from "./gwg_bogen_filler";
 
@@ -436,6 +436,7 @@ interface Ctx {
   removeCollaborator: (id: string) => Promise<void>;
   addCustomerAccount: (acc: Omit<CustomerAccount, "id" | "createdAt" | "magicLinkSent" | "magicToken" | "status" | "linkSentAt" | "uploadedDocs" | "completedSections">) => Promise<CustomerAccount>;
   updateCustomerAccount: (id: string, patch: Partial<CustomerAccount>) => Promise<void>;
+  importFromHubspot: (hubspotCompanyId: string, customerIdOverride?: string) => Promise<{ ok: true; data: HubspotImportData } | { ok: false; demo?: boolean; error?: string }>;
   reviewCustomer: (id: string, decision: "Freigegeben" | "Nachbesserung nötig", note?: string) => Promise<void>;
   setFieldCorrection: (customerId: string, fieldId: string, correction: { wrong: boolean; comment: string } | null) => Promise<void>;
   sendMagicLink: (id: string) => Promise<void>;
@@ -922,6 +923,72 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       ),
     }));
   }, []);
+
+  // ---------------------------------------------------------------------------
+  // Kunden aus HubSpot holen
+  // ---------------------------------------------------------------------------
+
+  const importFromHubspot = useCallback(async (hubspotCompanyId: string, customerIdOverride?: string) => {
+    const result = await importHubspotCompanyData({ data: { companyId: hubspotCompanyId } });
+      if (!result.imported) {
+      return {
+        ok: false as const,
+        demo: "demo" in result ? result.demo : false,
+        error: "error" in result ? result.error : undefined,
+      };
+    }
+
+    const customerId = customerIdOverride ?? (await resolveCustomerId());
+    if (!customerId) return { ok: false as const };
+
+    const d: HubspotImportData = result.data;
+    const current = stateRef.current.customerAccounts.find((a) => a.id === customerId);
+    const existing = current?.savedFormData ?? {};
+
+    // Top-Level-Felder auf dem Kundenkonto (nicht Teil von savedFormData)
+    const accountPatch: Partial<CustomerAccount> = {};
+    if (d.companyName && !current?.companyName) accountPatch.companyName = d.companyName;
+    if (d.plz && !current?.postalCode) accountPatch.postalCode = d.plz;
+    if (d.land && !current?.country) accountPatch.country = d.land;
+    if (d.zrStartDate && !current?.zrStartDate) accountPatch.zrStartDate = d.zrStartDate;
+    if (Object.keys(accountPatch).length > 0) {
+      await updateCustomerAccount(customerId, accountPatch);
+    }
+
+    // Stammdaten-Felder – nur befüllen, was noch leer ist
+    const formPatch: Partial<SavedFormData> = {};
+    if (d.strasse && !existing.strasse) formPatch.strasse = d.strasse;
+    if (d.plz && !existing.plz) formPatch.plz = d.plz;
+    if (d.ort && !existing.ort) formPatch.ort = d.ort;
+    if (d.land && !existing.land) formPatch.land = d.land;
+    if (d.webseite && !existing.webseite) formPatch.webseite = d.webseite;
+    if (d.emailFirma && !existing.emailFirma) formPatch.emailFirma = d.emailFirma;
+    if (d.ustId && !existing.ustId) formPatch.ustId = d.ustId;
+    if (d.glnNr && !existing.glnNr) formPatch.glnNr = d.glnNr;
+    if (d.umsatz && !existing.umsatz) formPatch.umsatz = d.umsatz;
+    if (d.sortiment && d.sortiment.length > 0 && (!existing.sortiment || existing.sortiment.length === 0)) {
+      formPatch.sortiment = d.sortiment;
+    }
+    if (d.contacts.length > 0 && (!existing.contacts || existing.contacts.length === 0)) {
+      formPatch.contacts = d.contacts.map((c) => ({
+        kind: c.kind,
+        vorname: c.vorname,
+        nachname: c.nachname,
+        handy: c.handy,
+        telefon: c.telefon,
+        email: c.email,
+        jobbezeichnung: c.jobbezeichnung,
+        newsletterHandy: false,
+        newsletterEmail: false,
+      }));
+    }
+    if (Object.keys(formPatch).length > 0) {
+      await updateFormData(formPatch);
+    }
+
+    return { ok: true as const, data: d };
+  }, [resolveCustomerId, updateCustomerAccount, updateFormData]);
+
   // ---------------------------------------------------------------------------
   // Prüfung entscheiden (Admin/Tanja): Freigabe oder Nachbesserung nötig
   // ---------------------------------------------------------------------------
@@ -1031,6 +1098,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
               plz: sd.plz,
               ort: sd.ort,
               land: sd.land,
+              emailFirma: sd.emailFirma,
               umsatz: sd.umsatz,
               mitarbeiter: sd.mitarbeiter,
               gruendung: sd.gruendung,
@@ -1038,7 +1106,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
               glnNr: sd.glnNr,
               sortiment,
               marken,
-              zrVolumen: sd.zrVolumen,
+              zrStartDate: target.zrStartDate,
               contacts: rawContacts.map((c) => ({
                 kind: c.kind,
                 vorname: c.vorname,
@@ -1263,6 +1331,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       removeCollaborator,
       addCustomerAccount,
       updateCustomerAccount,
+      importFromHubspot,
       reviewCustomer,
       setFieldCorrection,
       sendMagicLink,
@@ -1270,7 +1339,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       reset,
     }),
     [state, loading, update, uploadDoc, removeDoc, completeSection, updateFormData, submitForReview,
-     inviteCollaborator, fetchCollaborators, removeCollaborator, addCustomerAccount, updateCustomerAccount, reviewCustomer, setFieldCorrection, sendMagicLink, refreshCustomers, reset]
+     inviteCollaborator, fetchCollaborators, removeCollaborator, addCustomerAccount, updateCustomerAccount, reviewCustomer, setFieldCorrection, sendMagicLink, refreshCustomers, reset, importFromHubspot]
   );
 
   return <OnboardingCtx.Provider value={value}>{children}</OnboardingCtx.Provider>;

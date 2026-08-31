@@ -25,7 +25,6 @@ import type { OnboardingState } from "./onboarding-state";
 // ─────────────────────────────────────────────────────────────────────────
 
 const TEMPLATE_PATH_HAENDLER = "/gwg-bogen-haendler-vorlage.pdf";
-
 const PAGE_H = 841.89; // A4 Punkt-Höhe, nur zur Orientierung in den Kommentaren
 
 function drawText(page: PDFPage, font: PDFFont, text: string, x: number, y: number, size = 9) {
@@ -68,8 +67,8 @@ export async function generateGwgBogenHaendlerPdf(
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const p1 = pdfDoc.getPage(0);
   const p2 = pdfDoc.getPage(1);
-  const fd = state.savedFormData ?? {};
 
+  const fd = state.savedFormData ?? {};
   const gf = fd.contacts?.find((c) => c.kind === "gf");
   const gfName = gf ? `${gf.vorname ?? ""} ${gf.nachname ?? ""}`.trim() : "";
 
@@ -84,10 +83,12 @@ export async function generateGwgBogenHaendlerPdf(
   }
 
   // ── Angaben zur Zentralregulierung ────────────────────────────────────
+  // x korrigiert: landete vorher noch im Label-Bereich statt in der Box
+  // (Box beginnt bei x≈221) – jetzt mit ~4pt Innenabstand zur Box-Kante.
   if (state.zrStartDate) {
-    drawText(p1, font, formatDateDE(state.zrStartDate), 195, 686);
+    drawText(p1, font, formatDateDE(state.zrStartDate), 225, 686);
   }
-  drawText(p1, font, fd.zrVolumen ?? "", 210, 663);
+  drawText(p1, font, fd.zrVolumen ?? "", 225, 663);
 
   // ── Prüfung Vollständigkeit der Unterlagen (aus uploadedDocs abgeleitet) ─
   // Linke Spalte x≈184, rechte Spalte x≈537. SEPA-Mandat hat keine
@@ -100,12 +101,17 @@ export async function generateGwgBogenHaendlerPdf(
   if (opts.neukundenformularUploaded) drawCheck(p1, font, 184, 564);       // Neukundenformular (links)
 
   // ── Angaben zum Unternehmen ────────────────────────────────────────────
-  // Y-Werte angehoben: vorher zu niedrig (unterhalb statt innerhalb der Box).
-  drawText(p1, font, fd.umsatz ?? "", 115, 519);
+  // Y-Werte bereits korrekt (Vorlauf-Fix von letzter Session, gegen die
+  // reale Vorlage verifiziert). X korrigiert bei den drei LINKEN Feldern
+  // (Handelsumsatz/WKV/Bilanzsumme) – lagen deutlich vor der Box statt drin;
+  // Box beginnt bei x≈182, jetzt mit ~4pt Innenabstand. Die rechten drei
+  // Felder (Mitarbeiter/Gründung/Steuernummer) waren schon korrekt, x
+  // unverändert gelassen.
+  drawText(p1, font, fd.umsatz ?? "", 186, 519);
   drawText(p1, font, fd.mitarbeiter ?? "", 460, 519);
-  drawText(p1, font, fd.wkvDeckungsbeitrag ?? "", 130, 496);
+  drawText(p1, font, fd.wkvDeckungsbeitrag ?? "", 186, 496);
   drawText(p1, font, formatDateDE(fd.gruendung), 470, 496);
-  drawText(p1, font, fd.bilanzsumme ?? "", 105, 474);
+  drawText(p1, font, fd.bilanzsumme ?? "", 186, 474);
   drawText(p1, font, fd.steuernummer ?? "", 460, 474);
 
   // ── Wirtschaftliche Abhängigkeit ───────────────────────────────────────
@@ -117,11 +123,14 @@ export async function generateGwgBogenHaendlerPdf(
   }
 
   // ── Gesellschafter-Tabelle (bis zu 6 Zeilen) ──────────────────────────
+  // Name/y/PEP-Checkbox bereits korrekt (letzte Session). Kapital- und
+  // Stimmrechtsanteile x korrigiert: saßen noch vor der jeweiligen
+  // Unterschreibungslinie statt darüber (~+13/+12pt).
   const rowY = [237, 212, 188, 164, 136, 112];
   (fd.shareholders ?? []).slice(0, 6).forEach((s, i) => {
     drawText(p1, font, s.name ?? "", 132, rowY[i]);
-    drawText(p1, font, s.capital ?? "", 355, rowY[i]);
-    drawText(p1, font, s.voting ?? "", 435, rowY[i]);
+    drawText(p1, font, s.capital ?? "", 368, rowY[i]);
+    drawText(p1, font, s.voting ?? "", 447, rowY[i]);
     if (s.pep) drawCheck(p1, font, 523, rowY[i]);
   });
 

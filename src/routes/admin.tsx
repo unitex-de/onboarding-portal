@@ -39,7 +39,7 @@ const STATUS_LABELS: Record<CustomerStatus, { label: string; color: string }> = 
 
 function AdminPage() {
   const navigate = useNavigate();
-  const { state, update, addCustomerAccount, sendMagicLink } = useOnboarding();
+  const { state, update, addCustomerAccount, sendMagicLink, importFromHubspot } = useOnboarding();
 
   // Zugriffsschutz: ohne eingeloggten Admin geht's zurück zur internen Anmeldung
   useEffect(() => {
@@ -77,6 +77,7 @@ function AdminPage() {
   const [hubspotSearching, setHubspotSearching] = useState(false);
   const [hubspotHasSearched, setHubspotHasSearched] = useState(false);
   const [hubspotCandidates, setHubspotCandidates] = useState<HubspotCandidate[]>([]);
+  const [selectedHubspotCompanyId, setSelectedHubspotCompanyId] = useState<string | null>(null);
 
   // Filtered accounts
   const filtered = useMemo(() => {
@@ -107,6 +108,7 @@ function AdminPage() {
     setHubspotSearching(false);
     setHubspotHasSearched(false);
     setHubspotCandidates([]);
+    setSelectedHubspotCompanyId(null);
   };
 
   const handleOpenCreate = () => {
@@ -145,6 +147,7 @@ function AdminPage() {
     if (candidate.postalCode) setPostalCode(candidate.postalCode);
     if (candidate.country) setCountry(candidate.country);
     if (candidate.memberTypeGuess) setMemberType(candidate.memberTypeGuess);
+    setSelectedHubspotCompanyId(candidate.companyId);
     setCreateSource("manual");
   };
 
@@ -179,6 +182,23 @@ function AdminPage() {
         savedFormData: {},
         fieldCorrections: {},
       });
+
+      // Falls über HubSpot ausgewählt: volle Stammdaten (Adresse, USt-ID,
+      // Sortiment, alle Kontakte) importieren. Läuft bewusst NACH dem
+      // update() oben, sonst würde savedFormData: {} den Import überschreiben.
+      // customerIdOverride nötig, da state.activeCustomerId aus dem update()
+      // oben hier noch nicht committed ist.
+      if (selectedHubspotCompanyId) {
+        try {
+          await importFromHubspot(selectedHubspotCompanyId, acc.id);
+        } catch (importErr) {
+          console.error(
+            "HubSpot-Stammdaten-Import fehlgeschlagen (Account wurde trotzdem angelegt):",
+            importErr,
+          );
+        }
+      }
+
       navigate({ to: "/dashboard" });
     } catch (err) {
       console.error("Fehler beim Anlegen:", err);
@@ -495,6 +515,10 @@ function AdminPage() {
 
                   {!hubspotSearching && hubspotCandidates.length > 0 && (
                     <div className="space-y-2">
+                      <p className="text-xs text-secondary">
+                        Beim Anlegen werden zusätzlich Adresse, USt-ID, Sortiment und alle
+                        verknüpften Kontakte aus HubSpot übernommen.
+                      </p>
                       {hubspotCandidates.map((c) => (
                         <button
                           key={`${c.companyId}-${c.contactId}`}

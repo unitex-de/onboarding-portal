@@ -1,10 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { Check, Info, Lock, Plus, Trash2, HelpCircle } from "lucide-react";
+import { Check, Info, Lock, Plus, Trash2, HelpCircle, Cloud, Loader2, Search, X } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { FormSection, Field, AutoSaveInput, MaskedInput, inputClass, FieldReviewProvider, FieldFlag } from "@/components/forms/FormSection";
 import { useOnboarding, type LegalForm, getSectionIds } from "@/lib/onboarding-state";
 import { ConfettiPopup } from "@/components/ui/ConfettiPopup";
+import { searchHubspotCandidates, type HubspotCandidate } from "@/lib/api/hubspot.functions";
 
 export const Route = createFileRoute("/unternehmen")({
   head: () => ({ meta: [{ title: "Unternehmen | unitex Onboarding" }] }),
@@ -89,7 +90,7 @@ const SORTIMENT_OPTIONS = ["DOB", "HAKA", "KIKO", "Schuhe", "Accessoires", "Wäs
 
 function UnternehmenPage() {
   const navigate = useNavigate();
-  const { state, update, updateFormData, completeSection, setFieldCorrection } = useOnboarding();
+  const { state, update, updateFormData, completeSection, setFieldCorrection, importFromHubspot } = useOnboarding();
   const legalForm: LegalForm = state.legalForm ?? "GmbH";
   const isLieferant = state.memberType === "lieferant";
   const isAdmin = state.role === "admin";
@@ -111,6 +112,80 @@ function UnternehmenPage() {
   const [ort, setOrt] = useState(state.savedFormData?.ort ?? "");
   const [land, setLand] = useState(state.savedFormData?.land ?? "DE");
   const [emailFirma, setEmailFirma] = useState(state.savedFormData?.emailFirma ?? "");
+
+  // ── HubSpot-Import ──────────────────────────────────────────────────────────
+  const [showHubspotImport, setShowHubspotImport] = useState(false);
+  const [hubspotSearchMode, setHubspotSearchMode] = useState<"email" | "company">("company");
+  const [hubspotQuery, setHubspotQuery] = useState("");
+  const [hubspotSearching, setHubspotSearching] = useState(false);
+  const [hubspotHasSearched, setHubspotHasSearched] = useState(false);
+  const [hubspotCandidates, setHubspotCandidates] = useState<HubspotCandidate[]>([]);
+  const [hubspotImporting, setHubspotImporting] = useState(false);
+  const [hubspotImportError, setHubspotImportError] = useState<string | null>(null);
+
+  const resetHubspotImport = () => {
+    setHubspotSearchMode("company");
+    setHubspotQuery(firmenname || "");
+    setHubspotSearching(false);
+    setHubspotHasSearched(false);
+    setHubspotCandidates([]);
+    setHubspotImporting(false);
+    setHubspotImportError(null);
+  };
+
+  const handleOpenHubspotImport = () => {
+    resetHubspotImport();
+    setShowHubspotImport(true);
+  };
+
+  const handleCloseHubspotImport = () => {
+    if (hubspotImporting) return; // während des Imports nicht schließbar
+    setShowHubspotImport(false);
+  };
+
+  const handleHubspotSearch = async () => {
+    if (!hubspotQuery.trim()) return;
+    setHubspotSearching(true);
+    setHubspotHasSearched(false);
+    try {
+      const result = await searchHubspotCandidates({
+        data: { mode: hubspotSearchMode, query: hubspotQuery.trim() },
+      });
+      setHubspotCandidates(result.candidates);
+    } catch (err) {
+      console.error("Fehler bei der HubSpot-Suche:", err);
+      setHubspotCandidates([]);
+    } finally {
+      setHubspotSearching(false);
+      setHubspotHasSearched(true);
+    }
+  };
+
+  const handleSelectHubspotCandidateForImport = async (candidate: HubspotCandidate) => {
+    setHubspotImporting(true);
+    setHubspotImportError(null);
+    try {
+      const result = await importFromHubspot(candidate.companyId);
+      if (!result.ok) {
+        setHubspotImportError(
+          result.demo
+            ? "HubSpot ist nicht verbunden (Demo-Modus)."
+            : result.error ?? "Import fehlgeschlagen."
+        );
+        setHubspotImporting(false);
+        return;
+      }
+      // Seite neu laden, damit alle lokalen Feld-States (strasse, plz, umsatz,
+      // contacts, ...) die importierten Werte übernehmen. Diese Felder werden
+      // aktuell nur einmalig beim Mount aus state.savedFormData befüllt und
+      // syncen sich nicht automatisch bei externen Änderungen.
+      window.location.reload();
+    } catch (err) {
+      console.error("HubSpot-Import fehlgeschlagen:", err);
+      setHubspotImportError("Import fehlgeschlagen, siehe Konsole.");
+      setHubspotImporting(false);
+    }
+  };
   // PLZ → Ort Autofill (nur DE, nur wenn Ort noch leer)
   useEffect(() => {
     if (land !== "DE" || !/^\d{5}$/.test(plz) || ort.trim() !== "") return;
@@ -360,6 +435,122 @@ function UnternehmenPage() {
           </button>
         </div>
       )}
+
+      {isAdmin && !isLieferant && (
+        <div className="mb-4 flex items-center gap-3 rounded-md border border-dashed border-border bg-popover/40 px-4 py-3">
+          <span className="text-xs text-secondary">
+            Befüllt leere Felder (Adresse, USt-ID, Sortiment, Kontakte) aus einer bestehenden
+            HubSpot-Firma. Bereits ausgefüllte Felder bleiben unangetastet.
+          </span>
+          <button
+            type="button"
+            onClick={handleOpenHubspotImport}
+            className="ml-auto shrink-0 inline-flex items-center gap-1.5 rounded-md border border-primary/40 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10"
+          >
+            <Cloud className="h-3.5 w-3.5" />
+            Aus HubSpot importieren
+          </button>
+        </div>
+      )}
+
+      {showHubspotImport && (
+        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-6">
+          <div className="w-full max-w-lg rounded-2xl border border-border bg-card overflow-hidden max-h-[90vh] overflow-y-auto">
+            <header className="flex items-center justify-between border-b border-border px-6 py-4 sticky top-0 bg-card z-10">
+              <h2 className="font-display text-lg font-semibold">Firma aus HubSpot importieren</h2>
+              <button onClick={handleCloseHubspotImport} className="text-muted hover:text-foreground" disabled={hubspotImporting}>
+                <X className="h-5 w-5" />
+              </button>
+            </header>
+            <div className="p-6 space-y-4">
+              <div className="space-y-1">
+                <label className="text-xs text-secondary uppercase tracking-wide">Suche nach</label>
+                <div className="grid grid-cols-2 gap-2 p-1 rounded-lg bg-popover">
+                  {(["company", "email"] as const).map((m) => (
+                    <button
+                      key={m} type="button" onClick={() => setHubspotSearchMode(m)}
+                      disabled={hubspotImporting}
+                      className={[
+                        "rounded-md py-2 text-sm font-medium transition-colors",
+                        hubspotSearchMode === m ? "bg-primary text-primary-foreground" : "text-secondary hover:text-foreground",
+                      ].join(" ")}
+                    >
+                      {m === "email" ? "E-Mail" : "Firmenname"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs text-secondary uppercase tracking-wide">
+                  {hubspotSearchMode === "email" ? "E-Mail-Adresse" : "Firmenname"}
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type={hubspotSearchMode === "email" ? "email" : "text"}
+                    disabled={hubspotImporting}
+                    className="w-full rounded-md border border-border bg-popover px-3 py-2 text-sm focus:border-primary focus:outline-none"
+                    value={hubspotQuery} onChange={(e) => setHubspotQuery(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleHubspotSearch()}
+                    placeholder={hubspotSearchMode === "email" ? "name@firma.de" : "Muster Textil"}
+                  />
+                  <button
+                    type="button" onClick={handleHubspotSearch}
+                    disabled={!hubspotQuery.trim() || hubspotSearching || hubspotImporting}
+                    className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {hubspotSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                    Suchen
+                  </button>
+                </div>
+              </div>
+
+              {hubspotSearching && (
+                <div className="rounded-lg border border-border px-4 py-6 text-center text-sm text-secondary">
+                  <Loader2 className="mx-auto h-5 w-5 animate-spin text-primary mb-2" />
+                  Suche läuft...
+                </div>
+              )}
+
+              {!hubspotSearching && hubspotHasSearched && hubspotCandidates.length === 0 && (
+                <div className="rounded-lg border border-border px-4 py-6 text-center text-sm text-secondary">
+                  Keine Treffer gefunden.
+                </div>
+              )}
+
+              {hubspotImportError && (
+                <div className="rounded-lg bg-red-500/10 border border-red-500/20 px-4 py-3 text-xs text-red-400">
+                  {hubspotImportError}
+                </div>
+              )}
+
+              {!hubspotSearching && hubspotCandidates.length > 0 && (
+                <div className="space-y-2">
+                  {hubspotCandidates.map((c) => (
+                    <button
+                      key={`${c.companyId}-${c.contactId}`}
+                      type="button"
+                      disabled={hubspotImporting}
+                      onClick={() => handleSelectHubspotCandidateForImport(c)}
+                      className="w-full text-left rounded-md border border-border bg-popover px-3 py-2.5 text-sm hover:border-primary transition-colors disabled:opacity-50"
+                    >
+                      <p className="font-medium text-foreground truncate flex items-center gap-2">
+                        {c.companyName}
+                        {c.domain && <span className="text-secondary font-normal">· {c.domain}</span>}
+                        {hubspotImporting && <Loader2 className="h-3.5 w-3.5 animate-spin text-primary ml-auto shrink-0" />}
+                      </p>
+                      <p className="text-xs text-secondary mt-0.5 truncate">
+                        {c.firstName} {c.lastName} · {c.email}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
 
       <FieldReviewProvider
         key={reviewCustomerId || "self"}
