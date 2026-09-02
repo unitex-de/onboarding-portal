@@ -1084,8 +1084,8 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
                 handy: "",
                 telefon: "",
                 jobbezeichnung: "",
-                newsletterHandy: false,
-                newsletterEmail: false,
+                newsletterHandy: true,
+                newsletterEmail: true,
               }];
 
           await syncCustomerToHubspot({

@@ -29,6 +29,10 @@ const SONDER_TOOLTIP =
   "Diese Firmen benötigen eine aktive Bestätigung zur Zentralregulierung über unitex.";
 const UMSATZ_TOOLTIP =
   "Bitte tragen Sie den Nettoumsatz des letzten abgeschlossenen Geschäftsjahres ein.";
+const MITARBEITER_TOOLTIP =
+  "Bitte geben Sie die gerundete Anzahl an Vollzeitäquivalenten (FTE) an.";
+const ZR_VOLUMEN_TOOLTIP =
+  "Ihr geschätztes jährliches Handelsvolumen, das über die Zentralregulierung (ZR) abgewickelt wird. Schätzen Sie es anhand des Anteils der ZR-Marken in Ihrem Sortiment.";
 
 const JOB_TYPES = ["Inhaber", "Geschäftsführer", "Buchhaltung", "Vertrieb", "Marketing", "Sonstige"] as const;
 type JobType = typeof JOB_TYPES[number];
@@ -55,8 +59,8 @@ function newContact(kind: ContactBlock["kind"]): ContactBlock {
     telefon: "",
     email: "",
     jobbezeichnung: "",
-    newsletterHandy: false,
-    newsletterEmail: false,
+    newsletterHandy: true,
+    newsletterEmail: true,
     kind,
   };
 }
@@ -264,6 +268,8 @@ function UnternehmenPage() {
   const [bilanzsumme, setBilanzsumme] = useState(state.savedFormData?.bilanzsumme ?? "");
   const [wkvDeckungsbeitrag, setWkvDeckungsbeitrag] = useState(state.savedFormData?.wkvDeckungsbeitrag ?? "");
   const [umsatzTooltip, setUmsatzTooltip] = useState(false);
+  const [mitarbeiterTooltip, setMitarbeiterTooltip] = useState(false);
+  const [zrVolumenTooltip, setZrVolumenTooltip] = useState(false);
   const [sortiment, setSortiment] = useState<string[]>(
     Array.isArray(state.savedFormData?.sortiment)
       ? (state.savedFormData.sortiment as unknown as string[])
@@ -680,7 +686,7 @@ function UnternehmenPage() {
                         <input type="checkbox" className="mt-0.5 h-3.5 w-3.5 accent-primary"
                           checked={c.newsletterHandy}
                           onChange={(e) => updateContact(c.id, { newsletterHandy: e.target.checked })} />
-                        <span>Einwilligung zum Newsletter per SMS</span>
+                        <span>Einwilligung zum Erhalten des Newsletter per WhatsApp</span>
                       </label>
                     )}
                   </div>
@@ -704,7 +710,7 @@ function UnternehmenPage() {
                     </label>
                   )}
                   <p className="text-[11px] text-muted mt-1">
-                    <br /> Mit dem Setzen des Newsletter-Häkchens erteilen Sie die Einwilligung zur Kontaktaufnahme zu Neuigkeiten, Aktionen und Informationen von unitex per E-Mail bzw. SMS. Diese Einwilligung kann jederzeit widerrufen werden.
+                    <br /> Mit dem Setzen des Newsletter-Häkchens erteilen Sie die Einwilligung zur Kontaktaufnahme zu Neuigkeiten, Aktionen und Informationen von unitex per E-Mail bzw. WhatsApp. Diese Einwilligung kann jederzeit widerrufen werden.
                   </p>
                 </div>
               </div>
@@ -950,20 +956,62 @@ function UnternehmenPage() {
                     value={umsatz} onChange={(e) => setUmsatz(e.target.value)} required />
                 </div>
 
-                <Field label="Mitarbeiterzahl" fieldId="mitarbeiter">
-                  <MaskedInput mask="digits" inputMode="numeric" className={inputClass}
-                    placeholder="z.B. 50"
-                    value={mitarbeiter} onChange={(e) => setMitarbeiter(e.target.value)} required />
-                </Field>
+                <div className="space-y-1.5">
+                <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-secondary">
+                  <span>
+                    Mitarbeiterzahl <span className="text-primary">*</span>
+                  </span>
+                  <div className="relative font-normal normal-case tracking-normal">
+                    <button type="button"
+                      className="text-muted hover:text-primary transition-colors"
+                      onMouseEnter={() => setMitarbeiterTooltip(true)}
+                      onMouseLeave={() => setMitarbeiterTooltip(false)}
+                      onClick={() => setMitarbeiterTooltip((v) => !v)}
+                      aria-label="Mitarbeiterzahl erklären"
+                    >
+                      <HelpCircle className="h-3.5 w-3.5" />
+                    </button>
+                    {mitarbeiterTooltip && (
+                      <div className="absolute left-6 top-1/2 -translate-y-1/2 z-30 w-64 rounded-xl border border-border bg-card p-3 text-xs text-secondary shadow-xl leading-relaxed">
+                        {MITARBEITER_TOOLTIP}
+                      </div>
+                    )}
+                  </div>
+                  <FieldFlag fieldId="mitarbeiter" />
+                </div>
+                <MaskedInput mask="digits" inputMode="numeric" className={inputClass}
+                  placeholder="z.B. 50"
+                  value={mitarbeiter} onChange={(e) => setMitarbeiter(e.target.value)} required />
+              </div>
                 <Field label="Gründungsdatum" fieldId="gruendung">
                   <AutoSaveInput type="date" className={inputClass}
                     value={gruendung} onChange={(e) => setGruendung(e.target.value)} required />
                 </Field>
 
-                <Field label="ZR-Volumen (€)" required={false} fieldId="zrVolumen">
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-secondary">
+                    <span>ZR-Volumen (€)</span>
+                    <div className="relative font-normal normal-case tracking-normal">
+                      <button type="button"
+                        className="text-muted hover:text-primary transition-colors"
+                        onMouseEnter={() => setZrVolumenTooltip(true)}
+                        onMouseLeave={() => setZrVolumenTooltip(false)}
+                        onClick={() => setZrVolumenTooltip((v) => !v)}
+                        aria-label="ZR-Volumen erklären"
+                      >
+                        <HelpCircle className="h-3.5 w-3.5" />
+                      </button>
+                      {zrVolumenTooltip && (
+                        <div className="absolute left-6 top-1/2 -translate-y-1/2 z-30 w-64 rounded-xl border border-border bg-card p-3 text-xs text-secondary shadow-xl leading-relaxed">
+                          {ZR_VOLUMEN_TOOLTIP}
+                        </div>
+                      )}
+                    </div>
+                    <FieldFlag fieldId="zrVolumen" />
+                  </div>
                   <MaskedInput mask="digits" inputMode="numeric" className={inputClass} placeholder="z.B. 350000"
                     value={zrVolumen} onChange={(e) => setZrVolumen(e.target.value)} />
-                </Field>
+                </div>
 
                 <Field label="Bilanzsumme (€)" required={false} fieldId="bilanzsumme">
                   <MaskedInput mask="digits" inputMode="numeric" className={inputClass} placeholder="z.B. 860000"

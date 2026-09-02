@@ -218,7 +218,7 @@ function KundeAbschlussPage({ unlocked, readOnly = false }: { unlocked: boolean;
               {!submitError && (
                 <p className="text-xs text-secondary mt-2 flex items-start gap-2">
                   <Info className="h-4 w-4 shrink-0 text-primary mt-0.5" />
-                  Tanja prüft Ihre Angaben und meldet sich, falls noch etwas korrigiert werden muss.
+                  Wir prüfen Ihre Angaben und melden uns, falls noch etwas korrigiert werden muss.
                 </p>
               )}
             </div>
