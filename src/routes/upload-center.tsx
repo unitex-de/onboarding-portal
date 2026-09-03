@@ -199,7 +199,17 @@ function UploadCenterPage() {
         })}
       </div>
       </FieldReviewProvider>
-
+      {!isAdmin && allRequiredDone && (
+        <div className="mt-6 flex justify-end">
+          <button
+            type="button"
+            onClick={() => navigate({ to: "/signaturen" })}
+            className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-5 py-3 sm:py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors min-h-[44px]"
+          >
+            Weiter zum Onboarding-Abschluss
+          </button>
+        </div>
+      )}
       {isAdmin && (
         <div className="mt-10">
           <div className="mb-3">

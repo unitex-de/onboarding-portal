@@ -299,7 +299,6 @@ function UnternehmenPage() {
     if (allDone) setShowEtappe1Confetti(true);
   };
 
-  // Auto-fill first branch from Grunddaten
   const syncAddressToBranch = () => {
     setBranches((prev) => {
       const next = [...prev];
@@ -310,11 +309,13 @@ function UnternehmenPage() {
 
   // ── Save handlers ───────────────────────────────────────────────────────────
   const handleSaveGrunddaten = () => {
+    const updatedBranches = branches.map((b, i) =>
+      i === 0 ? { ...b, street: strasse, zip: plz, city: ort, name: firmenname || b.name } : b
+    );
+    setBranches(updatedBranches);
     // BUG 2 fix: also persist country to state for PLZ-routing
     update({ companyName: firmenname, postalCode: plz, country: land });
-    // emailFirma may not be defined on SavedFormData type; cast to any to allow saving
-    updateFormData({ strasse, plz, ort, land, emailFirma } as any);
-    syncAddressToBranch();
+    updateFormData({ strasse, plz, ort, land, emailFirma, branches: updatedBranches } as any);
     checkEtappe1Done("grunddaten");
   };
 
@@ -361,6 +362,21 @@ function UnternehmenPage() {
   };
 
   // ── Validate helpers ────────────────────────────────────────────────────────
+  const validateGwg = (): string | null => {
+    const sum = (key: "capital" | "voting") =>
+      shareholders.reduce((acc, s) => acc + (parseFloat(s[key].replace(",", ".")) || 0), 0);
+    const capitalSum = sum("capital");
+    const votingSum = sum("voting");
+    const TOLERANCE = 0.5; // Toleranz für Rundungsdifferenzen (z.B. 33,3+33,3+33,4)
+    if (Math.abs(capitalSum - 100) > TOLERANCE) {
+      return `Die Kapitalanteile ergeben in Summe ${capitalSum.toFixed(1).replace(".", ",")}% statt 100%.`;
+    }
+    if (Math.abs(votingSum - 100) > TOLERANCE) {
+      return `Die Stimmrechte ergeben in Summe ${votingSum.toFixed(1).replace(".", ",")}% statt 100%.`;
+    }
+    return null;
+  };
+
   const isValidEmail = (value: string) => value.includes("@") && value.includes(".");
 
   const validateGrunddaten = (): string | null => {
@@ -1052,6 +1068,7 @@ function UnternehmenPage() {
                 title="GWG-Daten"
                 description="Gesetzliche Pflichtangaben nach dem Geldwäschegesetz (GwG)."
                 onSave={handleSaveGwg}
+                validate={validateGwg}
               >
                 {/* Wirtschaftliche Abhängigkeit */}
                 <div className="space-y-3">

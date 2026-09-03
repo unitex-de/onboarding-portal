@@ -12,13 +12,13 @@ export function formatMobile(input: string): string {
   return r;
 }
 
-/** NNNN NNNNN (NN) — max 11 digits */
+/** NNNN NNNNN (NN) — max 15 digits */
 export function formatPhone(input: string): string {
-  const d = input.replace(/\D/g, '').slice(0, 11);
+  const d = input.replace(/\D/g, '').slice(0, 15);
   if (!d) return '';
   let r = d.slice(0, 4);
   if (d.length > 4) r += ' ' + d.slice(4, 9);
-  if (d.length > 9) r += ' (' + d.slice(9) + (d.length >= 11 ? ')' : '');
+  if (d.length > 9) r += ' (' + d.slice(9) + (d.length >= 15 ? ')' : '');
   return r;
 }
 
