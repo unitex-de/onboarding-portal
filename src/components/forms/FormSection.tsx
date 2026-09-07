@@ -393,7 +393,12 @@ export function MaskedInput({
   const { showErrors } = useFormSectionErrors();
   const hasError = showErrors && (props.required ?? false) && !isFilled;
 
-  const { format, isContent } = MASK_CONFIG[mask];
+  const { format, isContent, display } = MASK_CONFIG[mask];
+  // Was tatsächlich im Input zu sehen ist: display() ist rein kosmetisch
+  // (z.B. Tausenderpunkte) und weicht vom gespeicherten State (format()) ab,
+  // wenn eine display()-Funktion für diese Maske definiert ist. Ohne display()
+  // verhält sich das exakt wie vorher (Anzeige == State).
+  const shown = (v: string) => (display ? display(format(v)) : format(v));
 
   const handleChange = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
@@ -401,12 +406,12 @@ export function MaskedInput({
       const pos = e.target.selectionStart ?? raw.length;
       const formatted = format(raw);
       const n = contentCountBefore(raw, pos, isContent);
-      pendingCursor.current = cursorFromContent(formatted, n, isContent);
+      pendingCursor.current = cursorFromContent(shown(raw), n, isContent);
 
       const fake = { target: { value: formatted } } as ChangeEvent<HTMLInputElement>;
       onChange(fake);
     },
-    [format, isContent, onChange],
+    [format, isContent, display, onChange],
   );
 
   useLayoutEffect(() => {
@@ -431,7 +436,7 @@ export function MaskedInput({
   return (
     <input
       ref={inputRef}
-      value={format(value)}
+      value={shown(value)}
       onChange={handleChange}
       onBlur={handleBlur}
       className={[

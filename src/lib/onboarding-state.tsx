@@ -40,7 +40,7 @@ export interface SavedFormData {
     handy: string;
     telefon: string;
     email: string;
-    jobbezeichnung?: string;
+    jobbezeichnung?: string[];
     newsletterHandy?: boolean;
     newsletterEmail?: boolean;
   }>;
@@ -977,7 +977,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         handy: c.handy,
         telefon: c.telefon,
         email: c.email,
-        jobbezeichnung: c.jobbezeichnung,
+        jobbezeichnung: c.jobbezeichnung ? [c.jobbezeichnung] : undefined,
         newsletterHandy: false,
         newsletterEmail: false,
       }));
@@ -1083,7 +1083,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
                 email: target.email,
                 handy: "",
                 telefon: "",
-                jobbezeichnung: "",
+                jobbezeichnung: [],
                 newsletterHandy: true,
                 newsletterEmail: true,
               }];

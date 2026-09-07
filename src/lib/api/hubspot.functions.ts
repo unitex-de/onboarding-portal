@@ -1,12 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-
 const HUBSPOT_API_BASE = "https://api.hubapi.com";
-
 // ---------------------------------------------------------------------------
 // Basis-Hilfsfunktionen
 // ---------------------------------------------------------------------------
-
 function normalizeDomain(raw?: string): string | null {
   if (!raw) return null;
   const trimmed = raw.trim();
@@ -19,7 +16,6 @@ function normalizeDomain(raw?: string): string | null {
     return null;
   }
 }
-
 async function hubspotFetch(
   token: string,
   path: string,
@@ -36,11 +32,9 @@ async function hubspotFetch(
   const body = await response.json().catch(() => null);
   return { ok: response.ok, status: response.status, body };
 }
-
 // ---------------------------------------------------------------------------
 // Company: finden, Properties bauen, labels2-Merge
 // ---------------------------------------------------------------------------
-
 async function findCompany(
   token: string,
   propertyName: "domain" | "name",
@@ -59,7 +53,6 @@ async function findCompany(
   if (!first) return null;
   return { id: first.id, labels2: first.properties?.labels2 ?? undefined };
 }
-
 /** Baut den neuen labels2-Wert: "Akquise" raus, "ZR" + Händler/Lieferant rein,
  *  alle anderen bestehenden Labels bleiben erhalten. */
 function computeLabels2(existing: string | undefined, memberType: "händler" | "lieferant"): string {
@@ -75,7 +68,6 @@ function computeLabels2(existing: string | undefined, memberType: "händler" | "
   set.add(roleLabel);
   return Array.from(set).join(";");
 }
-
 interface CompanySyncInput {
   companyName: string;
   website?: string;
@@ -93,7 +85,6 @@ interface CompanySyncInput {
   marken?: string;
   zrStartDate?: string;
 }
-
 /** Baut die Company-Properties. Nur Felder, die im Formular ausgefüllt sind,
  *  werden gesendet (leere Felder überschreiben keine bestehenden HubSpot-Werte). */
 function buildCompanyProperties(
@@ -125,13 +116,10 @@ function buildCompanyProperties(
   props.onboarding_status = "Freigegeben";
   return props;
 }
-
 // ---------------------------------------------------------------------------
 // Contact: Jobklassifikation-Mapping, Properties bauen, Upsert, Verknüpfung
 // ---------------------------------------------------------------------------
-
 type ContactKind = "gf" | "buchhaltung" | "extra";
-
 interface ContactSyncInput {
   kind: ContactKind;
   vorname: string;
@@ -139,33 +127,35 @@ interface ContactSyncInput {
   handy?: string;
   telefon?: string;
   email: string;
-  jobbezeichnung?: string;
+  jobbezeichnung?: string[];
   newsletterHandy?: boolean;
   newsletterEmail?: boolean;
 }
-
-/** Mappt die freie Formular-Jobbezeichnung auf die 12 HubSpot-Optionen von
- *  "jobklassifikation". GF und Buchhaltung sind über `kind` eindeutig,
- *  bei "extra" wird per Stichwort gesucht, sonst "Sonstiges". */
-function mapJobklassifikation(kind: ContactKind, jobbezeichnung?: string): string {
+/** Mappt die (ggf. mehrfach ausgewählte) Formular-Jobbezeichnung auf die 12
+ *  HubSpot-Optionen von "jobklassifikation". Dieses Feld ist in HubSpot ein
+ *  SINGLE-SELECT-Dropdown (nur ein Wert möglich) – bei mehreren vom Nutzer
+ *  ausgewählten Portal-Tags entscheidet daher eine feste Prioritätsreihenfolge:
+ *  I/GF > Buchhaltung > Sales > Marketing > Einkauf > Verwaltung > Assistenz
+ *  > IT/EDV > Student > Agentur > Sonstiges. GF und Buchhaltung sind über
+ *  `kind` ohnehin eindeutig, die Priorität greift nur bei "extra"-Kontakten. */
+function mapJobklassifikation(kind: ContactKind, jobbezeichnung?: string[]): string {
   if (kind === "gf") return "I/GF";
   if (kind === "buchhaltung") return "Buchhaltung";
-
-  const text = (jobbezeichnung ?? "").toLowerCase();
-  if (!text) return "Sonstiges";
-  if (/vertrieb|sales/.test(text)) return "Sales";
-  if (/marketing/.test(text)) return "Marketing";
-  if (/einkauf/.test(text)) return "Einkauf";
-  if (/verwaltung/.test(text)) return "Verwaltung";
-  if (/assistenz|assistent/.test(text)) return "Assistenz";
-  if (/\bit\b|edv|informatik/.test(text)) return "IT/EDV";
-  if (/student|auszubild|azubi|praktikant/.test(text)) return "Student";
-  if (/agentur/.test(text)) return "Agentur";
-  if (/geschäftsführ|gesellschafter|inhaber|\bgf\b/.test(text)) return "I/GF";
-  if (/buchhaltung|finance|controlling|rechnungswesen/.test(text)) return "Buchhaltung";
+  const tags = (jobbezeichnung ?? []).map((j) => j.toLowerCase());
+  if (tags.length === 0) return "Sonstiges";
+  const matches = (re: RegExp) => tags.some((t) => re.test(t));
+  if (matches(/geschäftsführ|gesellschafter|inhaber|\bgf\b/)) return "I/GF";
+  if (matches(/buchhaltung|finance|controlling|rechnungswesen/)) return "Buchhaltung";
+  if (matches(/vertrieb|sales/)) return "Sales";
+  if (matches(/marketing/)) return "Marketing";
+  if (matches(/einkauf/)) return "Einkauf";
+  if (matches(/verwaltung/)) return "Verwaltung";
+  if (matches(/assistenz|assistent/)) return "Assistenz";
+  if (matches(/\bit\b|edv|informatik/)) return "IT/EDV";
+  if (matches(/student|auszubild|azubi|praktikant/)) return "Student";
+  if (matches(/agentur/)) return "Agentur";
   return "Sonstiges";
 }
-
 /** Kehrt mapJobklassifikation um: schätzt aus einer HubSpot-Jobklassifikation
  *  die passende Portal-Kontaktrolle für den Import. Bei Unsicherheit "extra" –
  *  der Kundenbetreuer/Kunde wählt die Rolle dann im Portal selbst nach. */
@@ -174,7 +164,6 @@ function guessContactKind(jobklassifikation?: string): ContactKind {
   if (jobklassifikation === "Buchhaltung") return "buchhaltung";
   return "extra";
 }
-
 function buildContactProperties(
   companyName: string,
   contact: ContactSyncInput,
@@ -186,14 +175,15 @@ function buildContactProperties(
     lastname: contact.nachname,
     jobklassifikation: mapJobklassifikation(contact.kind, contact.jobbezeichnung),
   };
-  if (contact.jobbezeichnung) props.jobtitle = contact.jobbezeichnung;
+  if (contact.jobbezeichnung && contact.jobbezeichnung.length > 0) {
+    props.jobtitle = contact.jobbezeichnung.join(", ");
+  }
   if (contact.handy) props.mobilephone = contact.handy;
   if (contact.telefon) props.phone = contact.telefon;
   if (contact.newsletterHandy) props.onboarding_newsletter_einwilligung_sms = "true";
   if (contact.newsletterEmail) props.onboarding_newsletter_einwilligung_mail = "true";
   return props;
 }
-
 /** Legt einen Kontakt an oder aktualisiert ihn (Duplikat-Erkennung über E-Mail). */
 async function upsertContact(
   token: string,
@@ -204,7 +194,6 @@ async function upsertContact(
     method: "POST",
     body: JSON.stringify({ properties }),
   });
-
   if (created.status === 409) {
     const patched = await hubspotFetch(
       token,
@@ -216,13 +205,11 @@ async function upsertContact(
     }
     return { id: patched.body.id };
   }
-
   if (!created.ok) {
     return { id: null, error: created.body?.message ?? "Anlegen fehlgeschlagen (Contact)" };
   }
   return { id: created.body.id };
 }
-
 /** Prüft, ob ein Kontakt bereits eine als "Primary" markierte Firma hat. */
 async function contactHasPrimaryCompany(token: string, contactId: string): Promise<boolean> {
   const { ok, body } = await hubspotFetch(
@@ -236,7 +223,6 @@ async function contactHasPrimaryCompany(token: string, contactId: string): Promi
     (r.associationTypes ?? []).some((t: any) => t.typeId === 1),
   );
 }
-
 /** Verknüpft Kontakt <-> Firma. GF wird Primary, außer der Kontakt hat schon
  *  eine Primary-Firma (die bleibt dann unangetastet). Andere Rollen sind
  *  immer normale (nicht-primäre) Verknüpfungen. */
@@ -252,7 +238,6 @@ async function associateContactWithCompany(
     makePrimary = !hasPrimary;
   }
   const typeId = makePrimary ? 1 : 279;
-
   const { ok, body } = await hubspotFetch(
     token,
     `/crm/v4/objects/contact/${contactId}/associations/company/${companyId}`,
@@ -266,7 +251,6 @@ async function associateContactWithCompany(
   }
   return { ok: true, primary: makePrimary };
 }
-
 // ---------------------------------------------------------------------------
 // Kunde nach Freigabe zu HubSpot syncen: Company + alle Kontakte
 // ---------------------------------------------------------------------------
@@ -299,7 +283,7 @@ export const syncCustomerToHubspot = createServerFn({ method: "POST" })
             handy: z.string().optional(),
             telefon: z.string().optional(),
             email: z.string().email(),
-            jobbezeichnung: z.string().optional(),
+            jobbezeichnung: z.array(z.string()).optional(),
             newsletterHandy: z.boolean().optional(),
             newsletterEmail: z.boolean().optional(),
           }),
@@ -312,19 +296,15 @@ export const syncCustomerToHubspot = createServerFn({ method: "POST" })
     if (!token) {
       return { synced: false, demo: true };
     }
-
     // --- 1. Firma finden, anlegen oder aktualisieren ------------------------
     const domain = normalizeDomain(data.website);
     const found = domain
       ? await findCompany(token, "domain", domain)
       : await findCompany(token, "name", data.companyName);
-
     const companyProperties = buildCompanyProperties(data, domain);
     companyProperties.labels2 = computeLabels2(found?.labels2, data.memberType);
-
     let companyId: string | null = null;
     const companyAlreadyExisted = !!found;
-
     if (found) {
       companyId = found.id;
       const patched = await hubspotFetch(token, `/crm/v3/objects/companies/${found.id}`, {
@@ -354,7 +334,6 @@ export const syncCustomerToHubspot = createServerFn({ method: "POST" })
       }
       companyId = created.body.id;
     }
-
     // --- 2. Alle Kontakte anlegen/aktualisieren + verknüpfen ----------------
     const contactResults: Array<{
       email: string;
@@ -362,17 +341,14 @@ export const syncCustomerToHubspot = createServerFn({ method: "POST" })
       primary?: boolean;
       error?: string;
     }> = [];
-
     for (const contact of data.contacts) {
       const properties = buildContactProperties(data.companyName, contact);
       const upserted = await upsertContact(token, properties, contact.email);
-
       if (!upserted.id) {
         console.error(`[syncCustomerToHubspot] Contact-Fehler (${contact.email}):`, upserted.error);
         contactResults.push({ email: contact.email, ok: false, error: upserted.error });
         continue;
       }
-
       const association = await associateContactWithCompany(
         token,
         upserted.id,
@@ -392,7 +368,6 @@ export const syncCustomerToHubspot = createServerFn({ method: "POST" })
         error: association.error,
       });
     }
-
     return {
       synced: true,
       demo: false,
@@ -401,11 +376,9 @@ export const syncCustomerToHubspot = createServerFn({ method: "POST" })
       contacts: contactResults,
     };
   });
-
 // ---------------------------------------------------------------------------
 // HubSpot -> Portal: Kontakt-/Firmenkandidaten für den "Neuer Kunde"-Dialog
 // ---------------------------------------------------------------------------
-
 const CANDIDATE_CONTACT_PROPERTIES = [
   "firstname",
   "lastname",
@@ -415,7 +388,6 @@ const CANDIDATE_CONTACT_PROPERTIES = [
   "jobtitle",
 ];
 const CANDIDATE_COMPANY_PROPERTIES = ["name", "domain", "zip", "country", "labels2"];
-
 export interface HubspotCandidate {
   companyId: string;
   companyName: string;
@@ -428,7 +400,6 @@ export interface HubspotCandidate {
   lastName: string;
   email: string;
 }
-
 /** Leitet aus labels2 eine Klassifizierungs-Vermutung ab. Bei beiden oder
  *  keinem der beiden Labels bleibt es undefined, der Admin wählt dann manuell. */
 function deriveMemberTypeGuess(labels2?: string): "händler" | "lieferant" | undefined {
@@ -438,7 +409,6 @@ function deriveMemberTypeGuess(labels2?: string): "händler" | "lieferant" | und
   if (hasHaendler === hasLieferant) return undefined;
   return hasHaendler ? "händler" : "lieferant";
 }
-
 /** Liefert die IDs der verknüpften Objekte über die v4-Assoziations-API. */
 async function getAssociatedIds(
   token: string,
@@ -455,7 +425,6 @@ async function getAssociatedIds(
   const results = body?.results ?? [];
   return results.map((r: any) => String(r.toObjectId)).filter(Boolean);
 }
-
 async function getCompanyById(token: string, id: string): Promise<any | null> {
   const { ok, body } = await hubspotFetch(
     token,
@@ -464,7 +433,6 @@ async function getCompanyById(token: string, id: string): Promise<any | null> {
   );
   return ok ? body : null;
 }
-
 async function getContactById(token: string, id: string): Promise<any | null> {
   const { ok, body } = await hubspotFetch(
     token,
@@ -473,7 +441,6 @@ async function getContactById(token: string, id: string): Promise<any | null> {
   );
   return ok ? body : null;
 }
-
 function buildCandidate(company: any, contact: any): HubspotCandidate | null {
   if (!company?.id || !contact?.id) return null;
   const companyProps = company.properties ?? {};
@@ -491,7 +458,6 @@ function buildCandidate(company: any, contact: any): HubspotCandidate | null {
     email: contactProps.email ?? "",
   };
 }
-
 async function searchCandidatesByEmail(token: string, email: string): Promise<HubspotCandidate[]> {
   const { ok, body } = await hubspotFetch(token, "/crm/v3/objects/contacts/search", {
     method: "POST",
@@ -504,7 +470,6 @@ async function searchCandidatesByEmail(token: string, email: string): Promise<Hu
   if (!ok) return [];
   const contact = body?.results?.[0];
   if (!contact) return [];
-
   const companyIds = await getAssociatedIds(token, "contact", contact.id, "company");
   const candidates: HubspotCandidate[] = [];
   for (const companyId of companyIds) {
@@ -514,7 +479,6 @@ async function searchCandidatesByEmail(token: string, email: string): Promise<Hu
   }
   return candidates;
 }
-
 async function searchCandidatesByCompanyName(token: string, name: string): Promise<HubspotCandidate[]> {
   const { ok, body } = await hubspotFetch(token, "/crm/v3/objects/companies/search", {
     method: "POST",
@@ -526,7 +490,6 @@ async function searchCandidatesByCompanyName(token: string, name: string): Promi
   });
   if (!ok) return [];
   const companies = body?.results ?? [];
-
   const candidates: HubspotCandidate[] = [];
   for (const company of companies) {
     const contactIds = await getAssociatedIds(token, "company", company.id, "contact");
@@ -538,7 +501,6 @@ async function searchCandidatesByCompanyName(token: string, name: string): Promi
   }
   return candidates;
 }
-
 /** Sucht HubSpot-Kandidaten (Firma + Kontakt) für den "Neuer Kunde"-Dialog,
  *  entweder per Kontakt-E-Mail oder per Firmennamen-Teiltreffer. Bewusst
  *  schlank gehalten (wenige Properties) – für die volle Vorbefüllung nach
@@ -555,21 +517,17 @@ export const searchHubspotCandidates = createServerFn({ method: "POST" })
     if (!token) {
       return { candidates: [], demo: true };
     }
-
     const candidates =
       data.mode === "email"
         ? await searchCandidatesByEmail(token, data.query)
         : await searchCandidatesByCompanyName(token, data.query);
-
     return { candidates, demo: false };
   });
-
 // ---------------------------------------------------------------------------
 // HubSpot -> Portal: volle Firmen-/Kontaktdaten für die Stammdaten-
 // Vorbefüllung. Wird aufgerufen, NACHDEM der Nutzer eine Firma aus der
 // Trefferliste von searchHubspotCandidates ausgewählt hat.
 // ---------------------------------------------------------------------------
-
 const IMPORT_COMPANY_PROPERTIES = [
   "name",
   "address",
@@ -587,7 +545,6 @@ const IMPORT_COMPANY_PROPERTIES = [
   "n01__sortiment__geklont_",
   "labels2",
 ];
-
 const IMPORT_CONTACT_PROPERTIES = [
   "firstname",
   "lastname",
@@ -597,7 +554,6 @@ const IMPORT_CONTACT_PROPERTIES = [
   "jobtitle",
   "jobklassifikation",
 ];
-
 export interface HubspotImportContact {
   kind: ContactKind;
   vorname: string;
@@ -607,7 +563,6 @@ export interface HubspotImportContact {
   email: string;
   jobbezeichnung?: string;
 }
-
 export interface HubspotImportData {
   companyName: string;
   strasse?: string;
@@ -624,7 +579,6 @@ export interface HubspotImportData {
   memberTypeGuess?: "händler" | "lieferant";
   contacts: HubspotImportContact[];
 }
-
 async function getCompanyContacts(token: string, companyId: string): Promise<any[]> {
   const contactIds = await getAssociatedIds(token, "company", companyId, "contact");
   const contacts: any[] = [];
@@ -638,7 +592,6 @@ async function getCompanyContacts(token: string, companyId: string): Promise<any
   }
   return contacts;
 }
-
 export const importHubspotCompanyData = createServerFn({ method: "POST" })
   .validator(z.object({ companyId: z.string() }))
   .handler(async ({ data }) => {
@@ -646,7 +599,6 @@ export const importHubspotCompanyData = createServerFn({ method: "POST" })
     if (!token) {
       return { imported: false as const, demo: true };
     }
-
     const { ok, body: company } = await hubspotFetch(
       token,
       `/crm/v3/objects/companies/${data.companyId}?properties=${IMPORT_COMPANY_PROPERTIES.join(",")}`,
@@ -656,7 +608,6 @@ export const importHubspotCompanyData = createServerFn({ method: "POST" })
       return { imported: false as const, demo: false, error: "Firma nicht gefunden" };
     }
     const p = company.properties ?? {};
-
     const rawContacts = await getCompanyContacts(token, data.companyId);
     const contacts: HubspotImportContact[] = rawContacts.map((c) => {
       const cp = c.properties ?? {};
@@ -670,13 +621,11 @@ export const importHubspotCompanyData = createServerFn({ method: "POST" })
         jobbezeichnung: cp.jobtitle || undefined,
       };
     });
-
     // Straße + Hausnummer: HubSpot trennt in address/address2, das Portal
     // hat aktuell nur ein zusammenhängendes "strasse"-Feld -> zusammenfügen.
     // Falls es im Portal doch ein separates Hausnummer-Feld gibt, hier Bescheid
     // geben, dann trenne ich das sauber auf.
     const strasse = [p.address, p.address2].filter(Boolean).join(" ").trim() || undefined;
-
     const result: HubspotImportData = {
       companyName: p.name ?? "",
       strasse,
@@ -698,6 +647,5 @@ export const importHubspotCompanyData = createServerFn({ method: "POST" })
       memberTypeGuess: deriveMemberTypeGuess(p.labels2),
       contacts,
     };
-
     return { imported: true as const, demo: false, data: result };
   });

@@ -6,12 +6,10 @@ import { FormSection, Field, AutoSaveInput, MaskedInput, inputClass, FieldReview
 import { useOnboarding, type LegalForm, getSectionIds } from "@/lib/onboarding-state";
 import { ConfettiPopup } from "@/components/ui/ConfettiPopup";
 import { searchHubspotCandidates, type HubspotCandidate } from "@/lib/api/hubspot.functions";
-
 export const Route = createFileRoute("/unternehmen")({
   head: () => ({ meta: [{ title: "Unternehmen | unitex Onboarding" }] }),
   component: UnternehmenPage,
 });
-
 const LEGAL_FORMS: { value: LegalForm; label: string }[] = [
   { value: "eK", label: "e.K. (Einzelkaufmann)" },
   { value: "GbR", label: "GbR" },
@@ -20,9 +18,7 @@ const LEGAL_FORMS: { value: LegalForm; label: string }[] = [
   { value: "KG", label: "KG" },
   { value: "OHG", label: "OHG" },
 ];
-
 const SHOWS_GWG: LegalForm[] = ["GmbH", "GmbHCoKG", "KG", "OHG", "GbR"];
-
 const PEP_TOOLTIP =
   "Im Sinne der geldwäscherechtlichen Vorschriften (z. B. § 1 Abs. 11 GwG) bezeichnet eine politisch exponierte Person (PEP) Einzelpersonen, die wichtige öffentliche Ämter ausüben oder ausgeübt haben (z. B. Staatschefs, Regierungsmitglieder, Abgeordnete). Aufgrund gesetzlicher Vorgaben zur Geldwäscheprävention unterliegen Geschäftsbeziehungen mit PEPs erweiterten Sorgfaltspflichten.";
 const SONDER_TOOLTIP =
@@ -33,10 +29,8 @@ const MITARBEITER_TOOLTIP =
   "Bitte geben Sie die gerundete Anzahl an Vollzeitäquivalenten (FTE) an.";
 const ZR_VOLUMEN_TOOLTIP =
   "Ihr geschätztes jährliches Handelsvolumen, das über die Zentralregulierung (ZR) abgewickelt wird. Schätzen Sie es anhand des Anteils der ZR-Marken in Ihrem Sortiment.";
-
 const JOB_TYPES = ["Inhaber", "Geschäftsführer", "Buchhaltung", "Vertrieb", "Marketing", "Sonstige"] as const;
 type JobType = typeof JOB_TYPES[number];
-
 interface ContactBlock {
   id: string;
   vorname: string;
@@ -44,12 +38,11 @@ interface ContactBlock {
   handy: string;
   telefon: string;
   email: string;
-  jobbezeichnung: JobType | "";
+  jobbezeichnung: JobType[];
   newsletterHandy: boolean;
   newsletterEmail: boolean;
   kind: "gf" | "buchhaltung" | "extra";
 }
-
 function newContact(kind: ContactBlock["kind"]): ContactBlock {
   return {
     id: `c_${Date.now()}_${Math.random()}`,
@@ -58,20 +51,18 @@ function newContact(kind: ContactBlock["kind"]): ContactBlock {
     handy: "",
     telefon: "",
     email: "",
-    jobbezeichnung: "",
+    jobbezeichnung: [],
     newsletterHandy: true,
     newsletterEmail: true,
     kind,
   };
 }
-
 function selectClass(value: string) {
   return [
     inputClass,
     value ? "border-success/60" : "",
   ].filter(Boolean).join(" ");
 }
-
 // ---------------------------------------------------------------------------
 // Pill – Sortimentsschwerpunkte
 // ---------------------------------------------------------------------------
@@ -89,9 +80,7 @@ function Pill({ label, active, onToggle }: { label: string; active: boolean; onT
     </button>
   );
 }
-
 const SORTIMENT_OPTIONS = ["DOB", "HAKA", "KIKO", "Schuhe", "Accessoires", "Wäsche"] as const;
-
 function UnternehmenPage() {
   const navigate = useNavigate();
   const { state, update, updateFormData, completeSection, setFieldCorrection, importFromHubspot } = useOnboarding();
@@ -108,15 +97,12 @@ function UnternehmenPage() {
   const initialCorrections = isAdmin
     ? (state.customerAccounts.find((a) => a.id === state.activeCustomerId)?.fieldCorrections ?? {})
     : (state.fieldCorrections ?? {});
-
   // ── Grunddaten ──────────────────────────────────────────────────────────────
   const [firmenname, setFirmenname] = useState(state.companyName);
   const [strasse, setStrasse] = useState(state.savedFormData?.strasse ?? "");
   const [plz, setPlz] = useState(state.savedFormData?.plz ?? "");
   const [ort, setOrt] = useState(state.savedFormData?.ort ?? "");
   const [land, setLand] = useState(state.savedFormData?.land ?? "DE");
-  const [emailFirma, setEmailFirma] = useState(state.savedFormData?.emailFirma ?? "");
-
   // ── HubSpot-Import ──────────────────────────────────────────────────────────
   const [showHubspotImport, setShowHubspotImport] = useState(false);
   const [hubspotSearchMode, setHubspotSearchMode] = useState<"email" | "company">("company");
@@ -126,7 +112,6 @@ function UnternehmenPage() {
   const [hubspotCandidates, setHubspotCandidates] = useState<HubspotCandidate[]>([]);
   const [hubspotImporting, setHubspotImporting] = useState(false);
   const [hubspotImportError, setHubspotImportError] = useState<string | null>(null);
-
   const resetHubspotImport = () => {
     setHubspotSearchMode("company");
     setHubspotQuery(firmenname || "");
@@ -136,17 +121,14 @@ function UnternehmenPage() {
     setHubspotImporting(false);
     setHubspotImportError(null);
   };
-
   const handleOpenHubspotImport = () => {
     resetHubspotImport();
     setShowHubspotImport(true);
   };
-
   const handleCloseHubspotImport = () => {
     if (hubspotImporting) return; // während des Imports nicht schließbar
     setShowHubspotImport(false);
   };
-
   const handleHubspotSearch = async () => {
     if (!hubspotQuery.trim()) return;
     setHubspotSearching(true);
@@ -164,7 +146,6 @@ function UnternehmenPage() {
       setHubspotHasSearched(true);
     }
   };
-
   const handleSelectHubspotCandidateForImport = async (candidate: HubspotCandidate) => {
     setHubspotImporting(true);
     setHubspotImportError(null);
@@ -209,7 +190,6 @@ function UnternehmenPage() {
       controller.abort();
     };
   }, [plz, land, ort]);
-
   // ── Kontakt ─────────────────────────────────────────────────────────────────
   const [contacts, setContacts] = useState<ContactBlock[]>(() => {
     const saved = state.savedFormData?.contacts;
@@ -217,32 +197,33 @@ function UnternehmenPage() {
       return saved.map((c) => ({
         ...c,
         id: `c_${Date.now()}_${Math.random()}`,
-        jobbezeichnung: (c.jobbezeichnung ?? "") as JobType,
+        // Abwärtskompatibel: alte Datensätze (vor Multi-Select-Umstellung)
+        // hatten jobbezeichnung als einzelnen String statt als Array.
+        jobbezeichnung: Array.isArray(c.jobbezeichnung)
+          ? (c.jobbezeichnung as JobType[])
+          : c.jobbezeichnung
+          ? [c.jobbezeichnung as JobType]
+          : [],
         newsletterHandy: c.newsletterHandy ?? false,
         newsletterEmail: c.newsletterEmail ?? false,
       }));
     }
     return [newContact("gf"), newContact("buchhaltung")];
   });
-
   const updateContact = (id: string, patch: Partial<ContactBlock>) => {
     setContacts((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
   };
-
   const addExtraContact = () => {
     setContacts((prev) => [...prev, newContact("extra")]);
   };
-
   const removeContact = (id: string) => {
     setContacts((prev) => prev.filter((c) => c.id !== id));
   };
-
   // ── GLN & Filialen ──────────────────────────────────────────────────────────
   const [branches, setBranches] = useState(
     state.savedFormData?.branches ?? [{ name: "", street: "", zip: "", city: "", gln: "" }]
   );
   const [hasGln, setHasGln] = useState(state.savedFormData?.hasGln ?? true);
-
   // ── GWG ─────────────────────────────────────────────────────────────────────
   const [shareholders, setShareholders] = useState(
     state.savedFormData?.shareholders ?? [{ name: "", capital: "", voting: "", pep: false }]
@@ -250,7 +231,6 @@ function UnternehmenPage() {
   const [pepTooltip, setPepTooltip] = useState(false);
   const [wirtschaftAbhaengig, setWirtschaftAbhaengig] = useState(state.savedFormData?.wirtschaftAbhaengig ?? false);
   const [wirtschaftAbhaengigText, setWirtschaftAbhaengigText] = useState(state.savedFormData?.wirtschaftAbhaengigText ?? "");
-
   // ── Bankdaten ───────────────────────────────────────────────────────────────
   const [bankname, setBankname] = useState(state.savedFormData?.bankname ?? "");
   const [bic, setBic] = useState(state.savedFormData?.bic ?? "");
@@ -258,7 +238,6 @@ function UnternehmenPage() {
   const [iban, setIban] = useState(state.savedFormData?.iban ?? "");
   const [steuernummer, setSteuernummer] = useState(state.savedFormData?.steuernummer ?? "");
   const [ustId, setUstId] = useState(state.savedFormData?.ustId ?? "");
-
   // ── Geschäftsdaten ──────────────────────────────────────────────────────────
   const [umsatz, setUmsatz] = useState(state.savedFormData?.umsatz ?? "");
   const [mitarbeiter, setMitarbeiter] = useState(state.savedFormData?.mitarbeiter ?? "");
@@ -275,7 +254,6 @@ function UnternehmenPage() {
       ? (state.savedFormData.sortiment as unknown as string[])
       : []
   );
-
   // ── Lieferant Stammblatt ─────────────────────────────────────────────────────
   const [liefSortiment, setLiefSortiment] = useState<string[]>(
     Array.isArray(state.savedFormData?.liefSortiment)
@@ -285,10 +263,8 @@ function UnternehmenPage() {
   const [liefMarken, setLiefMarken] = useState(state.savedFormData?.liefMarken ?? "");
   const [webseite, setWebseite] = useState(state.savedFormData?.webseite ?? "");
   const [glnNr, setGlnNr] = useState(state.savedFormData?.glnNr ?? "");
-
   // ── Etappe 1 Confetti ────────────────────────────────────────────────────────
   const [showEtappe1Confetti, setShowEtappe1Confetti] = useState(false);
-
   // Check if all required sections completed after saving one section
   const checkEtappe1Done = (justSavedId: string) => {
     completeSection(justSavedId);
@@ -298,7 +274,6 @@ function UnternehmenPage() {
     const allDone = sectionIds.every((id) => newCompleted[id]);
     if (allDone) setShowEtappe1Confetti(true);
   };
-
   const syncAddressToBranch = () => {
     setBranches((prev) => {
       const next = [...prev];
@@ -306,7 +281,6 @@ function UnternehmenPage() {
       return next;
     });
   };
-
   // ── Save handlers ───────────────────────────────────────────────────────────
   const handleSaveGrunddaten = () => {
     const updatedBranches = branches.map((b, i) =>
@@ -315,10 +289,9 @@ function UnternehmenPage() {
     setBranches(updatedBranches);
     // BUG 2 fix: also persist country to state for PLZ-routing
     update({ companyName: firmenname, postalCode: plz, country: land });
-    updateFormData({ strasse, plz, ort, land, emailFirma, branches: updatedBranches } as any);
+    updateFormData({ strasse, plz, ort, land, webseite, branches: updatedBranches } as any);
     checkEtappe1Done("grunddaten");
   };
-
   const handleSaveKontakt = () => {
     updateFormData({
       contacts: contacts.map((c) => ({
@@ -328,39 +301,33 @@ function UnternehmenPage() {
         handy: c.handy,
         telefon: c.telefon,
         email: c.email,
-        jobbezeichnung: c.jobbezeichnung || undefined,
+        jobbezeichnung: c.jobbezeichnung.length > 0 ? c.jobbezeichnung : undefined,
         newsletterHandy: c.newsletterHandy,
         newsletterEmail: c.newsletterEmail,
       })),
     });
     checkEtappe1Done("kontakt");
   };
-
   const handleSaveBankdaten = () => {
     updateFormData({ bankname, bic, swiftCode, iban, steuernummer, ustId });
     checkEtappe1Done("bankdaten");
   };
-
   const handleSaveGln = () => {
     updateFormData({ branches, hasGln });
     checkEtappe1Done("gln_filialen");
   };
-
   const handleSaveGeschaeftsdaten = () => {
     updateFormData({ sortiment, umsatz, mitarbeiter, gruendung, marken, zrVolumen, bilanzsumme, wkvDeckungsbeitrag });
     checkEtappe1Done("geschaeftsdaten");
   };
-
   const handleSaveGwg = () => {
     updateFormData({ wirtschaftAbhaengig, wirtschaftAbhaengigText, shareholders });
     checkEtappe1Done("gwg_daten");
   };
-
   const handleSaveLieferantStamm = () => {
-    updateFormData({ liefSortiment: liefSortiment as unknown as string, liefMarken, webseite, glnNr });
+    updateFormData({ liefSortiment: liefSortiment as unknown as string, liefMarken, glnNr });
     checkEtappe1Done("lieferant_stamm");
   };
-
   // ── Validate helpers ────────────────────────────────────────────────────────
   const validateGwg = (): string | null => {
     const sum = (key: "capital" | "voting") =>
@@ -376,16 +343,10 @@ function UnternehmenPage() {
     }
     return null;
   };
-
   const isValidEmail = (value: string) => value.includes("@") && value.includes(".");
-
   const validateGrunddaten = (): string | null => {
-    if (emailFirma && !isValidEmail(emailFirma)) {
-      return "Bitte eine gültige E-Mail-Adresse eingeben (muss @ und . enthalten).";
-    }
     return null;
   };
-
   const validateKontakt = (): string | null => {
     for (const c of contacts) {
       if (c.email && !isValidEmail(c.email)) {
@@ -394,24 +355,20 @@ function UnternehmenPage() {
     }
     return null;
   };
-
   const validateGeschaeftsdaten = (): string | null => {
     // Sortiment pills aren't standard inputs; require at least one selection
     if (sortiment.length === 0) return "Bitte wähle mindestens einen Sortimentsschwerpunkt aus.";
     return null;
   };
-
   const validateLieferantStamm = (): string | null => {
     if (liefSortiment.length === 0) return "Bitte wähle mindestens einen Sortimentsschwerpunkt aus.";
     return null;
   };
-
   // Keep branches[0] in sync with savedFormData when strasse/plz/ort changes
   useEffect(() => {
     const saved = state.savedFormData?.branches;
     if (saved) setBranches(saved);
   }, []);
-
   return (
     <AppShell
       title="Unternehmen"
@@ -432,7 +389,6 @@ function UnternehmenPage() {
           }}
         />
       )}
-
       {isAdmin && !isLieferant && (
         <div className="mb-4 flex items-center gap-3 rounded-md border border-dashed border-border bg-popover/40 px-4 py-3">
           <span className="text-xs text-secondary">
@@ -457,7 +413,6 @@ function UnternehmenPage() {
           </button>
         </div>
       )}
-
       {isAdmin && !isLieferant && (
         <div className="mb-4 flex items-center gap-3 rounded-md border border-dashed border-border bg-popover/40 px-4 py-3">
           <span className="text-xs text-secondary">
@@ -474,7 +429,6 @@ function UnternehmenPage() {
           </button>
         </div>
       )}
-
       {showHubspotImport && (
         <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-6">
           <div className="w-full max-w-lg rounded-2xl border border-border bg-card overflow-hidden max-h-[90vh] overflow-y-auto">
@@ -502,7 +456,6 @@ function UnternehmenPage() {
                   ))}
                 </div>
               </div>
-
               <div className="space-y-1">
                 <label className="text-xs text-secondary uppercase tracking-wide">
                   {hubspotSearchMode === "email" ? "E-Mail-Adresse" : "Firmenname"}
@@ -526,26 +479,22 @@ function UnternehmenPage() {
                   </button>
                 </div>
               </div>
-
               {hubspotSearching && (
                 <div className="rounded-lg border border-border px-4 py-6 text-center text-sm text-secondary">
                   <Loader2 className="mx-auto h-5 w-5 animate-spin text-primary mb-2" />
                   Suche läuft...
                 </div>
               )}
-
               {!hubspotSearching && hubspotHasSearched && hubspotCandidates.length === 0 && (
                 <div className="rounded-lg border border-border px-4 py-6 text-center text-sm text-secondary">
                   Keine Treffer gefunden.
                 </div>
               )}
-
               {hubspotImportError && (
                 <div className="rounded-lg bg-red-500/10 border border-red-500/20 px-4 py-3 text-xs text-red-400">
                   {hubspotImportError}
                 </div>
               )}
-
               {!hubspotSearching && hubspotCandidates.length > 0 && (
                 <div className="space-y-2">
                   {hubspotCandidates.map((c) => (
@@ -572,8 +521,6 @@ function UnternehmenPage() {
           </div>
         </div>
       )}
-
-
       <FieldReviewProvider
         key={reviewCustomerId || "self"}
         canEdit={canEditReview}
@@ -628,14 +575,17 @@ function UnternehmenPage() {
                 <AutoSaveInput className={inputClass} placeholder="DE"
                   value={land} onChange={(e) => setLand(e.target.value)} required />
               </div>
+              <p className="text-[11px] text-muted mt-1">
+                Bitte als ISO-Länderkürzel angeben (z.&nbsp;B. DE, AT, CH).
+              </p>
             </Field>
-            <Field label="Email Firma" fieldId="emailFirma">
-              <AutoSaveInput className={inputClass} type="email" placeholder="info@firma.de"
-                value={emailFirma} onChange={(e) => setEmailFirma(e.target.value)} required />
+            <Field label="Website" fieldId="webseite">
+              <AutoSaveInput className={inputClass} placeholder="https://www.beispiel.de"
+                value={webseite} onChange={(e) => setWebseite(e.target.value)}
+                onFocus={() => { if (!webseite) setWebseite("www."); }} required />
             </Field>
           </div>
         </FormSection>
-
         {/* ── 2 · Kontaktinformationen ────────────────────────────────────────── */}
         <FormSection
           id="kontakt"
@@ -654,7 +604,6 @@ function UnternehmenPage() {
               : isBu
               ? "Angaben Buchhaltung"
               : "Weiterer Kontakt";
-
             return (
               <div key={c.id} className={[
                 "rounded-lg border p-4 space-y-4",
@@ -669,7 +618,6 @@ function UnternehmenPage() {
                     </button>
                   )}
                 </div>
-
                 <div className="grid md:grid-cols-2 gap-4">
                   <Field label="Vorname" fieldId={`contact.${c.id}.vorname`}>
                     <AutoSaveInput className={inputClass} value={c.vorname}
@@ -680,17 +628,26 @@ function UnternehmenPage() {
                       onChange={(e) => updateContact(c.id, { nachname: e.target.value })} required />
                   </Field>
                 </div>
-
                 {isExtra && (
-                  <Field label="Jobbezeichnung" fieldId={`contact.${c.id}.jobbezeichnung`}>
-                    <select className={selectClass(c.jobbezeichnung)} value={c.jobbezeichnung}
-                      onChange={(e) => updateContact(c.id, { jobbezeichnung: e.target.value as JobType })}>
-                      <option value="">— bitte wählen —</option>
-                      {JOB_TYPES.map((j) => <option key={j} value={j}>{j}</option>)}
-                    </select>
+                  <Field label="Jobbezeichnung" as="div" fieldId={`contact.${c.id}.jobbezeichnung`}>
+                    <div className="flex flex-wrap gap-2">
+                      {JOB_TYPES.map((j) => (
+                        <Pill
+                          key={j}
+                          label={j}
+                          active={c.jobbezeichnung.includes(j)}
+                          onToggle={(on) =>
+                            updateContact(c.id, {
+                              jobbezeichnung: on
+                                ? [...c.jobbezeichnung, j]
+                                : c.jobbezeichnung.filter((x) => x !== j),
+                            })
+                          }
+                        />
+                      ))}
+                    </div>
                   </Field>
                 )}
-
                 <div className="grid md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Field label="Handynummer" required={false} fieldId={`contact.${c.id}.handy`}>
@@ -711,7 +668,6 @@ function UnternehmenPage() {
                       value={c.telefon} onChange={(e) => updateContact(c.id, { telefon: e.target.value })} />
                   </Field>
                 </div>
-
                 <div className="space-y-2">
                   <Field label="E-Mail-Adresse" fieldId={`contact.${c.id}.email`}>
                     <AutoSaveInput type="email" className={inputClass} placeholder="name@firma.de"
@@ -732,13 +688,11 @@ function UnternehmenPage() {
               </div>
             );
           })}
-
           <button type="button" onClick={addExtraContact}
             className="inline-flex items-center gap-2 text-sm text-primary hover:underline mt-2">
             <Plus className="h-4 w-4" /> Weiteren Kontakt hinzufügen
           </button>
         </FormSection>
-
         {/* ── 3 · Bankdaten ──────────────────────────────────────────────────── */}
         <FormSection
           id="bankdaten"
@@ -776,7 +730,6 @@ function UnternehmenPage() {
             </Field>
           </div>
         </FormSection>
-
         {/* ── Lieferant: Stammblatt statt GLN/Geschäft/GWG ──────────────────── */}
         {isLieferant ? (
           <FormSection
@@ -808,15 +761,9 @@ function UnternehmenPage() {
                   <p className="text-xs text-muted mt-1">Bitte mindestens einen Schwerpunkt auswählen.</p>
                 )}
               </Field>
-
               <Field label="Wichtigste Marken / Eigenmarken" fieldId="liefMarken">
                 <AutoSaveInput className={inputClass} placeholder="Komma-getrennt, z.B. Eigene Brand, Mustermarke"
                   value={liefMarken} onChange={(e) => setLiefMarken(e.target.value)} required />
-              </Field>
-              <Field label="Webseite" fieldId="webseite">
-                <AutoSaveInput className={inputClass} placeholder="https://www.beispiel.de"
-                  value={webseite} onChange={(e) => setWebseite(e.target.value)}
-                  onFocus={() => { if (!webseite) setWebseite("www."); }} />
               </Field>
               <Field label="GLN-Nr." required={false} fieldId="glnNr">
                 <AutoSaveInput className={inputClass} placeholder="4012345678900"
@@ -857,7 +804,6 @@ function UnternehmenPage() {
                   </div>
                 )}
               </div>
-
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-medium text-foreground">Filialen</p>
@@ -918,7 +864,6 @@ function UnternehmenPage() {
                 </p>
               </div>
             </FormSection>
-
             {/* ── 5 · Geschäftsdaten ─────────────────────────────────────────── */}
             <FormSection
               id="geschaeftsdaten"
@@ -942,7 +887,6 @@ function UnternehmenPage() {
                   </div>
                 </div>
               )}
-
               <div className="grid md:grid-cols-3 gap-4">
                 {/* Jahresumsatz mit Tooltip */}
                 <div className="space-y-1.5">
@@ -968,10 +912,9 @@ function UnternehmenPage() {
                     </div>
                     <FieldFlag fieldId="umsatz" />
                   </div>
-                  <MaskedInput mask="digits" inputMode="numeric" className={inputClass} placeholder="z.B. 800000"
+                  <MaskedInput mask="currency" inputMode="numeric" className={inputClass} placeholder="z.B. 800.000"
                     value={umsatz} onChange={(e) => setUmsatz(e.target.value)} required />
                 </div>
-
                 <div className="space-y-1.5">
                 <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-secondary">
                   <span>
@@ -1003,7 +946,6 @@ function UnternehmenPage() {
                   <AutoSaveInput type="date" className={inputClass}
                     value={gruendung} onChange={(e) => setGruendung(e.target.value)} required />
                 </Field>
-
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-secondary">
                     <span>ZR-Volumen (€)</span>
@@ -1025,21 +967,20 @@ function UnternehmenPage() {
                     </div>
                     <FieldFlag fieldId="zrVolumen" />
                   </div>
-                  <MaskedInput mask="digits" inputMode="numeric" className={inputClass} placeholder="z.B. 350000"
+                  <MaskedInput mask="currency" inputMode="numeric" className={inputClass} placeholder="z.B. 350.000"
                     value={zrVolumen} onChange={(e) => setZrVolumen(e.target.value)} />
                 </div>
-
                 <Field label="Bilanzsumme (€)" required={false} fieldId="bilanzsumme">
-                  <MaskedInput mask="digits" inputMode="numeric" className={inputClass} placeholder="z.B. 860000"
+                  <MaskedInput mask="currency" inputMode="numeric" className={inputClass} placeholder="z.B. 860.000"
                     value={bilanzsumme} onChange={(e) => setBilanzsumme(e.target.value)} />
                 </Field>
-
-                <Field label="WKV Deckungsbeitrag (€)" required={false} fieldId="wkvDeckungsbeitrag">
-                  <MaskedInput mask="digits" inputMode="numeric" className={inputClass} placeholder="z.B. 800000"
-                    value={wkvDeckungsbeitrag} onChange={(e) => setWkvDeckungsbeitrag(e.target.value)} />
-                </Field>
+                {isAdmin && (
+                  <Field label="WKV Deckungsbeitrag (€)" required={false} fieldId="wkvDeckungsbeitrag">
+                    <MaskedInput mask="currency" inputMode="numeric" className={inputClass} placeholder="z.B. 800.000"
+                      value={wkvDeckungsbeitrag} onChange={(e) => setWkvDeckungsbeitrag(e.target.value)} />
+                  </Field>
+                )}
               </div>
-
               <Field label="Sortimentsschwerpunkte" as="div" fieldId="sortiment">
                 <div className="flex flex-wrap gap-2">
                   {SORTIMENT_OPTIONS.map((c) => (
@@ -1053,13 +994,11 @@ function UnternehmenPage() {
                   <p className="text-xs text-muted mt-1">Bitte mindestens einen Schwerpunkt auswählen.</p>
                 )}
               </Field>
-
               <Field label="Wichtige Marken (mit Komma getrennt)" required={false} fieldId="marken">
-                <AutoSaveInput className={inputClass} placeholder="z.B. Hugo Boss, Gerry Weber"
+                <AutoSaveInput className={inputClass} placeholder="z.B. Tom Tailor, s.Oliver, …"
                   value={marken} onChange={(e) => setMarken(e.target.value)} />
               </Field>
             </FormSection>
-
             {/* ── 6 · GWG ────────────────────────────────────────────────────── */}
             {SHOWS_GWG.includes(legalForm) && (
               <FormSection
@@ -1097,7 +1036,6 @@ function UnternehmenPage() {
                     </div>
                   )}
                 </div>
-
                 {/* Gesellschafter-Bereich */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
@@ -1111,7 +1049,6 @@ function UnternehmenPage() {
                       <Plus className="h-3.5 w-3.5" /> Hinzufügen
                     </button>
                   </div>
-
                   <div className="overflow-x-auto rounded-lg border border-border">
                     <table className="w-full min-w-[440px] text-sm">
                       <thead className="bg-popover text-xs uppercase tracking-wide text-secondary">
@@ -1180,7 +1117,6 @@ function UnternehmenPage() {
                       </tbody>
                     </table>
                   </div>
-
                   <p className="text-[11px] text-muted">
                     ¹ PEP:&nbsp;
                     <div className="relative inline-block">

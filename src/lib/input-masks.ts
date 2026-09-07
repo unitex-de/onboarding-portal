@@ -1,4 +1,4 @@
-export type MaskType = 'mobile' | 'phone' | 'iban' | 'digits';
+export type MaskType = 'mobile' | 'phone' | 'iban' | 'digits' | 'currency';
 
 // ─── Format functions ────────────────────────────────────────────────────────
 
@@ -37,16 +37,31 @@ export function formatIBAN(input: string): string {
   return groups.join(' ');
 }
 
+/** Tausenderpunkte für Anzeige, z.B. "800000" -> "800.000". Erwartet bereits
+ *  reine Ziffern (also format()/formatDigits vorher angewendet). Rein
+ *  kosmetisch – wird NUR für die Anzeige genutzt, nicht fürs gespeicherte
+ *  State (siehe MaskedInput: format() bleibt die Quelle der Wahrheit). */
+export function formatCurrencyDisplay(digits: string): string {
+  if (!digits) return '';
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
 // ─── Mask config ─────────────────────────────────────────────────────────────
 
 export const MASK_CONFIG: Record<
   MaskType,
-  { format: (v: string) => string; isContent: (c: string) => boolean }
+  {
+    format: (v: string) => string;
+    isContent: (c: string) => boolean;
+    /** Optional: nur für die Anzeige im Input, State bleibt format()-Wert. */
+    display?: (v: string) => string;
+  }
 > = {
   mobile: { format: formatMobile, isContent: (c) => /\d/.test(c) },
   phone:  { format: formatPhone,  isContent: (c) => /\d/.test(c) },
   iban:   { format: formatIBAN,   isContent: (c) => /[A-Z0-9]/i.test(c) },
   digits: { format: formatDigits, isContent: (c) => /\d/.test(c) },
+  currency: { format: formatDigits, isContent: (c) => /\d/.test(c), display: formatCurrencyDisplay },
 };
 
 // ─── Cursor helpers ───────────────────────────────────────────────────────────

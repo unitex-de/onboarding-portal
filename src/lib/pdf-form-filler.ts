@@ -170,10 +170,10 @@ export async function generateLieferantPdfFilled(state: OnboardingState): Promis
 
   const gf = fd.contacts?.find((c) => c.kind === "gf");
   const bu = fd.contacts?.find((c) => c.kind === "buchhaltung");
-  const vertrieb = fd.contacts?.find((c) => c.kind === "extra" && c.jobbezeichnung === "Vertrieb");
-  const marketing = fd.contacts?.find((c) => c.kind === "extra" && c.jobbezeichnung === "Marketing");
-  const edv = fd.contacts?.find((c) => c.kind === "extra" && c.jobbezeichnung === "Sonstige");
-  const inhaber = fd.contacts?.find((c) => c.kind === "extra" && c.jobbezeichnung === "Inhaber");
+  const vertrieb = fd.contacts?.find((c) => c.kind === "extra" && c.jobbezeichnung?.includes("Vertrieb"));
+  const marketing = fd.contacts?.find((c) => c.kind === "extra" && c.jobbezeichnung?.includes("Marketing"));
+  const edv = fd.contacts?.find((c) => c.kind === "extra" && c.jobbezeichnung?.includes("Sonstige"));
+  const inhaber = fd.contacts?.find((c) => c.kind === "extra" && c.jobbezeichnung?.includes("Inhaber"));
 
   const gfName = gf ? `${gf.vorname} ${gf.nachname}`.trim() : "";
   const buName = bu ? `${bu.vorname} ${bu.nachname}`.trim() : "";
