@@ -73,7 +73,7 @@ export async function generateNeukundenPdfFilled(state: OnboardingState): Promis
   await setText(form, "E-Mail Geschäftsführer_es_:signer2", gf?.email ?? "");
   await setText(form, "Tel. Zentrale_es_:signer2", gf?.telefon || gf?.handy || "");
   await setText(form, "Tel. Buchhaltung_es_:signer2", bu?.telefon || bu?.handy || "");
-  await setText(form, "E-Mail_es_:signer2", fd.emailFirma ?? "");
+  await setText(form, "E-Mail_es_:signer2", ""); // Firmen-E-Mail wird seit der Umstellung auf "Website" nicht mehr erfasst
   await setText(form, "E-Mail Buchhaltung_es_:signer2", bu?.email ?? "");
   await setText(form, "Adresse des Inhabers bzw. Geschäftsführers_es_:signer2", adresse);
   await setText(form, "Bankinstitut / BIC_es_:signer2", [fd.bankname, fd.bic].filter(Boolean).join(" / "));
@@ -193,7 +193,7 @@ export async function generateLieferantPdfFilled(state: OnboardingState): Promis
 
   await setText(form, "Firmierung", state.companyName ?? "");
   await setText(form, "Telefon Zentrale", gf?.telefon || gf?.handy || "");
-  await setText(form, "EMail Zentrale", fd.emailFirma ?? "");
+  await setText(form, "EMail Zentrale", ""); // Firmen-E-Mail wird seit der Umstellung auf "Website" nicht mehr erfasst
 
   await setText(form, "Ansprechpartner Vertrieb", vertriebName);
   await setText(form, "Telefon Vertrieb", vertrieb?.telefon || vertrieb?.handy || "");

@@ -11,7 +11,6 @@ const STATIC_FIELD_LABELS: Record<string, string> = {
   legalForm: "Rechtsform",
   strasse: "Straße & Hausnummer",
   adresse: "PLZ / Ort / Land",
-  emailFirma: "Email Firma",
   bankname: "Bankname",
   bic: "BIC",
   swiftCode: "SWIFT Code",

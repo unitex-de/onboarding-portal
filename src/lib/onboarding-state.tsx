@@ -28,7 +28,6 @@ export interface SavedFormData {
   plz?: string;
   ort?: string;
   land?: string;
-  emailFirma?: string;
   bankname?: string;
   bic?: string;
   iban?: string;
@@ -996,7 +995,6 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     if (d.ort && !existing.ort) formPatch.ort = d.ort;
     if (d.land && !existing.land) formPatch.land = d.land;
     if (d.webseite && !existing.webseite) formPatch.webseite = d.webseite;
-    if (d.emailFirma && !existing.emailFirma) formPatch.emailFirma = d.emailFirma;
     if (d.ustId && !existing.ustId) formPatch.ustId = d.ustId;
     if (d.glnNr && !existing.glnNr) formPatch.glnNr = d.glnNr;
     if (d.umsatz && !existing.umsatz) formPatch.umsatz = d.umsatz;
@@ -1132,7 +1130,6 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
               plz: sd.plz,
               ort: sd.ort,
               land: sd.land,
-              emailFirma: sd.emailFirma,
               umsatz: sd.umsatz,
               mitarbeiter: sd.mitarbeiter,
               gruendung: sd.gruendung,

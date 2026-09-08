@@ -75,7 +75,6 @@ interface CompanySyncInput {
   plz?: string;
   ort?: string;
   land?: string;
-  emailFirma?: string;
   umsatz?: string;
   mitarbeiter?: string;
   gruendung?: string;
@@ -97,9 +96,6 @@ function buildCompanyProperties(
   if (input.plz) props.zip = input.plz;
   if (input.ort) props.city = input.ort;
   if (input.land) props.country = input.land;
-  if (input.emailFirma) props.e_mail_adresse = input.emailFirma;
-  // Jahresumsatz: NICHT das HubSpot-Standardfeld annualrevenue (das ist ein
-  // anderes Feld) – die tatsächlich genutzte Property ist n03__umsatz_haus.
   if (input.umsatz) props.n03__umsatz_haus = input.umsatz;
   if (input.mitarbeiter) props.numberofemployees = input.mitarbeiter;
   if (input.gruendung) props.founded_year = input.gruendung;
@@ -265,7 +261,6 @@ export const syncCustomerToHubspot = createServerFn({ method: "POST" })
       plz: z.string().optional(),
       ort: z.string().optional(),
       land: z.string().optional(),
-      emailFirma: z.string().optional(),
       umsatz: z.string().optional(),
       mitarbeiter: z.string().optional(),
       gruendung: z.string().optional(),
@@ -570,7 +565,6 @@ export interface HubspotImportData {
   ort?: string;
   land?: string;
   webseite?: string;
-  emailFirma?: string;
   zrStartDate?: string;
   ustId?: string;
   glnNr?: string;
@@ -633,7 +627,6 @@ export const importHubspotCompanyData = createServerFn({ method: "POST" })
       ort: p.city || undefined,
       land: p.country || undefined,
       webseite: p.website || p.domain || undefined,
-      emailFirma: p.e_mail_adresse || undefined,
       zrStartDate: p.n06__zr_ab || undefined,
       ustId: p.ust_idnr_ || undefined,
       glnNr: p.n04__gln || undefined,

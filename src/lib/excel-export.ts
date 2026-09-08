@@ -38,7 +38,6 @@ export function flattenCustomerToRow(acc: CustomerAccount): Record<string, strin
     Bankname: fd.bankname ?? "",
     IBAN: fd.iban ?? "",
     BIC: fd.bic ?? "",
-    Email_Firma: fd.emailFirma ?? "",
 
     Kontakt_GF_Vorname: gf?.vorname ?? "",
     Kontakt_GF_Nachname: gf?.nachname ?? "",
