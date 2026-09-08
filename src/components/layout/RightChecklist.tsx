@@ -16,10 +16,9 @@ export function ChecklistContent({
   /** Called after navigating so a parent sheet can close itself */
   onNavigate?: () => void;
 }) {
-  const { state } = useOnboarding();
+  const { state, isAdmin } = useOnboarding();
   const navigate = useNavigate();
   const { stammdaten, uploads, signaturen, total } = getProgressBreakdown(state);
-  const isAdmin = state.role === "admin";
 
   const pdfHref = state.memberType === "lieferant"
     ? "/lieferant-zr-onboarding-checkliste.pdf"

@@ -10,15 +10,13 @@ export function TopHeader({
   subtitle?: string;
   onMenuClick?: () => void;
 }) {
-  const { state } = useOnboarding();
+  const { state, isAdmin } = useOnboarding();
   const initials = state.userName
     .split(" ")
     .map((n) => n[0])
     .slice(0, 2)
     .join("")
     .toUpperCase();
-
-  const isAdmin = state.role === "admin";
 
   return (
     <div>

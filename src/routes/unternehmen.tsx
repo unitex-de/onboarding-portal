@@ -83,18 +83,13 @@ function Pill({ label, active, onToggle }: { label: string; active: boolean; onT
 const SORTIMENT_OPTIONS = ["DOB", "HAKA", "KIKO", "Schuhe", "Accessoires", "Wäsche"] as const;
 function UnternehmenPage() {
   const navigate = useNavigate();
-  const { state, update, updateFormData, completeSection, setFieldCorrection, importFromHubspot } = useOnboarding();
+  const { state, update, updateFormData, completeSection, setFieldCorrection, importFromHubspot, isAdmin } = useOnboarding();
   const legalForm: LegalForm = state.legalForm ?? "GmbH";
   const isLieferant = state.memberType === "lieferant";
-  const isAdmin = state.role === "admin";
-  // Prüfmodus (Option B): Tanja darf editieren, wenn sie im Admin-Modus einen
-  // konkreten Kunden geöffnet hat. Der Kunde selbst sieht (read-only) seine
-  // eigenen Markierungen, sobald "Nachbesserung nötig" gesetzt wurde.
+  const isRealAdmin = state.role === "admin";
   const canEditReview = isAdmin && !!state.activeCustomerId;
-  const reviewCustomerId = isAdmin ? state.activeCustomerId ?? "" : state.customerId ?? "";
-  // Admin: live aus customerAccounts lesen (wird bei jeder Markierung aktualisiert).
-  // Kunde selbst: aus dem beim Login geladenen Top-Level-State.
-  const initialCorrections = isAdmin
+  const reviewCustomerId = isRealAdmin ? state.activeCustomerId ?? "" : state.customerId ?? "";
+  const initialCorrections = isRealAdmin
     ? (state.customerAccounts.find((a) => a.id === state.activeCustomerId)?.fieldCorrections ?? {})
     : (state.fieldCorrections ?? {});
   // ── Grunddaten ──────────────────────────────────────────────────────────────

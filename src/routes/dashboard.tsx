@@ -207,7 +207,7 @@ function DashboardPage() {
 
 function DashboardContent() {
   const { start: startTour } = useTour();
-  const { state, update, submitForReview } = useOnboarding();
+  const { state, update, submitForReview, isAdmin } = useOnboarding();
   const { stammdaten, uploads, signaturen, total } = getProgressBreakdown(state);
 
   // DESIGN 5: use manually set zrStartDate
@@ -219,7 +219,7 @@ function DashboardContent() {
   const signaturesUnlocked = total >= 90;
   const canSubmit = total >= 100;
   const isLieferant = state.memberType === "lieferant";
-  const isAdmin = state.role === "admin";
+  const isRealAdmin = state.role === "admin";
 
   // ── First-visit animated entrance ──────────────────────────────────────────
   const [showEntrance, setShowEntrance] = useState(false);
@@ -348,7 +348,7 @@ function DashboardContent() {
                   <Shield className="h-4 w-4 shrink-0" />
                   Zur Prüfung eingereicht
                 </div>
-              ) : canSubmit && !isAdmin ? (
+              ) : canSubmit && !isRealAdmin ? (
                 <button type="button" onClick={onSubmit} disabled={submitting}
                   className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors animate-pulse hover:animate-none disabled:opacity-60 disabled:cursor-not-allowed disabled:animate-none"
                 >

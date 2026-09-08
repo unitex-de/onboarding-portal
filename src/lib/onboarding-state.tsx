@@ -136,6 +136,7 @@ export interface OnboardingState {
   fieldCorrections: Record<string, { wrong: boolean; comment: string }>;
   customerAccounts: CustomerAccount[];
   activeCustomerId: string | null;
+  previewMode: boolean;
   tourSeen: boolean;
   dashboardSeen: boolean;
   pendingTourStart: boolean;
@@ -167,6 +168,7 @@ const DEFAULT_STATE: OnboardingState = {
   fieldCorrections: {},
   customerAccounts: [],
   activeCustomerId: null,
+  previewMode: false,
   tourSeen: false,
   dashboardSeen: false,
   pendingTourStart: false,
@@ -424,6 +426,7 @@ function extractDocIdFromStorageKey(storageKey: string): string {
 
 interface Ctx {
   state: OnboardingState;
+  isAdmin: boolean;
   loading: boolean;
   update: (p: Partial<OnboardingState>) => void;
   uploadDoc: (id: string, file: File) => void;
@@ -1316,9 +1319,12 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     setState(DEFAULT_STATE);
   }, []);
 
+  const isAdmin = state.role === "admin" && !state.previewMode;
+  
   const value = useMemo<Ctx>(
     () => ({
       state,
+      isAdmin,
       loading,
       update,
       uploadDoc,
@@ -1338,8 +1344,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       refreshCustomers,
       reset,
     }),
-    [state, loading, update, uploadDoc, removeDoc, completeSection, updateFormData, submitForReview,
-     inviteCollaborator, fetchCollaborators, removeCollaborator, addCustomerAccount, updateCustomerAccount, reviewCustomer, setFieldCorrection, sendMagicLink, refreshCustomers, reset, importFromHubspot]
+    [state, isAdmin, loading, update, uploadDoc, removeDoc, completeSection, updateFormData, submitForReview, inviteCollaborator, fetchCollaborators, removeCollaborator, addCustomerAccount, updateCustomerAccount, reviewCustomer, setFieldCorrection, sendMagicLink, refreshCustomers, reset, importFromHubspot]
   );
 
   return <OnboardingCtx.Provider value={value}>{children}</OnboardingCtx.Provider>;

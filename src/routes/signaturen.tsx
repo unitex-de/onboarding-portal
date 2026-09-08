@@ -15,12 +15,12 @@ export const Route = createFileRoute("/signaturen")({
 });
 
 function SignaturenPage() {
-  const { state } = useOnboarding();
+  const { state, isAdmin } = useOnboarding();
   const { total } = getProgressBreakdown(state);
-  const isAdmin = state.role === "admin";
+  const isRealAdmin = state.role === "admin";
   const unlocked = total >= 75;
 
-  return <KundeAbschlussPage unlocked={isAdmin || unlocked} readOnly={isAdmin} />;
+  return <KundeAbschlussPage unlocked={isAdmin || unlocked} readOnly={isRealAdmin} />;
 }
 
 // ─── Kunden-Flow: Schritt 3 – Onboarding abschließen ─────────────────────────

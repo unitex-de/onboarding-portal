@@ -3,7 +3,7 @@ import { useState, useMemo, useEffect } from "react";
 import {
   Users, Plus, ArrowRight, UserCheck, Mail, Calendar,
   ExternalLink, X, Lock, Search, Filter, RefreshCw, Copy, CheckCircle2,
-  Clock, FileEdit, ChevronDown, FileSpreadsheet, Loader2, Cloud, Pencil
+  Clock, FileEdit, ChevronDown, FileSpreadsheet, Loader2, Cloud, Pencil, Eye
 } from "lucide-react";
 import {
   useOnboarding, type MemberType, type LegalForm, type CustomerAccount,
@@ -230,6 +230,31 @@ function AdminPage() {
     navigate({ to: acc.status === "Zur Prüfung eingereicht" ? "/pruefung" : "/dashboard" });
   };
 
+  const handlePreviewAsCustomer = (acc: CustomerAccount) => {
+    update({
+      email: acc.email,
+      memberType: acc.memberType,
+      legalForm: acc.legalForm,
+      legalFormLockedByAdmin: true,
+      userName: `${acc.firstName} ${acc.lastName}`,
+      companyName: acc.companyName,
+      role: "admin",
+      signedIn: true,
+      activeCustomerId: acc.id,
+      previewMode: true,
+      uploadedDocs: acc.uploadedDocs,
+      completedSections: acc.completedSections,
+      postalCode: acc.postalCode,
+      country: acc.country,
+      zrStartDate: acc.zrStartDate,
+      savedFormData: acc.savedFormData ?? {},
+      fieldCorrections: acc.fieldCorrections ?? {},
+    });
+    // Vorschau landet immer auf dem Dashboard, unabhängig vom Status –
+    // das ist der erste Screen, den der echte Kunde nach Login sieht.
+    navigate({ to: "/dashboard" });
+  };
+
   const handleSendLink = async (acc: CustomerAccount) => {
     // Supabase sendet die OTP-Mail direkt an den Kunden
     const { error } = await supabase.auth.signInWithOtp({
@@ -417,6 +442,7 @@ function AdminPage() {
                 acc={acc}
                 isCopied={copiedId === acc.id}
                 onView={() => handleViewCustomer(acc)}
+                onPreview={() => handlePreviewAsCustomer(acc)}
                 onSendLink={() => handleSendLink(acc)}
                 onCopyLink={() => handleCopyLink(acc)}
               />
@@ -688,12 +714,14 @@ function CustomerCard({
   acc,
   isCopied,
   onView,
+  onPreview,
   onSendLink,
   onCopyLink,
 }: {
   acc: CustomerAccount;
   isCopied: boolean;
   onView: () => void;
+  onPreview: () => void;
   onSendLink: () => void;
   onCopyLink: () => void;
 }) {
@@ -769,6 +797,18 @@ function CustomerCard({
               <Copy className="h-3.5 w-3.5" />
             </button>
           )}
+
+          <button
+            onClick={onPreview}
+            title="Ansicht, wie sie der Kunde gerade sieht – read-only, keine Bearbeitung"
+            className="inline-flex shrink-0 items-center gap-2 rounded-md border border-border px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+          >
+            Als Kunde ansehen <Eye className="h-3.5 w-3.5" />
+          </button>
+          {/* Prüfen — ersetzt den früheren "Öffnen"-Button; führt bei
+              eingereichten Accounts direkt zur Prüfungsseite (siehe
+              handleViewCustomer), sonst ins Kunden-Dashboard */}
+
           {/* Prüfen — ersetzt den früheren "Öffnen"-Button; führt bei
               eingereichten Accounts direkt zur Prüfungsseite (siehe
               handleViewCustomer), sonst ins Kunden-Dashboard */}

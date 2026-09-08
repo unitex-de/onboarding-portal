@@ -23,15 +23,14 @@ export const Route = createFileRoute("/upload-center")({
 
 function UploadCenterPage() {
   const navigate = useNavigate();
-  const { state, update, uploadDoc, removeDoc, setFieldCorrection } = useOnboarding();
+  const { state, update, uploadDoc, removeDoc, setFieldCorrection, isAdmin } = useOnboarding();
   const legalForm: LegalForm = state.legalForm ?? "GmbH";
   const isLieferant = state.memberType === "lieferant";
-  const isAdmin = state.role === "admin";
   const docs = isLieferant ? REQUIRED_DOCS_LIEFERANT : REQUIRED_DOCS[legalForm];
-  // Prüfmodus (Option B) – gleiches Prinzip wie in unternehmen.tsx
+  const isRealAdmin = state.role === "admin";
   const canEditReview = isAdmin && !!state.activeCustomerId;
-  const reviewCustomerId = isAdmin ? state.activeCustomerId ?? "" : state.customerId ?? "";
-  const initialCorrections = isAdmin
+  const reviewCustomerId = isRealAdmin ? state.activeCustomerId ?? "" : state.customerId ?? "";
+  const initialCorrections = isRealAdmin
     ? (state.customerAccounts.find((a) => a.id === state.activeCustomerId)?.fieldCorrections ?? {})
     : (state.fieldCorrections ?? {});
 

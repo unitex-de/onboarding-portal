@@ -244,8 +244,8 @@ export function CoachmarkTour({ steps, children, onComplete }: { steps: TourStep
 // ─── Floating "Tour starten" trigger ──────────────────────────────────────────
 export function TourStartButton() {
   const { start, isRunning } = useTour();
-  const { state } = useOnboarding();
-  if (state.role === "admin" || isRunning) return null;
+  const { isAdmin } = useOnboarding();
+  if (isAdmin || isRunning) return null;
   return (
     <div className="fixed bottom-20 left-6 z-40">
       <button

@@ -38,8 +38,7 @@ export function LeftSidebar({
 }) {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const navigate = useNavigate();
-  const { state, update } = useOnboarding();
-  const isAdmin = state.role === "admin";
+  const { state, update, isAdmin } = useOnboarding();
   const activeAccount = state.customerAccounts.find((a) => a.id === state.activeCustomerId);
   const pendingReview = isAdmin && activeAccount?.status === "Zur Prüfung eingereicht";
 
