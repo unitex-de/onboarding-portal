@@ -420,6 +420,17 @@ function AdminPage() {
             >
               <FileSpreadsheet className="h-3.5 w-3.5" /> Als Excel exportieren
             </button>
+            {/* TEMPORÄR zum Testen des Change-Log-Digests, danach wieder entfernen */}
+            <button
+              onClick={async () => {
+                const { notifyChangeLogDigest } = await import("@/lib/api/notify.functions");
+                const result = await notifyChangeLogDigest();
+                alert(JSON.stringify(result, null, 2));
+              }}
+              className="flex items-center gap-1.5 rounded-md border border-dashed border-border px-3 py-2 text-xs text-secondary hover:text-foreground hover:border-primary transition-colors"
+            >
+              Digest-Test
+            </button>
           </div>
         )}
 

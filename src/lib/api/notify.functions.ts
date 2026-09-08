@@ -8,6 +8,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { Resend } from "resend";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 
 const ABSENDER = "unitex Onboarding <onboarding@unitex.de>";
 
@@ -183,3 +184,89 @@ export const notifyGwgBogenReady = createServerFn({ method: "POST" })
     }
     return { sent: true, demo: false };
   });
+
+// ---------------------------------------------------------------------------
+// Tägliche Digest-Mail an Tanja: fasst alle noch nicht gemeldeten Einträge
+// aus change_log zusammen (Kunden-/Mitbearbeiter-Änderungen an Formulardaten
+// und Dokumenten), gruppiert nach Firma. Wird per Vercel Cron ausgelöst, nicht
+// direkt vom Client. Sendet nichts, wenn es keine offenen Einträge gibt.
+// ---------------------------------------------------------------------------
+const CHANGE_KIND_LABELS: Record<string, string> = {
+  section_saved: "Abschnitt gespeichert",
+  document_uploaded: "Dokument hochgeladen",
+  document_removed: "Dokument entfernt",
+};
+
+export const notifyChangeLogDigest = createServerFn({ method: "POST" }).handler(async () => {
+  const apiKey = process.env.RESEND_API_KEY;
+  const tanjaEmail = process.env.TANJA_EMAIL;
+  if (!apiKey || !tanjaEmail) {
+    return { sent: false, demo: true };
+  }
+
+  const { data: rows, error } = await supabaseAdmin
+    .from("change_log")
+    .select("id, customer_id, actor_email, kind, target, created_at, customers(company)")
+    .eq("notified", false)
+    .order("customer_id", { ascending: true })
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.error("[notifyChangeLogDigest] Laden fehlgeschlagen:", error);
+    return { sent: false, demo: false, error: error.message };
+  }
+  if (!rows || rows.length === 0) {
+    return { sent: false, demo: false, skipped: "no_changes" };
+  }
+
+  // Gruppieren nach Kunde
+  const byCustomer = new Map<string, { company: string; entries: typeof rows }>();
+  for (const row of rows) {
+    const company = (row as any).customers?.company ?? "Unbekannte Firma";
+    const group = byCustomer.get(row.customer_id) ?? { company, entries: [] as typeof rows };
+    group.entries.push(row);
+    byCustomer.set(row.customer_id, group);
+  }
+
+  const sections = Array.from(byCustomer.values()).map((group) => {
+    const items = group.entries.map((e) => {
+      const time = new Date(e.created_at).toLocaleString("de-DE", {
+        day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
+      });
+      const label = CHANGE_KIND_LABELS[e.kind] ?? e.kind;
+      return `<li>${time} Uhr – ${label}: <code>${e.target}</code> (${e.actor_email})</li>`;
+    }).join("");
+    return `<p style="margin-bottom:4px;"><strong>${group.company}</strong></p><ul style="margin-top:0;">${items}</ul>`;
+  }).join("");
+
+  const resend = new Resend(apiKey);
+  const { to, subject } = resolveRecipient(
+    tanjaEmail,
+    `Tägliche Änderungsübersicht: ${byCustomer.size} Kunde${byCustomer.size === 1 ? "" : "n"} mit Änderungen`,
+  );
+  const { error: sendError } = await resend.emails.send({
+    from: ABSENDER,
+    to,
+    subject,
+    html: `
+      <p>Hallo Tanja,</p>
+      <p>Folgende Kunden haben seit der letzten Übersicht Angaben im Onboarding-Portal geändert:</p>
+      ${sections}
+    `,
+  });
+  if (sendError) {
+    console.error("[notifyChangeLogDigest] Resend error:", sendError);
+    return { sent: false, demo: false, error: sendError.message };
+  }
+
+  const ids = rows.map((r) => r.id);
+  const { error: updateError } = await supabaseAdmin
+    .from("change_log")
+    .update({ notified: true })
+    .in("id", ids);
+  if (updateError) {
+    console.error("[notifyChangeLogDigest] Markieren als notified fehlgeschlagen:", updateError);
+  }
+
+  return { sent: true, demo: false, count: rows.length };
+});
