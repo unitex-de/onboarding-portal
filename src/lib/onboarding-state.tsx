@@ -14,6 +14,7 @@ export type LegalForm = "eK" | "GbR" | "GmbH" | "GmbHCoKG" | "KG" | "OHG";
 export type ContractType = "probe" | "3jahre" | "5jahre";
 export type UserRole = "admin" | "kunde";
 export type CustomerStatus = "Entwurf" | "Link gesendet" | "Signiert" | "Zur Prüfung eingereicht" | "Freigegeben" | "Nachbesserung nötig";
+const EDITABLE_STATUSES: CustomerStatus[] = ["Link gesendet", "Nachbesserung nötig"];
 
 export interface UploadedDoc {
   fileName: string;
@@ -427,6 +428,7 @@ function extractDocIdFromStorageKey(storageKey: string): string {
 interface Ctx {
   state: OnboardingState;
   isAdmin: boolean;
+  isLocked: boolean;
   loading: boolean;
   update: (p: Partial<OnboardingState>) => void;
   uploadDoc: (id: string, file: File) => void;
@@ -579,6 +581,30 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // ---------------------------------------------------------------------------
+  // Change-Log: protokolliert echte Kunden-/Mitbearbeiter-Änderungen für die
+  // tägliche Digest-Mail an Tanja. Admin-Aktionen (Tanja selbst im Review-
+  // oder Preview-Modus) werden bewusst NICHT geloggt – daher immer die echte
+  // Rolle prüfen (stateRef.current.role), nicht das previewMode-abhängige
+  // isAdmin aus dem Context. Best-effort: ein Fehler hier darf den
+  // eigentlichen Speichervorgang niemals blockieren, daher kein throw.
+  // ---------------------------------------------------------------------------
+  const logChange = useCallback(async (
+    customerId: string,
+    actorEmail: string | null,
+    kind: "section_saved" | "document_uploaded" | "document_removed",
+    target: string,
+  ) => {
+    if (stateRef.current.role === "admin") return;
+    const { error } = await supabase.from("change_log").insert({
+      customer_id: customerId,
+      actor_email: actorEmail ?? "unbekannt",
+      kind,
+      target,
+    });
+    if (error) console.error("[change_log] Protokollieren fehlgeschlagen:", error);
+  }, []);
+
+  // ---------------------------------------------------------------------------
   // Dokument hochladen (Kunde oder Admin im Namen eines Kunden)
   // ---------------------------------------------------------------------------
   const uploadDoc = useCallback(async (docId: string, file: File) => {
@@ -634,7 +660,8 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         [docId]: { fileName: file.name, size: file.size, uploadedAt, storagePath },
       },
     }));
-  }, [resolveCustomerId]);
+    logChange(customerId, actorEmail, "document_uploaded", docId);
+  }, [resolveCustomerId, logChange]);
 
   // ---------------------------------------------------------------------------
   // Dokument entfernen (Kunde oder Admin im Namen eines Kunden)
@@ -643,8 +670,10 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     const customerId = await resolveCustomerId();
     if (!customerId) return;
 
-    const storagePath = stateRef.current.uploadedDocs[docId]?.storagePath;
+    const { data: { session } } = await supabase.auth.getSession();
+    const actorEmail = session?.user?.email ?? null;
 
+    const storagePath = stateRef.current.uploadedDocs[docId]?.storagePath;
     if (storagePath) {
       await supabase.storage.from("documents").remove([storagePath]);
     }
@@ -660,7 +689,8 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       delete next[docId];
       return { ...s, uploadedDocs: next };
     });
-  }, [resolveCustomerId]);
+    logChange(customerId, actorEmail, "document_removed", docId);
+  }, [resolveCustomerId, logChange]);
 
   // ---------------------------------------------------------------------------
   // Sektion als abgeschlossen markieren (Kunde oder Admin im Namen eines Kunden)
@@ -694,7 +724,8 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
           : a
       ),
     }));
-  }, [resolveCustomerId]);
+    logChange(customerId, actorEmail, "section_saved", sectionId);
+  }, [resolveCustomerId, logChange]);
   // ---------------------------------------------------------------------------
   // Formulardaten speichern (Kunde oder Admin im Namen eines Kunden)
   // ---------------------------------------------------------------------------
@@ -1321,10 +1352,16 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
 
   const isAdmin = state.role === "admin" && !state.previewMode;
   
+  const relevantStatus: CustomerStatus | null = state.role === "admin"
+    ? (state.customerAccounts.find((a) => a.id === state.activeCustomerId)?.status ?? null)
+    : state.reviewStatus;
+  const isLocked = !isAdmin && !(relevantStatus !== null && EDITABLE_STATUSES.includes(relevantStatus));
+
   const value = useMemo<Ctx>(
     () => ({
       state,
       isAdmin,
+      isLocked,
       loading,
       update,
       uploadDoc,
@@ -1344,7 +1381,9 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       refreshCustomers,
       reset,
     }),
-    [state, isAdmin, loading, update, uploadDoc, removeDoc, completeSection, updateFormData, submitForReview, inviteCollaborator, fetchCollaborators, removeCollaborator, addCustomerAccount, updateCustomerAccount, reviewCustomer, setFieldCorrection, sendMagicLink, refreshCustomers, reset, importFromHubspot]
+    [state, isAdmin, isLocked, loading, update, uploadDoc, removeDoc, completeSection, updateFormData, submitForReview,
+     inviteCollaborator, fetchCollaborators, removeCollaborator, addCustomerAccount, updateCustomerAccount, reviewCustomer,
+     setFieldCorrection, sendMagicLink, refreshCustomers, reset, importFromHubspot]
   );
 
   return <OnboardingCtx.Provider value={value}>{children}</OnboardingCtx.Provider>;

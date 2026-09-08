@@ -1,12 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useRef, useState, useEffect } from "react";
-import { CloudUpload, FileCheck2, FileText, MoreVertical, Trash2, RefreshCcw, Download, Shield, Plus } from "lucide-react";
+import { CloudUpload, FileCheck2, FileText, MoreVertical, Trash2, RefreshCcw, Download, Shield, Plus, Lock } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { useOnboarding, getDownloadUrl, type LegalForm } from "@/lib/onboarding-state";
 import { REQUIRED_DOCS, REQUIRED_DOCS_LIEFERANT, ADMIN_ONLY_DOCS, formatBytes } from "@/lib/required-docs";
 import { ConfettiPopup } from "@/components/ui/ConfettiPopup";
 import { FieldReviewProvider, FieldFlag } from "@/components/forms/FormSection";
-
 const LEGAL_FORMS: { value: LegalForm; label: string }[] = [
   { value: "eK", label: "e.K." },
   { value: "GbR", label: "GbR" },
@@ -15,15 +14,13 @@ const LEGAL_FORMS: { value: LegalForm; label: string }[] = [
   { value: "KG", label: "KG" },
   { value: "OHG", label: "OHG" },
 ];
-
 export const Route = createFileRoute("/upload-center")({
   head: () => ({ meta: [{ title: "Upload-Center | unitex Onboarding" }] }),
   component: UploadCenterPage,
 });
-
 function UploadCenterPage() {
   const navigate = useNavigate();
-  const { state, update, uploadDoc, removeDoc, setFieldCorrection, isAdmin } = useOnboarding();
+  const { state, update, uploadDoc, removeDoc, setFieldCorrection, isAdmin, isLocked } = useOnboarding();
   const legalForm: LegalForm = state.legalForm ?? "GmbH";
   const isLieferant = state.memberType === "lieferant";
   const docs = isLieferant ? REQUIRED_DOCS_LIEFERANT : REQUIRED_DOCS[legalForm];
@@ -33,11 +30,9 @@ function UploadCenterPage() {
   const initialCorrections = isRealAdmin
     ? (state.customerAccounts.find((a) => a.id === state.activeCustomerId)?.fieldCorrections ?? {})
     : (state.fieldCorrections ?? {});
-
   const requiredDocs = docs.filter((d) => d.required);
   const allRequiredDone = requiredDocs.every((d) => state.uploadedDocs[d.id]);
   const completed = docs.filter((d) => state.uploadedDocs[d.id]).length;
-
   // ── Mehrere Uploads pro Dokument (z.B. mehrere Ausweiskopien) ──────────────
   // Zusatz-Dateien liegen unter Keys wie "ausweiskopie_gf__2", "ausweiskopie_gf__3".
   // extraCount hält, wie viele Zusatz-Slots diese Session manuell hinzugefügt
@@ -55,10 +50,8 @@ function UploadCenterPage() {
     }
     return Math.max(maxIndex - 1, extraCount[docId] ?? 0);
   };
-
   const [showConfetti, setShowConfetti] = useState(false);
   const prevAllDone = useRef(allRequiredDone);
-
   useEffect(() => {
     // BUG 7: no confetti for admins
     if (!prevAllDone.current && allRequiredDone && !isAdmin) {
@@ -66,14 +59,11 @@ function UploadCenterPage() {
     }
     prevAllDone.current = allRequiredDone;
   }, [allRequiredDone, isAdmin]);
-
   // First pending doc becomes the active drop target.
   const firstPending = useMemo(() => docs.find((d) => !state.uploadedDocs[d.id])?.id, [docs, state.uploadedDocs]);
   const [activeId, setActiveId] = useState<string | null>(firstPending ?? null);
   const effectiveActive = activeId && docs.some((d) => d.id === activeId) ? activeId : firstPending ?? null;
-
   const isLieferantView = isLieferant;
-
   return (
     <AppShell
       title="Dokumenten-Upload"
@@ -90,7 +80,6 @@ function UploadCenterPage() {
           }}
         />
       )}
-
       {/* DSGVO Hinweis */}
       <div className="mb-6 rounded-xl border border-border bg-card p-4 flex items-start gap-3">
         <Shield className="h-5 w-5 text-primary mt-0.5 shrink-0" />
@@ -103,11 +92,17 @@ function UploadCenterPage() {
           </a>.
         </div>
       </div>
-
       {/* Header strip */}
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h3 className="font-display text-lg font-semibold">{isAdmin ? "Kunden Dokumente" : "Ihre Dokumente"}</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="font-display text-lg font-semibold">{isAdmin ? "Kunden Dokumente" : "Ihre Dokumente"}</h3>
+            {isLocked && (
+              <span className="inline-flex items-center gap-1.5 rounded-md bg-popover px-2 py-0.5 text-xs text-muted" title="Bearbeitung derzeit nicht möglich">
+                <Lock className="h-3 w-3" /> Gesperrt
+              </span>
+            )}
+          </div>
           <p className="text-sm text-secondary">
             {completed} von {docs.length} hochgeladen · Laden Sie alle erforderlichen Dokumente hoch.
           </p>
@@ -123,8 +118,9 @@ function UploadCenterPage() {
             ) : (
               <select
                 value={legalForm}
+                disabled={isLocked}
                 onChange={(e) => update({ legalForm: e.target.value as LegalForm })}
-                className="rounded-md border border-border bg-popover px-3 py-1.5 text-sm text-foreground focus:border-primary focus:outline-none"
+                className="rounded-md border border-border bg-popover px-3 py-1.5 text-sm text-foreground focus:border-primary focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {LEGAL_FORMS.map((f) => (
                   <option key={f.value} value={f.value}>{f.label}</option>
@@ -134,7 +130,6 @@ function UploadCenterPage() {
           </div>
         )}
       </div>
-
       <FieldReviewProvider
         key={reviewCustomerId || "self"}
         canEdit={canEditReview}
@@ -156,14 +151,14 @@ function UploadCenterPage() {
                 required={doc.required}
                 uploaded={uploaded}
                 isActive={isActive && !uploaded}
+                locked={isLocked}
                 onSelect={() => setActiveId(doc.id)}
                 onRemove={() => removeDoc(doc.id)}
                 onFileNow={(f) => uploadDoc(doc.id, f)}
               />
-              {isActive && !uploaded && (
+              {isActive && !uploaded && !isLocked && (
                 <UploadDropZone onFile={(f) => uploadDoc(doc.id, f)} />
               )}
-
               {doc.multi && Array.from({ length: extraSlots }, (_, i) => i + 2).map((n) => {
                 const extraId = `${doc.id}__${n}`;
                 const extraUploaded = state.uploadedDocs[extraId];
@@ -175,20 +170,21 @@ function UploadCenterPage() {
                       required={false}
                       uploaded={extraUploaded}
                       isActive={false}
+                      locked={isLocked}
                       onSelect={() => {}}
                       onRemove={() => removeDoc(extraId)}
                       onFileNow={(f) => uploadDoc(extraId, f)}
                     />
-                    {!extraUploaded && <UploadDropZone onFile={(f) => uploadDoc(extraId, f)} />}
+                    {!extraUploaded && !isLocked && <UploadDropZone onFile={(f) => uploadDoc(extraId, f)} />}
                   </div>
                 );
               })}
-
               {doc.multi && extraSlots < MAX_EXTRA_SLOTS && (
                 <button
                   type="button"
+                  disabled={isLocked}
                   onClick={() => setExtraCount((prev) => ({ ...prev, [doc.id]: extraSlots + 1 }))}
-                  className="ml-6 inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
+                  className="ml-6 inline-flex items-center gap-1.5 text-xs text-primary hover:underline disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <Plus className="h-3.5 w-3.5" /> Weitere Kopie hinzufügen
                 </button>
@@ -227,6 +223,7 @@ function UploadCenterPage() {
                     required={false}
                     uploaded={uploaded}
                     isActive={false}
+                    locked={false}
                     onSelect={() => {}}
                     onRemove={() => removeDoc(doc.id)}
                     onFileNow={(f) => uploadDoc(doc.id, f)}
@@ -241,7 +238,6 @@ function UploadCenterPage() {
     </AppShell>
   );
 }
-
 function DocumentRow({
   docId,
   label,
@@ -249,6 +245,7 @@ function DocumentRow({
   required,
   uploaded,
   isActive,
+  locked,
   onSelect,
   onRemove,
   onFileNow,
@@ -259,21 +256,23 @@ function DocumentRow({
   required: boolean;
   uploaded?: { fileName: string; size: number; uploadedAt: string; storagePath: string };
   isActive: boolean;
+  /** Bearbeitung gesperrt (isLocked) – Zeile bleibt sichtbar, aber nicht mehr auswählbar/ersetzbar/löschbar. Download bleibt erlaubt. */
+  locked?: boolean;
   onSelect: () => void;
   onRemove: () => void;
   onFileNow?: (file: File) => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const quickInputRef = useRef<HTMLInputElement>(null);
-
   return (
     <div
       role="button"
-      tabIndex={0}
-      onClick={onSelect}
-      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect(); } }}
+      tabIndex={locked ? -1 : 0}
+      onClick={() => { if (!locked) onSelect(); }}
+      onKeyDown={(e) => { if (!locked && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); onSelect(); } }}
       className={[
-        "w-full rounded-xl border p-4 flex items-center gap-4 text-left transition-all cursor-pointer",
+        "w-full rounded-xl border p-4 flex items-center gap-4 text-left transition-all",
+        locked ? "cursor-default" : "cursor-pointer",
         isActive
           ? "border-upload bg-upload-active"
           : uploaded
@@ -293,7 +292,6 @@ function DocumentRow({
       >
         {uploaded ? <FileCheck2 className="h-5 w-5" /> : isActive ? <CloudUpload className="h-5 w-5" /> : <FileText className="h-5 w-5" />}
       </div>
-
       <div className="flex-1 min-w-0">
         <p className="font-medium text-foreground truncate">{label}</p>
         {hint && !uploaded && (
@@ -312,7 +310,6 @@ function DocumentRow({
           </p>
         )}
       </div>
-
       <div className="flex items-center gap-3 shrink-0">
         <FieldFlag fieldId={docId} />
         {uploaded ? (
@@ -328,52 +325,60 @@ function DocumentRow({
             {required ? "Ausstehend" : "Optional"}
           </span>
         )}
-
         {uploaded && (
           <span className="text-xs text-muted hidden md:inline">
             {new Date(uploaded.uploadedAt).toLocaleDateString("de-DE")},{" "}
             {new Date(uploaded.uploadedAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })} Uhr
           </span>
         )}
-
-        <div className="relative" onClick={(e) => e.stopPropagation()}>
-          <button
-            type="button"
-            aria-label="Aktionen"
-            onClick={() => setMenuOpen((v) => !v)}
-            className="rounded-md p-1.5 text-secondary hover:bg-popover hover:text-foreground"
-          >
-            <MoreVertical className="h-4 w-4" />
-          </button>
-          {menuOpen && (
-            <div
-              className="absolute right-0 top-9 z-10 w-44 rounded-md border border-border bg-popover py-1 shadow-xl"
-              onMouseLeave={() => setMenuOpen(false)}
+        {/* Menü nur rendern, wenn es überhaupt etwas zu tun gibt: hochgeladen
+            (dann mind. Download möglich) oder nicht gesperrt (dann Upload möglich). */}
+        {(uploaded || !locked) && (
+          <div className="relative" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              aria-label="Aktionen"
+              onClick={() => setMenuOpen((v) => !v)}
+              className="rounded-md p-1.5 text-secondary hover:bg-popover hover:text-foreground"
             >
-              {uploaded ? (
-                <>
-                  <MenuItem icon={RefreshCcw} label="Ersetzen" onClick={() => { onRemove(); onSelect(); setMenuOpen(false); }} />
-                  <MenuItem
-                    icon={Download}
-                    label="Herunterladen"
-                    onClick={async () => {
-                      setMenuOpen(false);
-                      const url = await getDownloadUrl(uploaded.storagePath);
-                      if (!url) {
-                        alert("Die Datei konnte nicht geladen werden. Bitte versuchen Sie es erneut.");
-                        return;
-                      }
-                      window.open(url, "_blank", "noopener,noreferrer");
-                    }}
-                  />
-                  <MenuItem icon={Trash2} label="Löschen" destructive onClick={() => { onRemove(); setMenuOpen(false); }} />
-                </>
-              ) : (
-                <MenuItem icon={CloudUpload} label="Jetzt hochladen" onClick={() => { onSelect(); setMenuOpen(false); quickInputRef.current?.click(); }} />
-              )}
-            </div>
-          )}
-        </div>
+              <MoreVertical className="h-4 w-4" />
+            </button>
+            {menuOpen && (
+              <div
+                className="absolute right-0 top-9 z-10 w-44 rounded-md border border-border bg-popover py-1 shadow-xl"
+                onMouseLeave={() => setMenuOpen(false)}
+              >
+                {uploaded ? (
+                  <>
+                    {!locked && (
+                      <MenuItem icon={RefreshCcw} label="Ersetzen" onClick={() => { onRemove(); onSelect(); setMenuOpen(false); }} />
+                    )}
+                    <MenuItem
+                      icon={Download}
+                      label="Herunterladen"
+                      onClick={async () => {
+                        setMenuOpen(false);
+                        const url = await getDownloadUrl(uploaded.storagePath);
+                        if (!url) {
+                          alert("Die Datei konnte nicht geladen werden. Bitte versuchen Sie es erneut.");
+                          return;
+                        }
+                        window.open(url, "_blank", "noopener,noreferrer");
+                      }}
+                    />
+                    {!locked && (
+                      <MenuItem icon={Trash2} label="Löschen" destructive onClick={() => { onRemove(); setMenuOpen(false); }} />
+                    )}
+                  </>
+                ) : (
+                  !locked && (
+                    <MenuItem icon={CloudUpload} label="Jetzt hochladen" onClick={() => { onSelect(); setMenuOpen(false); quickInputRef.current?.click(); }} />
+                  )
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
       <input
         ref={quickInputRef}
@@ -396,7 +401,6 @@ function DocumentRow({
     </div>
   );
 }
-
 function MenuItem({
   icon: Icon,
   label,
@@ -422,11 +426,9 @@ function MenuItem({
     </button>
   );
 }
-
 function UploadDropZone({ onFile }: { onFile: (file: File) => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
-
   const handle = (file: File | undefined) => {
     if (!file) return;
     if (file.size > 10 * 1024 * 1024) {
@@ -435,7 +437,6 @@ function UploadDropZone({ onFile }: { onFile: (file: File) => void }) {
     }
     onFile(file);
   };
-
   return (
     <div
       onDragOver={(e) => { e.preventDefault(); setDragging(true); }}

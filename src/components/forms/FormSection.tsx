@@ -1,6 +1,6 @@
 import type { ReactNode, ChangeEvent } from "react";
 import { useState, useCallback, useRef, useLayoutEffect, createContext, useContext } from "react";
-import { Check, Save, AlertCircle, X } from "lucide-react";
+import { Check, Save, AlertCircle, X, Lock } from "lucide-react";
 import { useOnboarding } from "@/lib/onboarding-state";
 import {
   MASK_CONFIG,
@@ -11,8 +11,8 @@ import {
 
 // ─── FormSection Error Context ─────────────────────────────────────────────────
 // Provides showErrors to child inputs so they can highlight empty required fields
-interface FormSectionCtxValue { showErrors: boolean; }
-const FormSectionCtx = createContext<FormSectionCtxValue>({ showErrors: false });
+interface FormSectionCtxValue { showErrors: boolean; locked: boolean; }
+const FormSectionCtx = createContext<FormSectionCtxValue>({ showErrors: false, locked: false });
 export function useFormSectionErrors() { return useContext(FormSectionCtx); }
 
 // ─── Prüfmodus (Option B) ───────────────────────────────────────────────────
@@ -185,14 +185,13 @@ export function FormSection({
   validate?: () => string | null;
   children: ReactNode;
 }) {
-  const { state, update } = useOnboarding();
+  const { state, update, isLocked } = useOnboarding();
   const saved = !!state.completedSections[id];
   const [justSaved, setJustSaved] = useState(false);
   const [showErrors, setShowErrors] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
   const handleSave = () => {
-    // DOM-level check: find all [required] inputs/selects/textareas in this section
+    if (isLocked) return;
     const section = document.getElementById(id);
     const requiredEls = section?.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(
       "input[required], select[required], textarea[required]"
@@ -218,7 +217,7 @@ export function FormSection({
   };
 
   return (
-    <FormSectionCtx.Provider value={{ showErrors }}>
+    <FormSectionCtx.Provider value={{ showErrors, locked: isLocked }}>
       <section
         id={id}
         className={[
@@ -241,6 +240,11 @@ export function FormSection({
               <Check className="h-3.5 w-3.5" /> Gespeichert
             </span>
           )}
+          {isLocked && (
+            <span className="inline-flex items-center gap-1.5 text-xs text-muted" title="Bearbeitung derzeit nicht möglich">
+              <Lock className="h-3.5 w-3.5" /> Gesperrt
+            </span>
+          )}
         </header>
 
         <div className="space-y-4">{children}</div>
@@ -261,7 +265,8 @@ export function FormSection({
           <button
             type="button"
             onClick={handleSave}
-            className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-md bg-primary px-4 py-3 sm:py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 min-h-[44px]"
+            disabled={isLocked}
+            className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-md bg-primary px-4 py-3 sm:py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 min-h-[44px] disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Save className="h-4 w-4" />
             Speichern
@@ -330,7 +335,7 @@ export function AutoSaveInput({
   const [savedFlash, setSavedFlash] = useState(false);
   const [lastSaved, setLastSaved] = useState(value);
   const isFilled = value.trim() !== "";
-  const { showErrors } = useFormSectionErrors();
+  const { showErrors, locked } = useFormSectionErrors();
   const hasError = showErrors && (props.required ?? false) && !isFilled;
 
   const handleBlur = useCallback(() => {
@@ -349,6 +354,7 @@ export function AutoSaveInput({
       value={value}
       onChange={onChange}
       onBlur={handleBlur}
+      disabled={locked}
       className={[
         inputClass,
         hasError
@@ -390,7 +396,7 @@ export function MaskedInput({
   const [savedFlash, setSavedFlash] = useState(false);
   const [lastSaved, setLastSaved] = useState(value);
   const isFilled = value.trim() !== "";
-  const { showErrors } = useFormSectionErrors();
+  const { showErrors, locked } = useFormSectionErrors();
   const hasError = showErrors && (props.required ?? false) && !isFilled;
 
   const { format, isContent, display } = MASK_CONFIG[mask];
@@ -439,6 +445,7 @@ export function MaskedInput({
       value={shown(value)}
       onChange={handleChange}
       onBlur={handleBlur}
+      disabled={locked}
       className={[
         inputClass,
         hasError

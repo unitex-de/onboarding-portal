@@ -66,14 +66,29 @@ function selectClass(value: string) {
 // ---------------------------------------------------------------------------
 // Pill – Sortimentsschwerpunkte
 // ---------------------------------------------------------------------------
-function Pill({ label, active, onToggle }: { label: string; active: boolean; onToggle: (on: boolean) => void }) {
+function Pill({
+  label,
+  active,
+  onToggle,
+  disabled,
+}: {
+  label: string;
+  active: boolean;
+  onToggle: (on: boolean) => void;
+  /** Bearbeitungssperre (isLocked) – Pill zeigt sich weiterhin, ist aber nicht klickbar. */
+  disabled?: boolean;
+}) {
   return (
-    <button type="button" onClick={() => onToggle(!active)}
+    <button
+      type="button"
+      onClick={() => { if (!disabled) onToggle(!active); }}
+      disabled={disabled}
       className={[
         "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
         active
           ? "border-success bg-success/10 text-success"
           : "border-border text-secondary hover:border-primary/50 hover:text-foreground",
+        disabled ? "opacity-50 cursor-not-allowed hover:border-border hover:text-secondary" : "",
       ].join(" ")}
     >
       {label}
@@ -83,7 +98,7 @@ function Pill({ label, active, onToggle }: { label: string; active: boolean; onT
 const SORTIMENT_OPTIONS = ["DOB", "HAKA", "KIKO", "Schuhe", "Accessoires", "Wäsche"] as const;
 function UnternehmenPage() {
   const navigate = useNavigate();
-  const { state, update, updateFormData, completeSection, setFieldCorrection, importFromHubspot, isAdmin } = useOnboarding();
+  const { state, update, updateFormData, completeSection, setFieldCorrection, importFromHubspot, isAdmin, isLocked } = useOnboarding();
   const legalForm: LegalForm = state.legalForm ?? "GmbH";
   const isLieferant = state.memberType === "lieferant";
   const isRealAdmin = state.role === "admin";
@@ -524,7 +539,7 @@ function UnternehmenPage() {
         onPersist={setFieldCorrection}
       >
       <div className="space-y-6 max-w-4xl">
-        {/* ── 1 · Grunddaten ─────────────────────────────────────────────────── */}
+        {/* ── 1 · Grunddaten ──────────────────────────────────────────────────── */}
         <FormSection
           id="grunddaten"
           letter="1"
@@ -551,7 +566,7 @@ function UnternehmenPage() {
                   </span>
                 </div>
               ) : (
-                <select className={selectClass(legalForm)} value={legalForm}
+                <select className={selectClass(legalForm)} value={legalForm} disabled={isLocked}
                   onChange={(e) => update({ legalForm: e.target.value as LegalForm })}>
                   {LEGAL_FORMS.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
                 </select>
@@ -607,8 +622,8 @@ function UnternehmenPage() {
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-semibold uppercase tracking-wide text-secondary">{blockTitle}</p>
                   {isExtra && (
-                    <button type="button" onClick={() => removeContact(c.id)}
-                      className="rounded p-1 text-muted hover:text-destructive" aria-label="Entfernen">
+                    <button type="button" onClick={() => removeContact(c.id)} disabled={isLocked}
+                      className="rounded p-1 text-muted hover:text-destructive disabled:opacity-40 disabled:cursor-not-allowed" aria-label="Entfernen">
                       <Trash2 className="h-4 w-4" />
                     </button>
                   )}
@@ -631,6 +646,7 @@ function UnternehmenPage() {
                           key={j}
                           label={j}
                           active={c.jobbezeichnung.includes(j)}
+                          disabled={isLocked}
                           onToggle={(on) =>
                             updateContact(c.id, {
                               jobbezeichnung: on
@@ -651,7 +667,7 @@ function UnternehmenPage() {
                     </Field>
                     {c.handy && (
                       <label className="flex items-start gap-2 cursor-pointer text-xs text-secondary pl-0.5">
-                        <input type="checkbox" className="mt-0.5 h-3.5 w-3.5 accent-primary"
+                        <input type="checkbox" className="mt-0.5 h-3.5 w-3.5 accent-primary" disabled={isLocked}
                           checked={c.newsletterHandy}
                           onChange={(e) => updateContact(c.id, { newsletterHandy: e.target.checked })} />
                         <span>Einwilligung zum Erhalten des Newsletter per WhatsApp</span>
@@ -670,7 +686,7 @@ function UnternehmenPage() {
                   </Field>
                   {c.email && (
                     <label className="flex items-start gap-2 cursor-pointer text-xs text-secondary pl-0.5">
-                      <input type="checkbox" className="mt-0.5 h-3.5 w-3.5 accent-primary"
+                      <input type="checkbox" className="mt-0.5 h-3.5 w-3.5 accent-primary" disabled={isLocked}
                         checked={c.newsletterEmail}
                         onChange={(e) => updateContact(c.id, { newsletterEmail: e.target.checked })} />
                       <span>Einwilligung zum Newsletter per E-Mail</span>
@@ -683,12 +699,12 @@ function UnternehmenPage() {
               </div>
             );
           })}
-          <button type="button" onClick={addExtraContact}
-            className="inline-flex items-center gap-2 text-sm text-primary hover:underline mt-2">
+          <button type="button" onClick={addExtraContact} disabled={isLocked}
+            className="inline-flex items-center gap-2 text-sm text-primary hover:underline mt-2 disabled:opacity-40 disabled:cursor-not-allowed">
             <Plus className="h-4 w-4" /> Weiteren Kontakt hinzufügen
           </button>
         </FormSection>
-        {/* ── 3 · Bankdaten ──────────────────────────────────────────────────── */}
+        {/* ── 3 · Bankdaten ───────────────────────────────────────────────────── */}
         <FormSection
           id="bankdaten"
           letter="3"
@@ -725,7 +741,7 @@ function UnternehmenPage() {
             </Field>
           </div>
         </FormSection>
-        {/* ── Lieferant: Stammblatt statt GLN/Geschäft/GWG ──────────────────── */}
+        {/* ── Lieferant: Stammblatt statt GLN/Geschäft/GWG ────────────────────── */}
         {isLieferant ? (
           <FormSection
             id="lieferant_stamm"
@@ -744,6 +760,7 @@ function UnternehmenPage() {
                       key={opt}
                       label={opt}
                       active={liefSortiment.includes(opt)}
+                      disabled={isLocked}
                       onToggle={(on) =>
                         setLiefSortiment((prev) =>
                           on ? [...prev, opt] : prev.filter((s) => s !== opt)
@@ -780,9 +797,9 @@ function UnternehmenPage() {
                 <p className="text-sm font-medium text-foreground mb-3">Haben Sie bereits eine GLN-Nummer?</p>
                 <div className="flex gap-3">
                   {[true, false].map((v) => (
-                    <button key={String(v)} type="button" onClick={() => setHasGln(v)}
+                    <button key={String(v)} type="button" onClick={() => setHasGln(v)} disabled={isLocked}
                       className={[
-                        "rounded-md px-4 py-1.5 text-sm font-medium transition-colors",
+                        "rounded-md px-4 py-1.5 text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed",
                         hasGln === v
                           ? "bg-primary text-primary-foreground"
                           : "bg-background text-secondary hover:text-foreground",
@@ -802,9 +819,9 @@ function UnternehmenPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-medium text-foreground">Filialen</p>
-                  <button type="button"
+                  <button type="button" disabled={isLocked}
                     onClick={() => setBranches([...branches, { name: "", street: "", zip: "", city: "", gln: "" }])}
-                    className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                    className="inline-flex items-center gap-1 text-xs text-primary hover:underline disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     <Plus className="h-3.5 w-3.5" /> Filiale hinzufügen
                   </button>
@@ -828,13 +845,14 @@ function UnternehmenPage() {
                             <td key={k} className="p-1.5">
                               <input
                                 value={b[k]}
+                                disabled={isLocked}
                                 onChange={(e) => {
                                   const next = [...branches];
                                   next[i] = { ...next[i], [k]: e.target.value };
                                   setBranches(next);
                                 }}
                                 className={[
-                                  "w-full rounded bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary",
+                                  "w-full rounded bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed",
                                   b[k] ? "border border-success/60" : "border border-transparent",
                                 ].join(" ")}
                                 required={k !== "gln"}
@@ -842,9 +860,9 @@ function UnternehmenPage() {
                             </td>
                           ))}
                           <td className="p-1.5">
-                            <button type="button"
+                            <button type="button" disabled={isLocked}
                               onClick={() => setBranches(branches.filter((_, j) => j !== i))}
-                              className="rounded p-1 text-muted hover:text-destructive" aria-label="Entfernen"
+                              className="rounded p-1 text-muted hover:text-destructive disabled:opacity-40 disabled:cursor-not-allowed" aria-label="Entfernen"
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>
@@ -981,6 +999,7 @@ function UnternehmenPage() {
                   {SORTIMENT_OPTIONS.map((c) => (
                     <Pill key={c} label={c}
                       active={sortiment.includes(c)}
+                      disabled={isLocked}
                       onToggle={(on) => setSortiment((prev) => on ? [...prev, c] : prev.filter((s) => s !== c))}
                     />
                   ))}
@@ -1011,6 +1030,7 @@ function UnternehmenPage() {
                       type="checkbox"
                       className="mt-0.5 h-4 w-4 accent-primary"
                       checked={wirtschaftAbhaengig}
+                      disabled={isLocked}
                       onChange={(e) => setWirtschaftAbhaengig(e.target.checked)}
                     />
                     <span className="text-sm text-foreground leading-relaxed">
@@ -1024,6 +1044,7 @@ function UnternehmenPage() {
                         <textarea
                           className={[inputClass, "resize-none h-24"].join(" ")}
                           value={wirtschaftAbhaengigText}
+                          disabled={isLocked}
                           onChange={(e) => setWirtschaftAbhaengigText(e.target.value)}
                           placeholder="Bitte beschreiben Sie die wirtschaftliche Abhängigkeit…"
                         />
@@ -1037,9 +1058,9 @@ function UnternehmenPage() {
                     <p className="text-sm font-medium text-foreground">Gesellschafter</p>
                     <button
                       type="button"
-                      disabled={shareholders.length >= 6}
+                      disabled={isLocked || shareholders.length >= 6}
                       onClick={() => setShareholders([...shareholders, { name: "", capital: "", voting: "", pep: false }])}
-                      className="inline-flex items-center gap-1 text-xs text-primary hover:underline disabled:opacity-40"
+                      className="inline-flex items-center gap-1 text-xs text-primary hover:underline disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       <Plus className="h-3.5 w-3.5" /> Hinzufügen
                     </button>
@@ -1067,13 +1088,14 @@ function UnternehmenPage() {
                               <td key={k} className="p-1.5">
                                 <input
                                   value={s[k]}
+                                  disabled={isLocked}
                                   onChange={(e) => {
                                     const n = [...shareholders];
                                     n[i] = { ...n[i], [k]: e.target.value };
                                     setShareholders(n);
                                   }}
                                   className={[
-                                    "w-full rounded bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary",
+                                    "w-full rounded bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed",
                                     s[k] ? "border border-success/60" : "border border-transparent",
                                   ].join(" ")}
                                   placeholder={k !== "name" ? "50" : ""}
@@ -1085,6 +1107,7 @@ function UnternehmenPage() {
                               <input
                                 type="checkbox"
                                 checked={s.pep}
+                                disabled={isLocked}
                                 onChange={(e) => {
                                   const n = [...shareholders];
                                   n[i] = { ...n[i], pep: e.target.checked };
@@ -1097,8 +1120,9 @@ function UnternehmenPage() {
                             <td className="p-1.5">
                               <button
                                 type="button"
+                                disabled={isLocked}
                                 onClick={() => setShareholders(shareholders.filter((_, j) => j !== i))}
-                                className="rounded p-1 text-muted hover:text-destructive"
+                                className="rounded p-1 text-muted hover:text-destructive disabled:opacity-40 disabled:cursor-not-allowed"
                                 aria-label="Entfernen"
                               >
                                 <Trash2 className="h-4 w-4" />
