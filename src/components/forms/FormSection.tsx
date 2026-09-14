@@ -226,23 +226,18 @@ export function FormSection({
         ].join(" ")}
       >
         <header className="flex items-start justify-between gap-6 mb-6">
-          <div className="flex items-start gap-4">
+          <div className="flex items-start gap-4 min-w-0">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-popover font-display text-sm font-semibold text-primary">
               {letter}
             </span>
-            <div>
+            <div className="min-w-0">
               <h3 className="font-display text-lg font-semibold">{title}</h3>
               {description && <p className="mt-1 text-sm text-secondary">{description}</p>}
             </div>
           </div>
           {saved && !justSaved && (
-            <span className="inline-flex items-center gap-1.5 text-xs text-success">
+            <span className="inline-flex shrink-0 items-center gap-1.5 text-xs text-success">
               <Check className="h-3.5 w-3.5" /> Gespeichert
-            </span>
-          )}
-          {isLocked && (
-            <span className="inline-flex items-center gap-1.5 text-xs text-muted" title="Bearbeitung derzeit nicht möglich">
-              <Lock className="h-3.5 w-3.5" /> Gesperrt
             </span>
           )}
         </header>

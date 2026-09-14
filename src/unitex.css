@@ -90,6 +90,10 @@
   --sidebar-ring: #FACBBA;
 }
 
+body {
+  background-color: var(--background);
+}
+
 .dark { color-scheme: dark; }
 
 @utility font-display { font-family: var(--font-display); }
