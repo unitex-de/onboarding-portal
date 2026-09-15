@@ -45,29 +45,33 @@ function scrollToTarget(target: string) {
   }
 }
 
+const EST_TOOLTIP_H = 260; // grobe Höhen-Schätzung für vertikales Clamping – Text variiert leicht
+
 function calcTooltipPos(rect: Rect | null, placement: TourStep["placement"] = "bottom") {
   const vw = window.innerWidth;
+  const vh = window.innerHeight;
   const w = Math.min(TOOLTIP_W, vw - 32);
 
   if (!rect || placement === "center") {
-    return { top: window.innerHeight / 2, left: vw / 2, w, centered: true };
+    return { top: vh / 2, left: vw / 2, w, centered: true };
   }
 
   const clampL = (l: number) => Math.max(16, Math.min(l, vw - w - 16));
+  const clampT = (t: number) => Math.max(EST_TOOLTIP_H / 2 + 16, Math.min(t, vh - EST_TOOLTIP_H / 2 - 16));
 
   switch (placement) {
     case "top":
-      return { top: rect.top - PAD - 16, left: clampL(rect.left + rect.width / 2 - w / 2), w, centered: false };
+      return { top: clampT(rect.top - PAD - 16), left: clampL(rect.left + rect.width / 2 - w / 2), w, centered: false };
     case "left":
-      return { top: rect.top + rect.height / 2, left: Math.max(16, rect.left - w - PAD - 16), w, centered: false };
+      return { top: clampT(rect.top + rect.height / 2), left: Math.max(16, rect.left - w - PAD - 16), w, centered: false };
     case "right":
-      return { top: rect.top + rect.height / 2, left: rect.left + rect.width + PAD + 16, w, centered: false };
+      return { top: clampT(rect.top + rect.height / 2), left: rect.left + rect.width + PAD + 16, w, centered: false };
     case "bottom-left":
-      return { top: rect.top + rect.height + PAD + 16, left: clampL(rect.left), w, centered: false };
+      return { top: clampT(rect.top + rect.height + PAD + 16), left: clampL(rect.left), w, centered: false };
     case "bottom-right":
-      return { top: rect.top + rect.height + PAD + 16, left: clampL(rect.left + rect.width - w), w, centered: false };
+      return { top: clampT(rect.top + rect.height + PAD + 16), left: clampL(rect.left + rect.width - w), w, centered: false };
     default: // bottom
-      return { top: rect.top + rect.height + PAD + 16, left: clampL(rect.left + rect.width / 2 - w / 2), w, centered: false };
+      return { top: clampT(rect.top + rect.height + PAD + 16), left: clampL(rect.left + rect.width / 2 - w / 2), w, centered: false };
   }
 }
 
