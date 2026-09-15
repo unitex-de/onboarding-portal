@@ -27,7 +27,7 @@ function getTargetRect(target: string): Rect | null {
   const el = document.querySelector(`[data-tour="${target}"]`);
   if (!el) return null;
   const r = el.getBoundingClientRect();
-  return { top: r.top + window.scrollY, left: r.left + window.scrollX, width: r.width, height: r.height };
+  return { top: r.top, left: r.left, width: r.width, height: r.height };
 }
 
 function scrollToTarget(target: string) {
@@ -40,7 +40,7 @@ function calcTooltipPos(rect: Rect | null, placement: TourStep["placement"] = "b
   const w = Math.min(TOOLTIP_W, vw - 32);
 
   if (!rect || placement === "center") {
-    return { top: window.innerHeight / 2 + window.scrollY, left: vw / 2 - w / 2, w, centered: true };
+    return { top: window.innerHeight / 2, left: vw / 2 - w / 2, w, centered: true };
   }
 
   const clampL = (l: number) => Math.max(16, Math.min(l, vw - w - 16));
