@@ -24,15 +24,25 @@ const TOOLTIP_W = 320;
 const TRANSITION_MS = 280;
 
 function getTargetRect(target: string): Rect | null {
-  const el = document.querySelector(`[data-tour="${target}"]`);
-  if (!el) return null;
-  const r = el.getBoundingClientRect();
-  return { top: r.top, left: r.left, width: r.width, height: r.height };
+  const els = document.querySelectorAll(`[data-tour="${target}"]`);
+  for (const el of els) {
+    const r = el.getBoundingClientRect();
+    if (r.width > 0 && r.height > 0) {
+      return { top: r.top, left: r.left, width: r.width, height: r.height };
+    }
+  }
+  return null;
 }
 
 function scrollToTarget(target: string) {
-  const el = document.querySelector(`[data-tour="${target}"]`);
-  el?.scrollIntoView({ behavior: "smooth", block: "center" });
+  const els = document.querySelectorAll(`[data-tour="${target}"]`);
+  for (const el of els) {
+    const r = el.getBoundingClientRect();
+    if (r.width > 0 && r.height > 0) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+  }
 }
 
 function calcTooltipPos(rect: Rect | null, placement: TourStep["placement"] = "bottom") {
@@ -40,7 +50,7 @@ function calcTooltipPos(rect: Rect | null, placement: TourStep["placement"] = "b
   const w = Math.min(TOOLTIP_W, vw - 32);
 
   if (!rect || placement === "center") {
-    return { top: window.innerHeight / 2, left: vw / 2 - w / 2, w, centered: true };
+    return { top: window.innerHeight / 2, left: vw / 2, w, centered: true };
   }
 
   const clampL = (l: number) => Math.max(16, Math.min(l, vw - w - 16));
@@ -67,7 +77,7 @@ const TourContext = createContext<TourCtx>({ start: () => {}, isRunning: false }
 export function useTour() { return useContext(TourContext); }
 
 // ─── Main component ────────────────────────────────────────────────────────────
-export function CoachmarkTour({ steps, children, onComplete }: { steps: TourStep[]; children?: ReactNode; onComplete?: () => void }) {
+export function CoachmarkTour({ steps, children, onComplete, onStepChange }: { steps: TourStep[]; children?: ReactNode; onComplete?: () => void; onStepChange?: (step: TourStep | null) => void }) {
   const { update } = useOnboarding();
   const [active, setActive] = useState(false);
   const [stepIdx, setStepIdx] = useState(0);
@@ -77,6 +87,11 @@ export function CoachmarkTour({ steps, children, onComplete }: { steps: TourStep
   const transRef = useRef(false);
 
   const currentStep = steps[stepIdx];
+
+  useEffect(() => {
+  onStepChange?.(active ? currentStep ?? null : null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, currentStep]);
 
   const measure = useCallback(() => {
     if (!currentStep?.target) { setRect(null); return; }

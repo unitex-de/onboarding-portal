@@ -17,7 +17,7 @@ export function MobileChecklistSheet({ onClose, onInviteClick }: MobileChecklist
       />
 
       {/* Slide-up sheet */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 xl:hidden max-h-[85dvh] flex flex-col rounded-t-2xl bg-card border-t border-border shadow-2xl animate-in slide-in-from-bottom duration-300">
+      <div data-tour="right-checklist" className="fixed bottom-0 left-0 right-0 z-50 xl:hidden max-h-[85dvh] flex flex-col rounded-t-2xl bg-card border-t border-border shadow-2xl animate-in slide-in-from-bottom duration-300">
         {/* Drag handle */}
         <div className="flex justify-center pt-3 pb-1 shrink-0">
           <div className="h-1 w-10 rounded-full bg-border" />

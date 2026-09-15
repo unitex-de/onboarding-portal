@@ -12,14 +12,17 @@ export function AppShell({
   title,
   subtitle,
   children,
+  forceChecklistOpen,
 }: {
   title?: string;
   subtitle?: string;
   children: ReactNode;
+  forceChecklistOpen?: boolean;
 }) {
   const [showInvite, setShowInvite] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [checklistOpen, setChecklistOpen] = useState(false);
+  const [internalChecklistOpen, setChecklistOpen] = useState(false);
+  const checklistOpen = forceChecklistOpen ?? internalChecklistOpen;
   const { state, isAdmin, update } = useOnboarding();
   const navigate = useNavigate();
   // Vorschau verlassen: previewMode + activeCustomerId zurücksetzen, zurück

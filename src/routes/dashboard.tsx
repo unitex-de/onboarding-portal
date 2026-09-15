@@ -187,8 +187,8 @@ function DashboardEntrance({ name, onDone }: { name: string; onDone: () => void 
 // ── Page ──────────────────────────────────────────────────────────────────────
 function DashboardPage() {
   const navigate = useNavigate();
+  const [tourChecklistOpen, setTourChecklistOpen] = useState<boolean | undefined>(undefined);
 
-  // BUG 6: navigate to /unternehmen#grunddaten after tour completion
   const handleTourComplete = useCallback(() => {
     navigate({ to: "/unternehmen" }).then(() => {
       setTimeout(() => {
@@ -198,14 +198,19 @@ function DashboardPage() {
     });
   }, [navigate]);
 
+  const handleTourStepChange = useCallback((step: TourStep | null) => {
+    const shouldOpen = step?.target === "right-checklist" || step?.target === "checklist-download";
+    setTourChecklistOpen(shouldOpen ? true : undefined);
+  }, []);
+
   return (
-    <CoachmarkTour steps={TOUR_STEPS} onComplete={handleTourComplete}>
-      <DashboardContent />
+    <CoachmarkTour steps={TOUR_STEPS} onComplete={handleTourComplete} onStepChange={handleTourStepChange}>
+      <DashboardContent forceChecklistOpen={tourChecklistOpen} />
     </CoachmarkTour>
   );
 }
 
-function DashboardContent() {
+function DashboardContent({ forceChecklistOpen }: { forceChecklistOpen?: boolean }) {
   const { start: startTour } = useTour();
   const { state, update, submitForReview, isAdmin } = useOnboarding();
   const { stammdaten, uploads, signaturen, total } = getProgressBreakdown(state);
@@ -281,6 +286,7 @@ function DashboardContent() {
       <AppShell
           title={`Guten Tag, ${state.userName}`}
           subtitle={`${state.companyName} · ${isLieferant ? "Lieferanten" : "Händler"}-Onboarding`}
+          forceChecklistOpen={forceChecklistOpen}
         >
           {/* Hint toast – temporär unten links */}
           {showHint && !isAdmin && (
