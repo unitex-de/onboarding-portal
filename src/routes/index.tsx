@@ -179,6 +179,10 @@ function Index() {
         country: customer.country,
         dashboardSeen: customer.dashboardSeen,
         savedFormData: customer.savedFormData ?? {},
+        submittedAt: customer.submittedAt ?? null,
+        reviewStatus: customer.status,
+        reviewNote: customer.reviewNote ?? null,
+        fieldCorrections: customer.fieldCorrections ?? {},
       } : {}),
     });
 
