@@ -40,6 +40,7 @@ export function LeftSidebar({
   const navigate = useNavigate();
   const { state, update, isAdmin } = useOnboarding();
   const activeAccount = state.customerAccounts.find((a) => a.id === state.activeCustomerId);
+  const kundeSearch = isAdmin && state.activeCustomerId ? { kunde: state.activeCustomerId } : {};
   const pendingReview = isAdmin && activeAccount?.status === "Zur Prüfung eingereicht";
 
   // ── Markierte Felder: welcher Tab betroffen ist (Formulardaten vs. Dokumente) ──
@@ -134,7 +135,7 @@ export function LeftSidebar({
 
       <nav className="flex-1 px-3 space-y-1 overflow-y-auto">
         {/* Dashboard */}
-        <Link to="/dashboard" className={navItemClass("/dashboard")} onClick={handleNavClick}>
+        <Link to="/dashboard" search={kundeSearch} className={navItemClass("/dashboard")} onClick={handleNavClick}>
           {isActive("/dashboard") && (
             <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full bg-primary" />
           )}
@@ -148,7 +149,7 @@ export function LeftSidebar({
             <div className="my-2 border-t border-border" />
 
             {/* Schritt 1: Unternehmensdaten */}
-            <Link to="/unternehmen" className={navItemClass("/unternehmen")} onClick={handleNavClick}>
+            <Link to="/unternehmen" search={kundeSearch} className={navItemClass("/unternehmen")} onClick={handleNavClick}>
               {isActive("/unternehmen") && (
                 <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full bg-primary" />
               )}
@@ -160,7 +161,7 @@ export function LeftSidebar({
             </Link>
 
             {/* Schritt 2: Dokumente */}
-            <Link to="/upload-center" className={navItemClass("/upload-center")} onClick={handleNavClick}>
+            <Link to="/upload-center" search={kundeSearch} className={navItemClass("/upload-center")} onClick={handleNavClick}>
               {isActive("/upload-center") && (
                 <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full bg-primary" />
               )}
@@ -172,7 +173,7 @@ export function LeftSidebar({
             </Link>
 
             {/* Schritt 3: Onboarding abschließen */}
-            <Link to="/signaturen" className={navItemClass("/signaturen")} onClick={handleNavClick}>
+            <Link to="/signaturen" search={kundeSearch} className={navItemClass("/signaturen")} onClick={handleNavClick}>
               {isActive("/signaturen") && (
                 <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full bg-primary" />
               )}
@@ -211,7 +212,7 @@ export function LeftSidebar({
               <ShieldCheck className="h-5 w-5" strokeWidth={1.75} />
               <span>Kunden-Übersicht</span>
             </Link>
-            <Link to="/pruefung" className={navItemClass("/pruefung")} onClick={handleNavClick}>
+            <Link to="/pruefung" search={kundeSearch} className={navItemClass("/pruefung")} onClick={handleNavClick}>
               {isActive("/pruefung") && (
                 <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full bg-primary" />
               )}
@@ -225,7 +226,7 @@ export function LeftSidebar({
         )}
 
         {/* Hilfe & Kontakt */}
-        <Link to="/support" className={navItemClass("/support")} onClick={handleNavClick}>
+        <Link to="/support" search={kundeSearch} className={navItemClass("/support")} onClick={handleNavClick}>
           {isActive("/support") && (
             <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full bg-primary" />
           )}

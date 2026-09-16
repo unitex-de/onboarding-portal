@@ -12,6 +12,9 @@ import {
 
 export const Route = createFileRoute("/support")({
   head: () => ({ meta: [{ title: "Support | unitex Onboarding" }] }),
+  validateSearch: (search: Record<string, unknown>): { kunde?: string } => ({
+    kunde: typeof search.kunde === "string" ? search.kunde : undefined,
+  }),
   component: SupportPage,
 });
 

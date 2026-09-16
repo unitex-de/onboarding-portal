@@ -11,6 +11,9 @@ import { ConfettiPopup } from "@/components/ui/ConfettiPopup";
 
 export const Route = createFileRoute("/signaturen")({
   head: () => ({ meta: [{ title: "Onboarding abschließen | unitex Onboarding" }] }),
+  validateSearch: (search: Record<string, unknown>): { kunde?: string } => ({
+    kunde: typeof search.kunde === "string" ? search.kunde : undefined,
+  }),
   component: SignaturenPage,
 });
 
