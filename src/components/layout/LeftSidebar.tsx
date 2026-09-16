@@ -211,13 +211,6 @@ export function LeftSidebar({
               <ShieldCheck className="h-5 w-5" strokeWidth={1.75} />
               <span>Kunden-Übersicht</span>
             </Link>
-            <Link to="/signaturen" className={navItemClass("/signaturen")} onClick={handleNavClick}>
-              {isActive("/signaturen") && (
-                <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full bg-primary" />
-              )}
-              <CheckSquare className="h-5 w-5" strokeWidth={1.75} />
-              <span>Signaturen</span>
-            </Link>
             <Link to="/pruefung" className={navItemClass("/pruefung")} onClick={handleNavClick}>
               {isActive("/pruefung") && (
                 <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full bg-primary" />
