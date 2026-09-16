@@ -142,7 +142,11 @@ function Index() {
     });
 
     if (otpError) {
-      setEmailError("Code konnte nicht versendet werden. Bitte versuchen Sie es erneut.");
+      setEmailError(
+        otpError.code === "over_email_send_rate_limit"
+          ? "Es wurde bereits vor Kurzem ein Code an diese Adresse gesendet. Bitte prüfen Sie zunächst Ihr Postfach (auch den Spam-Ordner) oder warten Sie kurz, bevor Sie es erneut versuchen."
+          : "Code konnte nicht versendet werden. Bitte versuchen Sie es erneut."
+      );
       return;
     }
 
