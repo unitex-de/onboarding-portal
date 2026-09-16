@@ -8,6 +8,9 @@ import { ConfettiPopup } from "@/components/ui/ConfettiPopup";
 import { searchHubspotCandidates, type HubspotCandidate } from "@/lib/api/hubspot.functions";
 export const Route = createFileRoute("/unternehmen")({
   head: () => ({ meta: [{ title: "Unternehmen | unitex Onboarding" }] }),
+  validateSearch: (search: Record<string, unknown>): { kunde?: string } => ({
+    kunde: typeof search.kunde === "string" ? search.kunde : undefined,
+  }),
   component: UnternehmenPage,
 });
 const LEGAL_FORMS: { value: LegalForm; label: string }[] = [

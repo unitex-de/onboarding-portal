@@ -7,6 +7,9 @@ import { ArrowRight, FileText, FolderUp, PenLine, SendHorizonal, Lock, Shield, I
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard | unitex Onboarding" }] }),
+  validateSearch: (search: Record<string, unknown>): { kunde?: string } => ({
+    kunde: typeof search.kunde === "string" ? search.kunde : undefined,
+  }),
   component: DashboardPage,
 });
 

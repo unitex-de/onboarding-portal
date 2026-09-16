@@ -16,6 +16,9 @@ const LEGAL_FORMS: { value: LegalForm; label: string }[] = [
 ];
 export const Route = createFileRoute("/upload-center")({
   head: () => ({ meta: [{ title: "Upload-Center | unitex Onboarding" }] }),
+  validateSearch: (search: Record<string, unknown>): { kunde?: string } => ({
+    kunde: typeof search.kunde === "string" ? search.kunde : undefined,
+  }),
   component: UploadCenterPage,
 });
 function UploadCenterPage() {

@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import {
   useOnboarding, type MemberType, type LegalForm, type CustomerAccount,
-  type CustomerStatus, buildMagicLink
+  type CustomerStatus, buildMagicLink, buildAdminCustomerViewState
 } from "@/lib/onboarding-state";
 import { UnitexLogo } from "@/components/ui/UnitexLogo";
 import { supabase } from "@/lib/supabase";
@@ -173,14 +173,15 @@ function AdminPage() {
         role: "admin",
         signedIn: true,
         activeCustomerId: acc.id,
+        ...buildAdminCustomerViewState(acc),
         uploadedDocs: {},
         completedSections: {},
         submittedAt: null,
+        savedFormData: {},
+        fieldCorrections: {},
         postalCode: acc.postalCode,
         country: acc.country,
         zrStartDate: acc.zrStartDate,
-        savedFormData: {},
-        fieldCorrections: {},
       });
 
       // Falls über HubSpot ausgewählt: volle Stammdaten (Adresse, USt-ID,
@@ -207,52 +208,23 @@ function AdminPage() {
   };
 
   const handleViewCustomer = (acc: CustomerAccount) => {
-    update({
-      email: acc.email,
-      memberType: acc.memberType,
-      legalForm: acc.legalForm,
-      legalFormLockedByAdmin: true,
-      userName: `${acc.firstName} ${acc.lastName}`,
-      companyName: acc.companyName,
-      role: "admin",
-      signedIn: true,
-      activeCustomerId: acc.id,
-      uploadedDocs: acc.uploadedDocs,
-      completedSections: acc.completedSections,
-      postalCode: acc.postalCode,
-      country: acc.country,
-      zrStartDate: acc.zrStartDate,
-      savedFormData: acc.savedFormData ?? {},
-      fieldCorrections: acc.fieldCorrections ?? {},
-    });
+    update(buildAdminCustomerViewState(acc));
     // "Prüfen" ersetzt "Öffnen": bei eingereichten Accounts direkt zur
     // Prüfungsseite, sonst wie gehabt ins Dashboard des Kunden.
-    navigate({ to: acc.status === "Zur Prüfung eingereicht" ? "/pruefung" : "/dashboard" });
+    navigate({
+      to: acc.status === "Zur Prüfung eingereicht" ? "/pruefung" : "/dashboard",
+      search: { kunde: acc.id },
+    });
   };
 
-  const handlePreviewAsCustomer = (acc: CustomerAccount) => {
+   const handlePreviewAsCustomer = (acc: CustomerAccount) => {
     update({
-      email: acc.email,
-      memberType: acc.memberType,
-      legalForm: acc.legalForm,
-      legalFormLockedByAdmin: true,
-      userName: `${acc.firstName} ${acc.lastName}`,
-      companyName: acc.companyName,
-      role: "admin",
-      signedIn: true,
-      activeCustomerId: acc.id,
+      ...buildAdminCustomerViewState(acc),
       previewMode: true,
-      uploadedDocs: acc.uploadedDocs,
-      completedSections: acc.completedSections,
-      postalCode: acc.postalCode,
-      country: acc.country,
-      zrStartDate: acc.zrStartDate,
-      savedFormData: acc.savedFormData ?? {},
-      fieldCorrections: acc.fieldCorrections ?? {},
     });
     // Vorschau landet immer auf dem Dashboard, unabhängig vom Status –
     // das ist der erste Screen, den der echte Kunde nach Login sieht.
-    navigate({ to: "/dashboard" });
+    navigate({ to: "/dashboard", search: { kunde: acc.id } });
   };
 
   const handleSendLink = async (acc: CustomerAccount) => {

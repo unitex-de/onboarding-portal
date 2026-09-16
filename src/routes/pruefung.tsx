@@ -63,6 +63,9 @@ function resolveFieldLabel(fieldId: string): string {
 
 export const Route = createFileRoute("/pruefung")({
   head: () => ({ meta: [{ title: "Prüfung | unitex Onboarding" }] }),
+  validateSearch: (search: Record<string, unknown>): { kunde?: string } => ({
+    kunde: typeof search.kunde === "string" ? search.kunde : undefined,
+  }),
   component: PruefungPage,
 });
 

@@ -1,9 +1,11 @@
 import { createContext, useContext, useEffect, useMemo, useState, useCallback, useRef, type ReactNode } from "react";
+import { useRouter } from "@tanstack/react-router";
 import { supabase } from "./supabase";
 import { notifyReviewSubmitted, notifyCustomerRejected, notifyNeukundenformularReady, notifyGwgBogenReady } from "./api/notify.functions";
 import { syncCustomerToHubspot, importHubspotCompanyData, type HubspotImportData } from "./api/hubspot.functions";
 import { generateNeukundenPdfFilled, generateLieferantPdfFilled } from "./pdf-form-filler";
 import { generateGwgBogenHaendlerPdf } from "./gwg_bogen_filler";
+
 
 // ---------------------------------------------------------------------------
 // Types & Interfaces
@@ -194,6 +196,34 @@ export function generateMagicToken(): string {
 export function buildMagicLink(token: string, email: string): string {
   const encoded = encodeURIComponent(email);
   return `https://onboarding.unitex.de/verify?token=${token}&email=${encoded}`;
+}
+/**
+ * Baut den State-Ausschnitt für die Admin-Ansicht eines Kunden-Accounts.
+ * Zentral an einer Stelle, damit Klick-Navigation (admin.tsx) und die
+ * URL-Wiederherstellung nach einem Reload (init()-Effect unten) niemals
+ * auseinanderlaufen.
+ */
+
+export function buildAdminCustomerViewState(acc: CustomerAccount): Partial<OnboardingState> {
+  return {
+    email: acc.email,
+    memberType: acc.memberType,
+    legalForm: acc.legalForm,
+    legalFormLockedByAdmin: true,
+    userName: `${acc.firstName} ${acc.lastName}`,
+    companyName: acc.companyName,
+    role: "admin",
+    signedIn: true,
+    activeCustomerId: acc.id,
+    uploadedDocs: acc.uploadedDocs,
+    completedSections: acc.completedSections,
+    postalCode: acc.postalCode,
+    country: acc.country,
+    zrStartDate: acc.zrStartDate,
+    savedFormData: acc.savedFormData ?? {},
+    fieldCorrections: acc.fieldCorrections ?? {},
+    submittedAt: acc.submittedAt ?? null,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -453,6 +483,7 @@ const OnboardingCtx = createContext<Ctx | null>(null);
 export function OnboardingProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<OnboardingState>(DEFAULT_STATE);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   // Ref hält den aktuellen State synchron, damit useCallback-Funktionen
   // mit [] als Dependency trotzdem den aktuellen activeCustomerId sehen
@@ -513,12 +544,18 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       if (adminRow) {
         // Admin: alle Kunden laden
         const customerAccounts = await fetchAllCustomers();
+        const kundeParam = (router.state.location.search as Record<string, unknown>)?.kunde;
+        const restoredAccount = typeof kundeParam === "string"
+          ? customerAccounts.find((a) => a.id === kundeParam)
+          : undefined;
+
         setState((s) => ({
           ...s,
           email,
           signedIn: true,
           role: "admin",
           customerAccounts,
+          ...(restoredAccount ? buildAdminCustomerViewState(restoredAccount) : {}),
         }));
       } else {
         // Kunde: nur eigene Daten laden
