@@ -5,6 +5,7 @@ import { notifyReviewSubmitted, notifyCustomerRejected, notifyNeukundenformularR
 import { syncCustomerToHubspot, importHubspotCompanyData, type HubspotImportData } from "./api/hubspot.functions";
 import { generateNeukundenPdfFilled, generateLieferantPdfFilled } from "./pdf-form-filler";
 import { generateGwgBogenHaendlerPdf } from "./gwg_bogen_filler";
+import { resolveFieldLabel } from "@/lib/field-labels";
 
 
 // ---------------------------------------------------------------------------
@@ -1103,15 +1104,22 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       // Tanja nur Felder markiert hat, aber keinen globalen Kommentar schrieb.
       const target = stateRef.current.customerAccounts.find((a) => a.id === id);
       if (target) {
-        const correctionCount = Object.values(target.fieldCorrections ?? {}).filter((c) => c.wrong).length;
-        const effectiveNote = note?.trim()
-          || (correctionCount > 0
-            ? `Bitte prüfen Sie die ${correctionCount} markierte${correctionCount === 1 ? "" : "n"} Angabe${correctionCount === 1 ? "" : "n"} in Ihrem Formular.`
-            : undefined);
-        if (effectiveNote) {
+        const corrections = Object.entries(target.fieldCorrections ?? {})
+          .filter(([, c]) => c.wrong)
+          .map(([fieldId, c]) => ({
+            label: resolveFieldLabel(fieldId),
+            comment: c.comment?.trim() || undefined,
+          }));
+        const effectiveNote = note?.trim() || undefined;
+        if (effectiveNote || corrections.length > 0) {
           try {
             await notifyCustomerRejected({
-              data: { customerEmail: target.email, companyName: target.companyName, note: effectiveNote },
+              data: {
+                customerEmail: target.email,
+                companyName: target.companyName,
+                note: effectiveNote,
+                corrections,
+              },
             });
           } catch (e) {
             console.error("[reviewCustomer] Benachrichtigung an Kunden fehlgeschlagen:", e);

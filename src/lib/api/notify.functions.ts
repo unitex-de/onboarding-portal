@@ -112,7 +112,11 @@ export const notifyCustomerRejected = createServerFn({ method: "POST" })
     z.object({
       customerEmail: z.string().email(),
       companyName: z.string(),
-      note: z.string(),
+      note: z.string().optional(),
+      corrections: z.array(z.object({
+        label: z.string(),
+        comment: z.string().optional(),
+      })).optional(),
     }),
   )
   .handler(async ({ data }) => {
@@ -122,6 +126,20 @@ export const notifyCustomerRejected = createServerFn({ method: "POST" })
     }
     const resend = new Resend(apiKey);
     const { to, subject } = resolveRecipient(data.customerEmail, `Onboarding: Bitte korrigieren Sie einige Angaben`);
+    const correctionsList = data.corrections && data.corrections.length > 0
+      ? `
+        <ul style="padding-left:20px; margin:12px 0;">
+          ${data.corrections.map((c) => `
+            <li style="margin-bottom:4px;">
+              <strong>${c.label}</strong>${c.comment ? ` — ${c.comment}` : ""}
+            </li>
+          `).join("")}
+        </ul>
+      `
+      : "";
+    const noteBlock = data.note
+      ? `<p style="padding:12px; background:#f5f5f5; border-radius:6px;">${data.note}</p>`
+      : "";
     const { error } = await resend.emails.send({
       from: ABSENDER,
       to,
@@ -130,7 +148,8 @@ export const notifyCustomerRejected = createServerFn({ method: "POST" })
         <p>Hallo,</p>
         <p>vielen Dank für die Einreichung Ihrer Onboarding-Unterlagen für <strong>${data.companyName}</strong>.</p>
         <p>Bei der Prüfung ist uns aufgefallen, dass noch etwas korrigiert werden muss:</p>
-        <p style="padding:12px; background:#f5f5f5; border-radius:6px;">${data.note}</p>
+        ${noteBlock}
+        ${correctionsList}
         <p>Bitte loggen Sie sich im Portal ein, um die Korrektur vorzunehmen und erneut einzureichen.</p>
       `,
     });
