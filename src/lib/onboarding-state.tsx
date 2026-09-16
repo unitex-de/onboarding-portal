@@ -1048,8 +1048,8 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         telefon: c.telefon,
         email: c.email,
         jobbezeichnung: c.jobbezeichnung ? [c.jobbezeichnung] : undefined,
-        newsletterHandy: false,
-        newsletterEmail: false,
+        newsletterHandy: true,
+        newsletterEmail: true,
       }));
     }
     if (Object.keys(formPatch).length > 0) {
@@ -1191,8 +1191,8 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
                 telefon: c.telefon,
                 email: c.email,
                 jobbezeichnung: c.jobbezeichnung,
-                newsletterHandy: c.newsletterHandy ?? false,
-                newsletterEmail: c.newsletterEmail ?? false,
+                newsletterHandy: c.newsletterHandy ?? true,
+                newsletterEmail: c.newsletterEmail ?? true,
               })),
             },
           });

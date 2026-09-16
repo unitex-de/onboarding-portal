@@ -217,8 +217,8 @@ function UnternehmenPage() {
           : c.jobbezeichnung
           ? [c.jobbezeichnung as JobType]
           : [],
-        newsletterHandy: c.newsletterHandy ?? false,
-        newsletterEmail: c.newsletterEmail ?? false,
+        newsletterHandy: c.newsletterHandy ?? true,
+        newsletterEmail: c.newsletterEmail ?? true,
       }));
     }
     return [newContact("gf"), newContact("buchhaltung")];
