@@ -287,12 +287,20 @@ export function Field({
   required?: boolean;
   className?: string;
   as?: "label" | "div";
-  /** Wenn gesetzt: zeigt den X-Marker und ggf. eine rote Umrandung an */
   fieldId?: string;
 }) {
   const Wrapper = as;
   const reviewCtx = useFieldReview();
   const wrong = fieldId ? (reviewCtx?.corrections[fieldId]?.wrong ?? false) : false;
+
+  // Kunde korrigiert ein als falsch markiertes Feld: Markierung (Ring +
+  // Sidebar-Eintrag) sofort entfernen, sobald er tippt/auswählt.
+  const clearCorrectionOnEdit = () => {
+    if (wrong && fieldId && reviewCtx && !reviewCtx.canEdit) {
+      reviewCtx.onRemove(fieldId);
+    }
+  };
+
   return (
     <Wrapper className={["block space-y-1.5", className].filter(Boolean).join(" ")}>
       <span className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
@@ -304,7 +312,10 @@ export function Field({
         </span>
         {fieldId && <FieldFlag fieldId={fieldId} />}
       </span>
-      <div className={wrong ? "-m-1 rounded-md p-1 ring-1 ring-destructive/50 bg-destructive/5" : undefined}>
+      <div
+        className={wrong ? "-m-1 rounded-md p-1 ring-1 ring-destructive/50 bg-destructive/5" : undefined}
+        onChangeCapture={clearCorrectionOnEdit}
+      >
         {children}
       </div>
       {hint && <span className="block text-xs text-muted">{hint}</span>}
