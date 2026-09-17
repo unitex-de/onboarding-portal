@@ -113,14 +113,24 @@ export async function insertParsedRows(rows: NewParsedRow[]): Promise<void> {
 }
 
 export async function getRowsForSession(sessionId: number): Promise<ZrParsedRow[]> {
-  const { data, error } = await supabase
-    .from("zr_parsed_rows")
-    .select("*")
-    .eq("session_id", sessionId)
-    .order("match_status", { ascending: true })
-    .order("match_score", { ascending: false });
-  if (error) throw error;
-  return (data ?? []).map(mapRow);
+  const PAGE_SIZE = 1000; // Supabase-Standardlimit pro Request
+  const all: any[] = [];
+  let from = 0;
+  for (;;) {
+    const { data, error } = await supabase
+      .from("zr_parsed_rows")
+      .select("*")
+      .eq("session_id", sessionId)
+      .order("match_status", { ascending: true })
+      .order("match_score", { ascending: false })
+      .order("id", { ascending: true }) // eindeutiger Tie-Breaker, sonst ist range()-Pagination unzuverlässig
+      .range(from, from + PAGE_SIZE - 1);
+    if (error) throw error;
+    all.push(...(data ?? []));
+    if (!data || data.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
+  return all.map(mapRow);
 }
 
 export async function getReviewRows(sessionId: number): Promise<ZrParsedRow[]> {
