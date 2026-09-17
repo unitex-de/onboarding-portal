@@ -127,7 +127,7 @@ export function buildMatchContext(suppliers: ZrSupplier[], learnedAliases: Learn
     firmNorms: firmPool.map((p) => p.norm),
     markeNorms: markePool.map((p) => p.norm),
     aliasNorms: aliasPool.map((p) => p.norm),
-    learnedAliases: new Map(learnedAliases.map((a) => [a.alias.toLowerCase(), a])),
+    learnedAliases: new Map(learnedAliases.map((a) => [normalize(a.alias), a])),
   };
 }
 
@@ -147,10 +147,13 @@ export type MatchResult = {
  * beste Treffer über alle drei Stufen hinweg über Review/Nicht-ZR. */
 export function matchRawName(rawName: string, ctx: MatchContext): MatchResult {
   const raw = (rawName ?? "").trim();
-  const rawLower = raw.toLowerCase();
+  const normRaw = normalize(raw);
 
-  // Stufe 0: gelernte Aliases aus vorherigen Review-Bestätigungen
-  const learned = ctx.learnedAliases.get(rawLower);
+  // Stufe 0: gelernte Aliases aus vorherigen Review-Bestätigungen.
+  // Lookup-Key ist normalisiert (wie Stufe 1-3), damit z.B. "Jack & Jones GmbH"
+  // und "Jack&Jones AG" auf dieselbe gelernte Zuordnung treffen, auch wenn
+  // unterschiedliche Händler den Rohnamen geringfügig anders exportieren.
+  const learned = ctx.learnedAliases.get(normRaw);
   if (learned) {
     return {
       matchedLiefNr: learned.liefNr,
@@ -161,7 +164,6 @@ export function matchRawName(rawName: string, ctx: MatchContext): MatchResult {
     };
   }
 
-  const normRaw = normalize(raw);
   let bestOverall: { score: number; liefNr: string; firm: string; marke: string | null } | null = null;
 
   // Stufe 1: Firmierung
