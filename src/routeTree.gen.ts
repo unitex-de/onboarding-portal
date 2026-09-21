@@ -29,6 +29,7 @@ import { Route as ZrReviewSessionIdRouteImport } from './routes/zr-review.$sessi
 import { Route as ZrOutputSessionIdRouteImport } from './routes/zr-output.$sessionId'
 import { Route as ZrCheckSessionIdRouteImport } from './routes/zr-check.$sessionId'
 import { Route as ApiPandadocWebhookRouteImport } from './routes/api.pandadoc-webhook'
+import { Route as ApiPandadocIdsRouteImport } from './routes/api.pandadoc-ids'
 import { Route as ApiHubspotVertragRouteImport } from './routes/api.hubspot-vertrag'
 
 const ZrUploadRoute = ZrUploadRouteImport.update({
@@ -131,6 +132,11 @@ const ApiPandadocWebhookRoute = ApiPandadocWebhookRouteImport.update({
   path: '/api/pandadoc-webhook',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPandadocIdsRoute = ApiPandadocIdsRouteImport.update({
+  id: '/api/pandadoc-ids',
+  path: '/api/pandadoc-ids',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiHubspotVertragRoute = ApiHubspotVertragRouteImport.update({
   id: '/api/hubspot-vertrag',
   path: '/api/hubspot-vertrag',
@@ -155,6 +161,7 @@ export interface FileRoutesByFullPath {
   '/zr-lieferanten': typeof ZrLieferantenRoute
   '/zr-upload': typeof ZrUploadRoute
   '/api/hubspot-vertrag': typeof ApiHubspotVertragRoute
+  '/api/pandadoc-ids': typeof ApiPandadocIdsRoute
   '/api/pandadoc-webhook': typeof ApiPandadocWebhookRoute
   '/zr-check/$sessionId': typeof ZrCheckSessionIdRoute
   '/zr-output/$sessionId': typeof ZrOutputSessionIdRoute
@@ -178,6 +185,7 @@ export interface FileRoutesByTo {
   '/zr-lieferanten': typeof ZrLieferantenRoute
   '/zr-upload': typeof ZrUploadRoute
   '/api/hubspot-vertrag': typeof ApiHubspotVertragRoute
+  '/api/pandadoc-ids': typeof ApiPandadocIdsRoute
   '/api/pandadoc-webhook': typeof ApiPandadocWebhookRoute
   '/zr-check/$sessionId': typeof ZrCheckSessionIdRoute
   '/zr-output/$sessionId': typeof ZrOutputSessionIdRoute
@@ -202,6 +210,7 @@ export interface FileRoutesById {
   '/zr-lieferanten': typeof ZrLieferantenRoute
   '/zr-upload': typeof ZrUploadRoute
   '/api/hubspot-vertrag': typeof ApiHubspotVertragRoute
+  '/api/pandadoc-ids': typeof ApiPandadocIdsRoute
   '/api/pandadoc-webhook': typeof ApiPandadocWebhookRoute
   '/zr-check/$sessionId': typeof ZrCheckSessionIdRoute
   '/zr-output/$sessionId': typeof ZrOutputSessionIdRoute
@@ -227,6 +236,7 @@ export interface FileRouteTypes {
     | '/zr-lieferanten'
     | '/zr-upload'
     | '/api/hubspot-vertrag'
+    | '/api/pandadoc-ids'
     | '/api/pandadoc-webhook'
     | '/zr-check/$sessionId'
     | '/zr-output/$sessionId'
@@ -250,6 +260,7 @@ export interface FileRouteTypes {
     | '/zr-lieferanten'
     | '/zr-upload'
     | '/api/hubspot-vertrag'
+    | '/api/pandadoc-ids'
     | '/api/pandadoc-webhook'
     | '/zr-check/$sessionId'
     | '/zr-output/$sessionId'
@@ -273,6 +284,7 @@ export interface FileRouteTypes {
     | '/zr-lieferanten'
     | '/zr-upload'
     | '/api/hubspot-vertrag'
+    | '/api/pandadoc-ids'
     | '/api/pandadoc-webhook'
     | '/zr-check/$sessionId'
     | '/zr-output/$sessionId'
@@ -297,6 +309,7 @@ export interface RootRouteChildren {
   ZrLieferantenRoute: typeof ZrLieferantenRoute
   ZrUploadRoute: typeof ZrUploadRoute
   ApiHubspotVertragRoute: typeof ApiHubspotVertragRoute
+  ApiPandadocIdsRoute: typeof ApiPandadocIdsRoute
   ApiPandadocWebhookRoute: typeof ApiPandadocWebhookRoute
   ZrCheckSessionIdRoute: typeof ZrCheckSessionIdRoute
   ZrOutputSessionIdRoute: typeof ZrOutputSessionIdRoute
@@ -445,6 +458,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPandadocWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/pandadoc-ids': {
+      id: '/api/pandadoc-ids'
+      path: '/api/pandadoc-ids'
+      fullPath: '/api/pandadoc-ids'
+      preLoaderRoute: typeof ApiPandadocIdsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/hubspot-vertrag': {
       id: '/api/hubspot-vertrag'
       path: '/api/hubspot-vertrag'
@@ -473,6 +493,7 @@ const rootRouteChildren: RootRouteChildren = {
   ZrLieferantenRoute: ZrLieferantenRoute,
   ZrUploadRoute: ZrUploadRoute,
   ApiHubspotVertragRoute: ApiHubspotVertragRoute,
+  ApiPandadocIdsRoute: ApiPandadocIdsRoute,
   ApiPandadocWebhookRoute: ApiPandadocWebhookRoute,
   ZrCheckSessionIdRoute: ZrCheckSessionIdRoute,
   ZrOutputSessionIdRoute: ZrOutputSessionIdRoute,
