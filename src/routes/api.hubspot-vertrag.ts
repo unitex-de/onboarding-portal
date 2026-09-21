@@ -33,6 +33,32 @@ async function hubspotGet(
   return { ok: response.ok, status: response.status, body };
 }
 
+// HubSpot liefert reine Datumsfelder als "JJJJ-MM-TT"
+function isIsoDate(v: unknown): v is string {
+  if (typeof v !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;
+  const [y, m, d] = v.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
+}
+
+function addWeeksIso(iso: string, weeks: number): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d + weeks * 7));
+  return dt.toISOString().slice(0, 10);
+}
+
+function toGermanDate(iso: string): string {
+  const [y, m, d] = iso.split("-");
+  return `${d}.${m}.${y}`;
+}
+
+function json(status: number, payload: unknown): Response {
+  return new Response(JSON.stringify(payload), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
 export const Route = createFileRoute("/api/hubspot-vertrag")({
   server: {
     handlers: {
@@ -112,18 +138,30 @@ export const Route = createFileRoute("/api/hubspot-vertrag")({
           signerNachname: signer?.lastname,
           signerEmail: signer?.email,
         };
-        const missing = Object.entries(data)
+        const problems: string[] = Object.entries(data)
           .filter(([, v]) => !v || !String(v).trim())
           .map(([k]) => k);
 
-        // Testphase: Rohwerte protokollieren, später reduzieren
-        console.log("[hubspot-vertrag] Daten:", JSON.stringify({ ...data, contactCount: contactIds.length }));
-
-        if (missing.length > 0) {
-          console.warn(`[hubspot-vertrag] Fehlende Angaben: ${missing.join(", ")}`);
-          return new Response(`Fehlende Angaben: ${missing.join(", ")}`, { status: 422 });
+        // 4) Kündigungsdatum: ZR Beginn + 6 Wochen
+        let kuendigungAbIso: string | undefined;
+        let kuendigungAbDe: string | undefined;
+        if (data.zrStart) {
+          if (isIsoDate(data.zrStart)) {
+            kuendigungAbIso = addWeeksIso(data.zrStart, 6);
+            kuendigungAbDe = toGermanDate(kuendigungAbIso);
+          } else {
+            problems.push(`zrStart (unerwartetes Format: ${data.zrStart})`);
+          }
         }
-        return new Response("ok", { status: 200 });
+
+        const result = { data, kuendigungAbIso, kuendigungAbDe, contactCount: contactIds.length };
+
+        if (problems.length > 0) {
+          console.warn(`[hubspot-vertrag] Unternehmen ${companyId}: ${problems.join("; ")}`);
+          return json(422, { ok: false, problems, ...result });
+        }
+        console.log(`[hubspot-vertrag] Unternehmen ${companyId}: Daten vollständig`);
+        return json(200, { ok: true, ...result });
       },
     },
   },
