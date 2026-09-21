@@ -35,7 +35,7 @@ export const Route = createFileRoute("/api/hubspot-vertrag")({
           return new Response("Invalid JSON", { status: 400 });
         }
 
-        const companyId = String(body?.object?.objectId ?? body?.companyId ?? "");
+        const companyId = String(body?.hs_object_id ?? body?.object?.objectId ?? body?.companyId ?? "");
         if (!companyId) {
           console.warn("[hubspot-vertrag] Keine Unternehmens-ID im Body gefunden");
           return new Response("companyId fehlt", { status: 400 });
