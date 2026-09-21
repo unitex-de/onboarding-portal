@@ -2,6 +2,29 @@ import { createFileRoute } from "@tanstack/react-router";
 import { timingSafeEqual } from "node:crypto";
 
 const HUBSPOT_API_BASE = "https://api.hubapi.com";
+const PANDADOC_BASE = "https://api.pandadoc.com/public/v1";
+
+// --- PandaDoc-Konfiguration (Template "Anschluss-Vertrag Händler ZR") ---
+const TEMPLATE_ID = "dmTxoEw7cxUFoMKhEJFMk9";
+const ROLE_CLIENT = "Client";
+const ROLE_UNITEX = "unitex";
+const BLOCK_LAUFZEIT = "Content Placeholder 1";
+const BLOCK_ZUSATZ = "Content Placeholder 2";
+const LAUFZEIT_ITEMS: Record<string, string> = {
+  "1 Jahr": "dwqdzoVmh9LL3BsftPUUtW",
+  "3 Jahre": "QJFmRe8aMez3UyENb85qVj",
+  "5 Jahre": "65VPHHmVznFKhGdsXj8CtR",
+};
+const ZUSATZ_5_JAHRE = "Fr5NgG2rXZUFSD8CU67C4o";
+const ZUSATZ_STANDARD = "cVD89rdwZqTBFXTBpebt2g";
+
+// Unterzeichner für unitex
+const UNITEX_SIGNER = { first_name: "Xaver", last_name: "Albrecht", email: "x.albrecht@unitex.de" };
+
+// TESTMODUS: solange true, bekommt die Rolle unitex die Testadresse statt Xaver,
+// und der Aufruf darf "testLaufzeit" mitgeben.
+const TEST_MODE = true;
+const TEST_EMAIL_UNITEX = "projekte@unitex.de";
 
 const COMPANY_PROPERTIES = [
   "name",
@@ -65,8 +88,9 @@ export const Route = createFileRoute("/api/hubspot-vertrag")({
       POST: async ({ request }) => {
         const expectedToken = process.env.HUBSPOT_WEBHOOK_TOKEN;
         const hubspotToken = process.env.HUBSPOT_ACCESS_TOKEN;
-        if (!expectedToken || !hubspotToken) {
-          console.error("[hubspot-vertrag] HUBSPOT_WEBHOOK_TOKEN oder HUBSPOT_ACCESS_TOKEN fehlt");
+        const pandadocKey = process.env.PANDADOC_API_KEY;
+        if (!expectedToken || !hubspotToken || !pandadocKey) {
+          console.error("[hubspot-vertrag] Umgebungsvariable fehlt (Webhook-Token, HubSpot oder PandaDoc)");
           return new Response("Server misconfigured", { status: 500 });
         }
 
@@ -126,6 +150,8 @@ export const Route = createFileRoute("/api/hubspot-vertrag")({
         const signer = gfContacts[0];
 
         // 3) Vollständigkeit prüfen
+        const laufzeit: string | undefined =
+          TEST_MODE && typeof body?.testLaufzeit === "string" ? body.testLaufzeit : p.vertragslaufzeit;
         const data = {
           firmenname: p.name,
           strasse: p.address,
@@ -133,7 +159,7 @@ export const Route = createFileRoute("/api/hubspot-vertrag")({
           plz: p.zip,
           ort: p.city,
           zrStart: p.n06__zr_ab,
-          laufzeit: p.vertragslaufzeit,
+          laufzeit,
           signerVorname: signer?.firstname,
           signerNachname: signer?.lastname,
           signerEmail: signer?.email,
@@ -141,6 +167,10 @@ export const Route = createFileRoute("/api/hubspot-vertrag")({
         const problems: string[] = Object.entries(data)
           .filter(([, v]) => !v || !String(v).trim())
           .map(([k]) => k);
+
+        if (data.laufzeit && !LAUFZEIT_ITEMS[String(data.laufzeit).trim()]) {
+          problems.push(`laufzeit (nicht unterstützt: ${data.laufzeit})`);
+        }
 
         // 4) Kündigungsdatum: ZR Beginn + 6 Wochen
         let kuendigungAbIso: string | undefined;
@@ -160,8 +190,74 @@ export const Route = createFileRoute("/api/hubspot-vertrag")({
           console.warn(`[hubspot-vertrag] Unternehmen ${companyId}: ${problems.join("; ")}`);
           return json(422, { ok: false, problems, ...result });
         }
-        console.log(`[hubspot-vertrag] Unternehmen ${companyId}: Daten vollständig`);
-        return json(200, { ok: true, ...result });
+
+        // 5) Entwurf in PandaDoc anlegen (kein Versand)
+        const laufzeitKey = String(data.laufzeit).trim();
+        const zusatzId = laufzeitKey === "5 Jahre" ? ZUSATZ_5_JAHRE : ZUSATZ_STANDARD;
+
+        const unitexRecipient = TEST_MODE
+          ? { ...UNITEX_SIGNER, email: TEST_EMAIL_UNITEX }
+          : UNITEX_SIGNER;
+
+        const createPayload = {
+          name: `Anschluss-Vertrag ${data.firmenname}`,
+          template_uuid: TEMPLATE_ID,
+          recipients: [
+            {
+              email: data.signerEmail,
+              first_name: data.signerVorname,
+              last_name: data.signerNachname,
+              role: ROLE_CLIENT,
+            },
+            { ...unitexRecipient, role: ROLE_UNITEX },
+          ],
+          tokens: [
+            { name: "Firmenname", value: data.firmenname },
+            { name: "Strasse", value: data.strasse },
+            { name: "Hausnummer", value: data.hausnummer },
+            { name: "PLZ", value: data.plz },
+            { name: "Ort", value: data.ort },
+            { name: "ZR_Startdatum", value: toGermanDate(data.zrStart) },
+            { name: "Kuendigung_ab", value: kuendigungAbDe },
+            { name: "Laufzeit", value: laufzeitKey },
+          ],
+          content_placeholders: [
+            {
+              block_id: BLOCK_LAUFZEIT,
+              content_library_items: [{ id: LAUFZEIT_ITEMS[laufzeitKey] }],
+            },
+            {
+              block_id: BLOCK_ZUSATZ,
+              content_library_items: [{ id: zusatzId }],
+            },
+          ],
+          metadata: { hubspot_company_id: companyId },
+        };
+
+        const createRes = await fetch(`${PANDADOC_BASE}/documents`, {
+          method: "POST",
+          headers: { Authorization: `API-Key ${pandadocKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify(createPayload),
+        });
+        const created: any = await createRes.json().catch(() => null);
+        if (!createRes.ok || !created?.id) {
+          console.error(
+            `[hubspot-vertrag] PandaDoc-Erstellung fehlgeschlagen für ${companyId} (Status ${createRes.status}): ${JSON.stringify(created)}`,
+          );
+          return json(502, { ok: false, step: "pandadoc", status: createRes.status, error: created, ...result });
+        }
+
+        console.log(`[hubspot-vertrag] Unternehmen ${companyId}: Entwurf ${created.id} angelegt`);
+        return json(200, {
+          ok: true,
+          testMode: TEST_MODE,
+          ...result,
+          pandadoc: {
+            id: created.id,
+            status: created.status,
+            url: `https://app.pandadoc.com/a/#/documents/${created.id}`,
+          },
+        });
       },
     },
   },
