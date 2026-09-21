@@ -29,6 +29,7 @@ import { Route as ZrReviewSessionIdRouteImport } from './routes/zr-review.$sessi
 import { Route as ZrOutputSessionIdRouteImport } from './routes/zr-output.$sessionId'
 import { Route as ZrCheckSessionIdRouteImport } from './routes/zr-check.$sessionId'
 import { Route as ApiPandadocWebhookRouteImport } from './routes/api.pandadoc-webhook'
+import { Route as ApiHubspotVertragRouteImport } from './routes/api.hubspot-vertrag'
 
 const ZrUploadRoute = ZrUploadRouteImport.update({
   id: '/zr-upload',
@@ -130,6 +131,11 @@ const ApiPandadocWebhookRoute = ApiPandadocWebhookRouteImport.update({
   path: '/api/pandadoc-webhook',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiHubspotVertragRoute = ApiHubspotVertragRouteImport.update({
+  id: '/api/hubspot-vertrag',
+  path: '/api/hubspot-vertrag',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -148,6 +154,7 @@ export interface FileRoutesByFullPath {
   '/zr-abgleich': typeof ZrAbgleichRoute
   '/zr-lieferanten': typeof ZrLieferantenRoute
   '/zr-upload': typeof ZrUploadRoute
+  '/api/hubspot-vertrag': typeof ApiHubspotVertragRoute
   '/api/pandadoc-webhook': typeof ApiPandadocWebhookRoute
   '/zr-check/$sessionId': typeof ZrCheckSessionIdRoute
   '/zr-output/$sessionId': typeof ZrOutputSessionIdRoute
@@ -170,6 +177,7 @@ export interface FileRoutesByTo {
   '/zr-abgleich': typeof ZrAbgleichRoute
   '/zr-lieferanten': typeof ZrLieferantenRoute
   '/zr-upload': typeof ZrUploadRoute
+  '/api/hubspot-vertrag': typeof ApiHubspotVertragRoute
   '/api/pandadoc-webhook': typeof ApiPandadocWebhookRoute
   '/zr-check/$sessionId': typeof ZrCheckSessionIdRoute
   '/zr-output/$sessionId': typeof ZrOutputSessionIdRoute
@@ -193,6 +201,7 @@ export interface FileRoutesById {
   '/zr-abgleich': typeof ZrAbgleichRoute
   '/zr-lieferanten': typeof ZrLieferantenRoute
   '/zr-upload': typeof ZrUploadRoute
+  '/api/hubspot-vertrag': typeof ApiHubspotVertragRoute
   '/api/pandadoc-webhook': typeof ApiPandadocWebhookRoute
   '/zr-check/$sessionId': typeof ZrCheckSessionIdRoute
   '/zr-output/$sessionId': typeof ZrOutputSessionIdRoute
@@ -217,6 +226,7 @@ export interface FileRouteTypes {
     | '/zr-abgleich'
     | '/zr-lieferanten'
     | '/zr-upload'
+    | '/api/hubspot-vertrag'
     | '/api/pandadoc-webhook'
     | '/zr-check/$sessionId'
     | '/zr-output/$sessionId'
@@ -239,6 +249,7 @@ export interface FileRouteTypes {
     | '/zr-abgleich'
     | '/zr-lieferanten'
     | '/zr-upload'
+    | '/api/hubspot-vertrag'
     | '/api/pandadoc-webhook'
     | '/zr-check/$sessionId'
     | '/zr-output/$sessionId'
@@ -261,6 +272,7 @@ export interface FileRouteTypes {
     | '/zr-abgleich'
     | '/zr-lieferanten'
     | '/zr-upload'
+    | '/api/hubspot-vertrag'
     | '/api/pandadoc-webhook'
     | '/zr-check/$sessionId'
     | '/zr-output/$sessionId'
@@ -284,6 +296,7 @@ export interface RootRouteChildren {
   ZrAbgleichRoute: typeof ZrAbgleichRoute
   ZrLieferantenRoute: typeof ZrLieferantenRoute
   ZrUploadRoute: typeof ZrUploadRoute
+  ApiHubspotVertragRoute: typeof ApiHubspotVertragRoute
   ApiPandadocWebhookRoute: typeof ApiPandadocWebhookRoute
   ZrCheckSessionIdRoute: typeof ZrCheckSessionIdRoute
   ZrOutputSessionIdRoute: typeof ZrOutputSessionIdRoute
@@ -432,6 +445,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPandadocWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/hubspot-vertrag': {
+      id: '/api/hubspot-vertrag'
+      path: '/api/hubspot-vertrag'
+      fullPath: '/api/hubspot-vertrag'
+      preLoaderRoute: typeof ApiHubspotVertragRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -452,6 +472,7 @@ const rootRouteChildren: RootRouteChildren = {
   ZrAbgleichRoute: ZrAbgleichRoute,
   ZrLieferantenRoute: ZrLieferantenRoute,
   ZrUploadRoute: ZrUploadRoute,
+  ApiHubspotVertragRoute: ApiHubspotVertragRoute,
   ApiPandadocWebhookRoute: ApiPandadocWebhookRoute,
   ZrCheckSessionIdRoute: ZrCheckSessionIdRoute,
   ZrOutputSessionIdRoute: ZrOutputSessionIdRoute,
