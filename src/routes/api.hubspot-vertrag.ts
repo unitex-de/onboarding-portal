@@ -17,6 +17,7 @@ const LAUFZEIT_ITEMS: Record<string, string> = {
 };
 const ZUSATZ_5_JAHRE = "Fr5NgG2rXZUFSD8CU67C4o";
 const ZUSATZ_STANDARD = "cVD89rdwZqTBFXTBpebt2g";
+const FOLDER_UUID = "FBYhPMbuynzG7Ebmxmnqa2"; // Ordner Haendler_ZR_Vertraege (mit MGS geteilt)
 
 // Unterzeichner für unitex
 const UNITEX_SIGNER = { first_name: "Xaver", last_name: "Albrecht", email: "x.albrecht@unitex.de" };
@@ -218,6 +219,7 @@ export const Route = createFileRoute("/api/hubspot-vertrag")({
         const createPayload = {
           name: `Anschluss-Vertrag ${data.firmenname}`,
           template_uuid: TEMPLATE_ID,
+          folder_uuid: FOLDER_UUID,
           recipients: [
             {
               email: data.signerEmail,
