@@ -22,7 +22,7 @@ const ZUSATZ_STANDARD = "cVD89rdwZqTBFXTBpebt2g";
 const UNITEX_SIGNER = { first_name: "Xaver", last_name: "Albrecht", email: "x.albrecht@unitex.de" };
 
 // TESTMODUS: solange true, bekommt die Rolle unitex die Testadresse statt Xaver,
-// und der Aufruf darf "testLaufzeit" mitgeben.
+// und der Aufruf darf "testLaufzeit" und "testZrStart" mitgeben.
 const TEST_MODE = true;
 const TEST_EMAIL_UNITEX = "projekte@unitex.de";
 
@@ -150,6 +150,8 @@ export const Route = createFileRoute("/api/hubspot-vertrag")({
         const signer = gfContacts[0];
 
         // 3) Vollständigkeit prüfen
+        const zrStart: string | undefined =
+          TEST_MODE && typeof body?.testZrStart === "string" ? body.testZrStart : p.n06__zr_ab;
         const laufzeit: string | undefined =
           TEST_MODE && typeof body?.testLaufzeit === "string" ? body.testLaufzeit : p.vertragslaufzeit;
         const data = {
@@ -158,7 +160,7 @@ export const Route = createFileRoute("/api/hubspot-vertrag")({
           hausnummer: p.address2,
           plz: p.zip,
           ort: p.city,
-          zrStart: p.n06__zr_ab,
+          zrStart,
           laufzeit,
           signerVorname: signer?.firstname,
           signerNachname: signer?.lastname,
@@ -217,7 +219,7 @@ export const Route = createFileRoute("/api/hubspot-vertrag")({
             { name: "Hausnummer", value: data.hausnummer },
             { name: "PLZ", value: data.plz },
             { name: "Ort", value: data.ort },
-            { name: "ZR_Startdatum", value: toGermanDate(data.zrStart) },
+            { name: "ZR_Startdatum", value: toGermanDate(data.zrStart!) },
             { name: "Kuendigung_ab", value: kuendigungAbDe },
             { name: "Laufzeit", value: laufzeitKey },
           ],
