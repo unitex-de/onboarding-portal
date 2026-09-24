@@ -56,6 +56,20 @@ async function hubspotGet(
   return { ok: response.ok, status: response.status, body };
 }
 
+async function hubspotPatchCompany(
+  token: string,
+  companyId: string,
+  properties: Record<string, string>,
+): Promise<{ ok: boolean; status: number; body: any }> {
+  const response = await fetch(`${HUBSPOT_API_BASE}/crm/v3/objects/companies/${companyId}`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ properties }),
+  });
+  const body = await response.json().catch(() => null);
+  return { ok: response.ok, status: response.status, body };
+}
+
 // HubSpot liefert reine Datumsfelder als "JJJJ-MM-TT"
 function isIsoDate(v: unknown): v is string {
   if (typeof v !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;
@@ -250,15 +264,26 @@ export const Route = createFileRoute("/api/hubspot-vertrag")({
         }
 
         console.log(`[hubspot-vertrag] Unternehmen ${companyId}: Entwurf ${created.id} angelegt`);
+        const docUrl = `https://app.pandadoc.com/a/#/documents/${created.id}`;
+
+        // 6) Link nach HubSpot zurückschreiben
+        const patchRes = await hubspotPatchCompany(hubspotToken, companyId, { pandadoc_link: docUrl });
+        if (!patchRes.ok) {
+          console.error(
+            `[hubspot-vertrag] pandadoc_link für ${companyId} nicht gesetzt (Status ${patchRes.status}): ${JSON.stringify(patchRes.body)}`,
+          );
+        } else {
+          console.log(`[hubspot-vertrag] Unternehmen ${companyId}: pandadoc_link gesetzt`);
+        }
+
         return json(200, {
           ok: true,
           testMode: TEST_MODE,
           ...result,
-          pandadoc: {
-            id: created.id,
-            status: created.status,
-            url: `https://app.pandadoc.com/a/#/documents/${created.id}`,
-          },
+          pandadoc: { id: created.id, status: created.status, url: docUrl },
+          hubspotLink: patchRes.ok
+            ? { ok: true }
+            : { ok: false, status: patchRes.status, error: patchRes.body },
         });
       },
     },
