@@ -10,6 +10,7 @@ import { z } from "zod";
 import { Resend } from "resend";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { CustomerCorrectionEmail } from "@/emails/CustomerCorrectionEmail";
+import { logEmailToHubspotContact } from "@/lib/api/hubspot.functions";
 
 const ABSENDER = "unitex Onboarding <onboarding@unitex.de>";
 
@@ -126,7 +127,8 @@ export const notifyCustomerRejected = createServerFn({ method: "POST" })
       return { sent: false, demo: true };
     }
     const resend = new Resend(apiKey);
-    const { to, subject } = resolveRecipient(data.customerEmail, `Onboarding: Bitte korrigieren Sie einige Angaben`);
+    const realSubject = `Onboarding: Bitte korrigieren Sie einige Angaben`;
+    const { to, subject } = resolveRecipient(data.customerEmail, realSubject);
     const { error } = await resend.emails.send({
       from: ABSENDER,
       to,
@@ -143,6 +145,28 @@ export const notifyCustomerRejected = createServerFn({ method: "POST" })
       console.error("[notifyCustomerRejected] Resend error:", error);
       return { sent: false, demo: false, error: error.message };
     }
+
+    // Best-effort HubSpot-Logging: nur wenn die Mail wirklich beim Kunden
+    // ankam (nicht im Test-Override) und ein passender Kontakt existiert.
+    if (!process.env.TEST_EMAIL_OVERRIDE) {
+      const bodyText = [
+        `Vielen Dank für die Einreichung Ihrer Onboarding-Unterlagen für ${data.companyName}.`,
+        data.note,
+        ...(data.corrections?.map((c) => `${c.label}${c.comment ? `: ${c.comment}` : ""}`) ?? []),
+        `Bitte im Portal einloggen, um die Korrektur vorzunehmen und erneut einzureichen.`,
+      ].filter(Boolean).join("\n");
+
+      try {
+        await logEmailToHubspotContact({
+          contactEmail: data.customerEmail,
+          subject: realSubject,
+          bodyText,
+        });
+      } catch (err) {
+        console.error("[notifyCustomerRejected] HubSpot-Logging fehlgeschlagen:", err);
+      }
+    }
+
     return { sent: true, demo: false };
   });
 

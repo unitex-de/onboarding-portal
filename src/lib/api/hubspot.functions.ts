@@ -642,3 +642,50 @@ export const importHubspotCompanyData = createServerFn({ method: "POST" })
     };
     return { imported: true as const, demo: false, data: result };
   });
+
+// ---------------------------------------------------------------------------
+// Mail auf der Kontakt-Timeline loggen (best effort, kein Blocker beim Senden;
+// loggt nur, wenn zur E-Mail-Adresse bereits ein HubSpot-Kontakt existiert)
+// ---------------------------------------------------------------------------
+export async function logEmailToHubspotContact(params: {
+  contactEmail: string;
+  subject: string;
+  bodyText: string;
+}): Promise<{ logged: boolean; reason?: string }> {
+  const token = process.env.HUBSPOT_ACCESS_TOKEN;
+  if (!token) {
+    return { logged: false, reason: "kein HUBSPOT_ACCESS_TOKEN" };
+  }
+
+  const contactLookup = await hubspotFetch(
+    token,
+    `/crm/v3/objects/contacts/${encodeURIComponent(params.contactEmail)}?idProperty=email`,
+    { method: "GET" },
+  );
+  if (!contactLookup.ok || !contactLookup.body?.id) {
+    return { logged: false, reason: "kein passender Kontakt in HubSpot" };
+  }
+
+  const created = await hubspotFetch(token, "/crm/v3/objects/emails", {
+    method: "POST",
+    body: JSON.stringify({
+      properties: {
+        hs_timestamp: Date.now().toString(),
+        hs_email_direction: "EMAIL",
+        hs_email_status: "SENT",
+        hs_email_subject: params.subject,
+        hs_email_text: params.bodyText,
+      },
+      associations: [
+        {
+          to: { id: contactLookup.body.id },
+          types: [{ associationCategory: "HUBSPOT_DEFINED", associationTypeId: 198 }],
+        },
+      ],
+    }),
+  });
+  if (!created.ok) {
+    return { logged: false, reason: created.body?.message ?? "Logging fehlgeschlagen" };
+  }
+  return { logged: true };
+}
