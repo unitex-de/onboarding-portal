@@ -9,6 +9,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { Resend } from "resend";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { CustomerCorrectionEmail } from "@/emails/CustomerCorrectionEmail";
 
 const ABSENDER = "unitex Onboarding <onboarding@unitex.de>";
 
@@ -126,32 +127,17 @@ export const notifyCustomerRejected = createServerFn({ method: "POST" })
     }
     const resend = new Resend(apiKey);
     const { to, subject } = resolveRecipient(data.customerEmail, `Onboarding: Bitte korrigieren Sie einige Angaben`);
-    const correctionsList = data.corrections && data.corrections.length > 0
-      ? `
-        <ul style="padding-left:20px; margin:12px 0;">
-          ${data.corrections.map((c) => `
-            <li style="margin-bottom:4px;">
-              <strong>${c.label}</strong>${c.comment ? ` — ${c.comment}` : ""}
-            </li>
-          `).join("")}
-        </ul>
-      `
-      : "";
-    const noteBlock = data.note
-      ? `<p style="padding:12px; background:#f5f5f5; border-radius:6px;">${data.note}</p>`
-      : "";
     const { error } = await resend.emails.send({
       from: ABSENDER,
       to,
       subject,
-      html: `
-        <p>Hallo,</p>
-        <p>vielen Dank für die Einreichung Ihrer Onboarding-Unterlagen für <strong>${data.companyName}</strong>.</p>
-        <p>Bei der Prüfung ist uns aufgefallen, dass noch etwas korrigiert werden muss:</p>
-        ${noteBlock}
-        ${correctionsList}
-        <p>Bitte loggen Sie sich im Portal ein, um die Korrektur vorzunehmen und erneut einzureichen.</p>
-      `,
+      react: (
+        <CustomerCorrectionEmail
+          companyName={data.companyName}
+          note={data.note}
+          corrections={data.corrections}
+        />
+      ),
     });
     if (error) {
       console.error("[notifyCustomerRejected] Resend error:", error);
