@@ -1,6 +1,10 @@
 import { Body, Container, Head, Html, Img, Preview, Section, Text } from "@react-email/components";
 import * as React from "react";
-const baseURL = process.env.NODE_ENV === "production" ? "https://onboarding.unitex.de/email-assets" : "";
+
+const logoSrc =
+  process.env.NODE_ENV === "production"
+    ? "https://onboarding.unitex.de/email-assets/unitex-logo.png"
+    : "/static/unitex-logo.png";
 
 export const colors = {
   pageBg: "#F5F2EE",
@@ -28,10 +32,10 @@ export function EmailLayout({ preview, children }: { preview: string; children: 
         <Container style={{ maxWidth: "480px", margin: "0 auto" }}>
           <Section style={{ backgroundColor: colors.cardBg, borderRadius: "12px", padding: "40px 36px" }}>
             <Img
-              src={`${baseURL}/static/unitex-logo.png`}
-              alt="unitex"
-              width="110"
-              style={{ margin: "0 0 28px 0" }}
+                src={logoSrc}
+                alt="unitex"
+                width="110"
+                style={{ margin: "0 0 28px 0" }}
             />
             {children}
           </Section>
