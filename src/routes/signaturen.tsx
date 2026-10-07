@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import {
   Check, Lock, Loader2,
-  Shield, Info, AlertTriangle, FileCheck2, Download,
+  Shield, Info, AlertTriangle, FileCheck2, Download, ExternalLink
 } from "lucide-react";
 import { useOnboarding, getProgressBreakdown, getDownloadUrl } from "@/lib/onboarding-state";
 import { AppShell } from "@/components/layout/AppShell";
@@ -123,43 +123,56 @@ function KundeAbschlussPage({ unlocked, readOnly = false }: { unlocked: boolean;
                 ? "Der Kunde hat die Angaben bestätigt und zur Prüfung eingereicht."
                 : "Sie haben Ihre Angaben bestätigt und eingereicht. Wir kümmern uns nun darum und melden uns, sobald Ihr Onboarding abgeschlossen ist."}
             </p>
-            {readOnly && (activeCustomer?.signedDocumentPath || activeCustomer?.neukundenformularPath || activeCustomer?.gwgBogenPath) && (
+            {readOnly && (activeCustomer?.archivedAt || activeCustomer?.signedDocumentPath || activeCustomer?.neukundenformularPath || activeCustomer?.gwgBogenPath) && (
               <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
-                {activeCustomer?.neukundenformularPath && (
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      const url = await getDownloadUrl(activeCustomer.neukundenformularPath!);
-                      if (url) window.open(url, "_blank");
-                    }}
+                {activeCustomer?.archivedAt && activeCustomer?.sharepointFolderUrl ? (
+                  <a
+                    href={activeCustomer.sharepointFolderUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2.5 text-sm font-medium text-foreground hover:border-primary hover:text-primary transition-colors"
                   >
-                    <Download className="h-4 w-4" /> {formLabel} ansehen
-                  </button>
-                )}
-                {activeCustomer?.gwgBogenPath && (
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      const url = await getDownloadUrl(activeCustomer.gwgBogenPath!);
-                      if (url) window.open(url, "_blank");
-                    }}
-                    className="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2.5 text-sm font-medium text-foreground hover:border-primary hover:text-primary transition-colors"
-                  >
-                    <Download className="h-4 w-4" /> GWG-Bogen ansehen
-                  </button>
-                )}
-                {activeCustomer?.signedDocumentPath && (
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      const url = await getDownloadUrl(activeCustomer.signedDocumentPath!);
-                      if (url) window.open(url, "_blank");
-                    }}
-                    className="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2.5 text-sm font-medium text-foreground hover:border-primary hover:text-primary transition-colors"
-                  >
-                    <Download className="h-4 w-4" /> Signiertes PDF ansehen (alt)
-                  </button>
+                    <ExternalLink className="h-4 w-4" /> Ablage in SharePoint öffnen
+                  </a>
+                ) : (
+                  <>
+                    {activeCustomer?.neukundenformularPath && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const url = await getDownloadUrl(activeCustomer.neukundenformularPath!);
+                          if (url) window.open(url, "_blank");
+                        }}
+                        className="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2.5 text-sm font-medium text-foreground hover:border-primary hover:text-primary transition-colors"
+                      >
+                        <Download className="h-4 w-4" /> {formLabel} ansehen
+                      </button>
+                    )}
+                    {activeCustomer?.gwgBogenPath && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const url = await getDownloadUrl(activeCustomer.gwgBogenPath!);
+                          if (url) window.open(url, "_blank");
+                        }}
+                        className="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2.5 text-sm font-medium text-foreground hover:border-primary hover:text-primary transition-colors"
+                      >
+                        <Download className="h-4 w-4" /> GWG-Bogen ansehen
+                      </button>
+                    )}
+                    {activeCustomer?.signedDocumentPath && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const url = await getDownloadUrl(activeCustomer.signedDocumentPath!);
+                          if (url) window.open(url, "_blank");
+                        }}
+                        className="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2.5 text-sm font-medium text-foreground hover:border-primary hover:text-primary transition-colors"
+                      >
+                        <Download className="h-4 w-4" /> Signiertes PDF ansehen (alt)
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
             )}

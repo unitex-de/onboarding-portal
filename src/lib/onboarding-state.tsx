@@ -26,6 +26,8 @@ export interface UploadedDoc {
   size: number;
   uploadedAt: string;
   storagePath: string;
+  /** Gesetzt, sobald das Dokument in SharePoint abgelegt wurde */
+  sharepointUrl?: string | null;
 }
 
 export interface SavedFormData {
@@ -108,6 +110,8 @@ export interface CustomerAccount {
   signedDocumentPath?: string | null;
   neukundenformularPath?: string | null;
   gwgBogenPath?: string | null;
+  sharepointFolderUrl?: string | null;
+  archivedAt?: string | null;
   fieldCorrections?: Record<string, { wrong: boolean; comment: string }>;
 }
 
@@ -266,6 +270,7 @@ async function fetchAllCustomers(): Promise<CustomerAccount[]> {
           size: doc.size,
           uploadedAt: doc.uploaded_at,
           storagePath: doc.storage_key,
+          sharepointUrl: doc.sharepoint_url ?? null,
         };
       }
 
@@ -307,6 +312,8 @@ async function fetchAllCustomers(): Promise<CustomerAccount[]> {
         signedDocumentPath: c.signed_document_path ?? null,
         neukundenformularPath: c.neukundenformular_path ?? null,
         gwgBogenPath: c.gwg_bogen_path ?? null,
+        sharepointFolderUrl: c.sharepoint_folder_url ?? null,
+        archivedAt: c.archived_at ?? null,
         fieldCorrections: (c.field_corrections as Record<string, { wrong: boolean; comment: string }>) ?? {},
       };
     })
@@ -367,6 +374,7 @@ export async function fetchCustomerByEmail(email: string): Promise<CustomerAccou
       size: doc.size,
       uploadedAt: doc.uploaded_at,
       storagePath: doc.storage_key,
+      sharepointUrl: doc.sharepoint_url ?? null,
     };
   }
 
@@ -409,6 +417,8 @@ export async function fetchCustomerByEmail(email: string): Promise<CustomerAccou
     signedDocumentPath: c.signed_document_path ?? null,
     neukundenformularPath: c.neukundenformular_path ?? null,
     gwgBogenPath: c.gwg_bogen_path ?? null,
+    sharepointFolderUrl: c.sharepoint_folder_url ?? null,
+    archivedAt: c.archived_at ?? null,
     fieldCorrections: (c.field_corrections as Record<string, { wrong: boolean; comment: string }>) ?? {},
   };
 }

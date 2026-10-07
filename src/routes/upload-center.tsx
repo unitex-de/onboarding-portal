@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useRef, useState, useEffect } from "react";
-import { CloudUpload, FileCheck2, FileText, MoreVertical, Trash2, RefreshCcw, Download, Shield, Plus, Lock } from "lucide-react";
+import { CloudUpload, FileCheck2, FileText, MoreVertical, Trash2, RefreshCcw, Download, Shield, Plus, Lock, ExternalLink } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { useOnboarding, getDownloadUrl, type LegalForm } from "@/lib/onboarding-state";
 import { REQUIRED_DOCS, REQUIRED_DOCS_LIEFERANT, ADMIN_ONLY_DOCS, formatBytes } from "@/lib/required-docs";
@@ -257,7 +257,7 @@ function DocumentRow({
   label: string;
   hint?: string;
   required: boolean;
-  uploaded?: { fileName: string; size: number; uploadedAt: string; storagePath: string };
+  uploaded?: { fileName: string; size: number; uploadedAt: string; storagePath: string; sharepointUrl?: string | null };
   isActive: boolean;
   /** Bearbeitung gesperrt (isLocked) – Zeile bleibt sichtbar, aber nicht mehr auswählbar/ersetzbar/löschbar. Download bleibt erlaubt. */
   locked?: boolean;
@@ -267,6 +267,8 @@ function DocumentRow({
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const quickInputRef = useRef<HTMLInputElement>(null);
+  const { isAdmin } = useOnboarding();
+  const archived = !!uploaded?.sharepointUrl;
   return (
     <div
       role="button"
@@ -352,27 +354,42 @@ function DocumentRow({
                 onMouseLeave={() => setMenuOpen(false)}
               >
                 {uploaded ? (
-                  <>
-                    {!locked && (
-                      <MenuItem icon={RefreshCcw} label="Ersetzen" onClick={() => { onRemove(); onSelect(); setMenuOpen(false); }} />
-                    )}
-                    <MenuItem
-                      icon={Download}
-                      label="Herunterladen"
-                      onClick={async () => {
-                        setMenuOpen(false);
-                        const url = await getDownloadUrl(uploaded.storagePath);
-                        if (!url) {
-                          alert("Die Datei konnte nicht geladen werden. Bitte versuchen Sie es erneut.");
-                          return;
-                        }
-                        window.open(url, "_blank", "noopener,noreferrer");
-                      }}
-                    />
-                    {!locked && (
-                      <MenuItem icon={Trash2} label="Löschen" destructive onClick={() => { onRemove(); setMenuOpen(false); }} />
-                    )}
-                  </>
+                  archived ? (
+                    isAdmin ? (
+                      <MenuItem
+                        icon={ExternalLink}
+                        label="In SharePoint öffnen"
+                        onClick={() => {
+                          setMenuOpen(false);
+                          window.open(uploaded.sharepointUrl as string, "_blank", "noopener,noreferrer");
+                        }}
+                      />
+                    ) : (
+                      <div className="px-3 py-1.5 text-xs text-secondary">Von unitex archiviert</div>
+                    )
+                  ) : (
+                    <>
+                      {!locked && (
+                        <MenuItem icon={RefreshCcw} label="Ersetzen" onClick={() => { onRemove(); onSelect(); setMenuOpen(false); }} />
+                      )}
+                      <MenuItem
+                        icon={Download}
+                        label="Herunterladen"
+                        onClick={async () => {
+                          setMenuOpen(false);
+                          const url = await getDownloadUrl(uploaded.storagePath);
+                          if (!url) {
+                            alert("Die Datei konnte nicht geladen werden. Bitte versuchen Sie es erneut.");
+                            return;
+                          }
+                          window.open(url, "_blank", "noopener,noreferrer");
+                        }}
+                      />
+                      {!locked && (
+                        <MenuItem icon={Trash2} label="Löschen" destructive onClick={() => { onRemove(); setMenuOpen(false); }} />
+                      )}
+                    </>
+                  )
                 ) : (
                   !locked && (
                     <MenuItem icon={CloudUpload} label="Jetzt hochladen" onClick={() => { onSelect(); setMenuOpen(false); quickInputRef.current?.click(); }} />
