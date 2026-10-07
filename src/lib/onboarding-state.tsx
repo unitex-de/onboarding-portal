@@ -3,9 +3,11 @@ import { useRouter } from "@tanstack/react-router";
 import { supabase } from "./supabase";
 import { notifyReviewSubmitted, notifyCustomerRejected, notifyNeukundenformularReady, notifyGwgBogenReady } from "./api/notify.functions";
 import { syncCustomerToHubspot, importHubspotCompanyData, type HubspotImportData } from "./api/hubspot.functions";
+import { archiveCustomerToSharepoint } from "./api/sharepoint.functions";
 import { generateNeukundenPdfFilled, generateLieferantPdfFilled } from "./pdf-form-filler";
 import { generateGwgBogenHaendlerPdf } from "./gwg_bogen_filler";
 import { resolveFieldLabel } from "@/lib/field-labels";
+
 
 
 // ---------------------------------------------------------------------------
@@ -1301,9 +1303,22 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
                 customerId: id,
               },
             });
-          } catch (e) {
+                    } catch (e) {
             console.error("[reviewCustomer] GWG-Bogen-Erstellung fehlgeschlagen:", e);
           }
+        }
+
+        // Ablage nach SharePoint: eigener try/catch, damit ein Fehler hier die Freigabe
+        // nicht blockiert. Läuft nur, wenn SHAREPOINT_SITE_URL gesetzt ist (sonst "übersprungen").
+        try {
+          const result = await archiveCustomerToSharepoint({ data: { customerId: id } });
+          if (result.skipped) {
+            console.info("[reviewCustomer] SharePoint-Ablage übersprungen:", result.reason);
+          } else if (!result.archived) {
+            console.error("[reviewCustomer] SharePoint-Ablage unvollständig:", result.failed);
+          }
+        } catch (e) {
+          console.error("[reviewCustomer] SharePoint-Ablage fehlgeschlagen:", e);
         }
       }
     }
