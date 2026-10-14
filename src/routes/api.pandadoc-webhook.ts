@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { notifyReviewSubmitted } from "@/lib/api/notify.functions";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { handleContractSent } from "@/lib/vertrag-sent";
+import { handleContractCompleted } from "@/lib/vertrag-completed";
 const PANDADOC_BASE = "https://api.pandadoc.com/public/v1";
 
 function verifySignature(rawBody: string, signature: string | null, sharedKey: string): boolean {
@@ -54,6 +55,8 @@ export const Route = createFileRoute("/api/pandadoc-webhook")({
           }
           const documentId = evt.data.id;
           if (!documentId) continue;
+          // Vertragsdokument (ZR-Vertrag): Unterschriftsdatum nach HubSpot, alter Onboarding-Weg entfaellt
+          if (await handleContractCompleted(documentId)) continue;
 
           const { data: customer, error: findError } = await supabaseAdmin
             .from("customers")
