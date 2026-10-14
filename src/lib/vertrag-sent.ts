@@ -54,7 +54,7 @@ export async function handleContractSent(docId: string): Promise<void> {
     console.error(`[vertrag-sent] Erinnerungs-Aufruf fuer ${docId} fehlgeschlagen`, err);
   }
 
-  // 2) Freigabe durch die MGS pruefen
+  // 2) Unternehmen lesen (das Senden durch die MGS gilt als Freigabe)
   const companyRes = await fetch(
     `${HUBSPOT_API_BASE}/crm/v3/objects/companies/${companyId}?properties=name,vertrag_freigeben,pandadoc_link_kunde`,
     { headers: { Authorization: `Bearer ${hubspotToken}` } },
@@ -64,12 +64,6 @@ export async function handleContractSent(docId: string): Promise<void> {
     throw new Error(`Unternehmen ${companyId} nicht lesbar (Status ${companyRes.status})`);
   }
   const p = company.properties ?? {};
-  if (p.vertrag_freigeben !== "true") {
-    console.warn(
-      `[vertrag-sent] Unternehmen ${companyId}: vertrag_freigeben ist nicht true (Wert: ${p.vertrag_freigeben}), kein Kundenlink geschrieben`,
-    );
-    return;
-  }
 
   // 3) Kundenlink bauen, nicht doppelt schreiben
   const kundenLink = `${PORTAL_BASE}/vertrag/${docId}.${signDocId(docId, linkSecret)}`;
