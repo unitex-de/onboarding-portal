@@ -9,97 +9,33 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as ZrUploadRouteImport } from './routes/zr-upload'
-import { Route as ZrLieferantenRouteImport } from './routes/zr-lieferanten'
-import { Route as ZrAbgleichRouteImport } from './routes/zr-abgleich'
-import { Route as VerifyRouteImport } from './routes/verify'
-import { Route as UploadCenterRouteImport } from './routes/upload-center'
-import { Route as UnternehmenRouteImport } from './routes/unternehmen'
-import { Route as SupportRouteImport } from './routes/support'
-import { Route as SignaturenRouteImport } from './routes/signaturen'
-import { Route as PruefungRouteImport } from './routes/pruefung'
-import { Route as InternRouteImport } from './routes/intern'
-import { Route as ImpressumRouteImport } from './routes/impressum'
-import { Route as DatenschutzRouteImport } from './routes/datenschutz'
-import { Route as DashboardRouteImport } from './routes/dashboard'
-import { Route as ChecklisteRouteImport } from './routes/checkliste'
-import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as ZrReviewSessionIdRouteImport } from './routes/zr-review.$sessionId'
-import { Route as ZrOutputSessionIdRouteImport } from './routes/zr-output.$sessionId'
-import { Route as ZrCheckSessionIdRouteImport } from './routes/zr-check.$sessionId'
-import { Route as ApiPandadocWebhookRouteImport } from './routes/api.pandadoc-webhook'
-import { Route as ApiHubspotVertragSendenRouteImport } from './routes/api.hubspot-vertrag-senden'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as ChecklisteRouteImport } from './routes/checkliste'
+import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as DatenschutzRouteImport } from './routes/datenschutz'
+import { Route as ImpressumRouteImport } from './routes/impressum'
+import { Route as InternRouteImport } from './routes/intern'
+import { Route as PruefungRouteImport } from './routes/pruefung'
+import { Route as SignaturenRouteImport } from './routes/signaturen'
+import { Route as SupportRouteImport } from './routes/support'
+import { Route as UnternehmenRouteImport } from './routes/unternehmen'
+import { Route as UploadCenterRouteImport } from './routes/upload-center'
+import { Route as VerifyRouteImport } from './routes/verify'
+import { Route as ZrAbgleichRouteImport } from './routes/zr-abgleich'
+import { Route as ZrLieferantenRouteImport } from './routes/zr-lieferanten'
+import { Route as ZrUploadRouteImport } from './routes/zr-upload'
 import { Route as ApiHubspotVertragRouteImport } from './routes/api.hubspot-vertrag'
+import { Route as ApiHubspotVertragSendenRouteImport } from './routes/api.hubspot-vertrag-senden'
+import { Route as ApiPandadocWebhookRouteImport } from './routes/api.pandadoc-webhook'
+import { Route as VertragTokenRouteImport } from './routes/vertrag.$token'
+import { Route as ZrCheckSessionIdRouteImport } from './routes/zr-check.$sessionId'
+import { Route as ZrOutputSessionIdRouteImport } from './routes/zr-output.$sessionId'
+import { Route as ZrReviewSessionIdRouteImport } from './routes/zr-review.$sessionId'
 
-const ZrUploadRoute = ZrUploadRouteImport.update({
-  id: '/zr-upload',
-  path: '/zr-upload',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ZrLieferantenRoute = ZrLieferantenRouteImport.update({
-  id: '/zr-lieferanten',
-  path: '/zr-lieferanten',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ZrAbgleichRoute = ZrAbgleichRouteImport.update({
-  id: '/zr-abgleich',
-  path: '/zr-abgleich',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const VerifyRoute = VerifyRouteImport.update({
-  id: '/verify',
-  path: '/verify',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const UploadCenterRoute = UploadCenterRouteImport.update({
-  id: '/upload-center',
-  path: '/upload-center',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const UnternehmenRoute = UnternehmenRouteImport.update({
-  id: '/unternehmen',
-  path: '/unternehmen',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SupportRoute = SupportRouteImport.update({
-  id: '/support',
-  path: '/support',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SignaturenRoute = SignaturenRouteImport.update({
-  id: '/signaturen',
-  path: '/signaturen',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PruefungRoute = PruefungRouteImport.update({
-  id: '/pruefung',
-  path: '/pruefung',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const InternRoute = InternRouteImport.update({
-  id: '/intern',
-  path: '/intern',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ImpressumRoute = ImpressumRouteImport.update({
-  id: '/impressum',
-  path: '/impressum',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DatenschutzRoute = DatenschutzRouteImport.update({
-  id: '/datenschutz',
-  path: '/datenschutz',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DashboardRoute = DashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ChecklisteRoute = ChecklisteRouteImport.update({
-  id: '/checkliste',
-  path: '/checkliste',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoute = AdminRouteImport.update({
@@ -107,29 +43,79 @@ const AdminRoute = AdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const ChecklisteRoute = ChecklisteRouteImport.update({
+  id: '/checkliste',
+  path: '/checkliste',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ZrReviewSessionIdRoute = ZrReviewSessionIdRouteImport.update({
-  id: '/zr-review/$sessionId',
-  path: '/zr-review/$sessionId',
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ZrOutputSessionIdRoute = ZrOutputSessionIdRouteImport.update({
-  id: '/zr-output/$sessionId',
-  path: '/zr-output/$sessionId',
+const DatenschutzRoute = DatenschutzRouteImport.update({
+  id: '/datenschutz',
+  path: '/datenschutz',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ZrCheckSessionIdRoute = ZrCheckSessionIdRouteImport.update({
-  id: '/zr-check/$sessionId',
-  path: '/zr-check/$sessionId',
+const ImpressumRoute = ImpressumRouteImport.update({
+  id: '/impressum',
+  path: '/impressum',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPandadocWebhookRoute = ApiPandadocWebhookRouteImport.update({
-  id: '/api/pandadoc-webhook',
-  path: '/api/pandadoc-webhook',
+const InternRoute = InternRouteImport.update({
+  id: '/intern',
+  path: '/intern',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PruefungRoute = PruefungRouteImport.update({
+  id: '/pruefung',
+  path: '/pruefung',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignaturenRoute = SignaturenRouteImport.update({
+  id: '/signaturen',
+  path: '/signaturen',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SupportRoute = SupportRouteImport.update({
+  id: '/support',
+  path: '/support',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UnternehmenRoute = UnternehmenRouteImport.update({
+  id: '/unternehmen',
+  path: '/unternehmen',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UploadCenterRoute = UploadCenterRouteImport.update({
+  id: '/upload-center',
+  path: '/upload-center',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VerifyRoute = VerifyRouteImport.update({
+  id: '/verify',
+  path: '/verify',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ZrAbgleichRoute = ZrAbgleichRouteImport.update({
+  id: '/zr-abgleich',
+  path: '/zr-abgleich',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ZrLieferantenRoute = ZrLieferantenRouteImport.update({
+  id: '/zr-lieferanten',
+  path: '/zr-lieferanten',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ZrUploadRoute = ZrUploadRouteImport.update({
+  id: '/zr-upload',
+  path: '/zr-upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiHubspotVertragRoute = ApiHubspotVertragRouteImport.update({
+  id: '/api/hubspot-vertrag',
+  path: '/api/hubspot-vertrag',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiHubspotVertragSendenRoute = ApiHubspotVertragSendenRouteImport.update({
@@ -137,9 +123,29 @@ const ApiHubspotVertragSendenRoute = ApiHubspotVertragSendenRouteImport.update({
   path: '/api/hubspot-vertrag-senden',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiHubspotVertragRoute = ApiHubspotVertragRouteImport.update({
-  id: '/api/hubspot-vertrag',
-  path: '/api/hubspot-vertrag',
+const ApiPandadocWebhookRoute = ApiPandadocWebhookRouteImport.update({
+  id: '/api/pandadoc-webhook',
+  path: '/api/pandadoc-webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VertragTokenRoute = VertragTokenRouteImport.update({
+  id: '/vertrag/$token',
+  path: '/vertrag/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ZrCheckSessionIdRoute = ZrCheckSessionIdRouteImport.update({
+  id: '/zr-check/$sessionId',
+  path: '/zr-check/$sessionId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ZrOutputSessionIdRoute = ZrOutputSessionIdRouteImport.update({
+  id: '/zr-output/$sessionId',
+  path: '/zr-output/$sessionId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ZrReviewSessionIdRoute = ZrReviewSessionIdRouteImport.update({
+  id: '/zr-review/$sessionId',
+  path: '/zr-review/$sessionId',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -163,6 +169,7 @@ export interface FileRoutesByFullPath {
   '/api/hubspot-vertrag': typeof ApiHubspotVertragRoute
   '/api/hubspot-vertrag-senden': typeof ApiHubspotVertragSendenRoute
   '/api/pandadoc-webhook': typeof ApiPandadocWebhookRoute
+  '/vertrag/$token': typeof VertragTokenRoute
   '/zr-check/$sessionId': typeof ZrCheckSessionIdRoute
   '/zr-output/$sessionId': typeof ZrOutputSessionIdRoute
   '/zr-review/$sessionId': typeof ZrReviewSessionIdRoute
@@ -187,6 +194,7 @@ export interface FileRoutesByTo {
   '/api/hubspot-vertrag': typeof ApiHubspotVertragRoute
   '/api/hubspot-vertrag-senden': typeof ApiHubspotVertragSendenRoute
   '/api/pandadoc-webhook': typeof ApiPandadocWebhookRoute
+  '/vertrag/$token': typeof VertragTokenRoute
   '/zr-check/$sessionId': typeof ZrCheckSessionIdRoute
   '/zr-output/$sessionId': typeof ZrOutputSessionIdRoute
   '/zr-review/$sessionId': typeof ZrReviewSessionIdRoute
@@ -212,6 +220,7 @@ export interface FileRoutesById {
   '/api/hubspot-vertrag': typeof ApiHubspotVertragRoute
   '/api/hubspot-vertrag-senden': typeof ApiHubspotVertragSendenRoute
   '/api/pandadoc-webhook': typeof ApiPandadocWebhookRoute
+  '/vertrag/$token': typeof VertragTokenRoute
   '/zr-check/$sessionId': typeof ZrCheckSessionIdRoute
   '/zr-output/$sessionId': typeof ZrOutputSessionIdRoute
   '/zr-review/$sessionId': typeof ZrReviewSessionIdRoute
@@ -238,6 +247,7 @@ export interface FileRouteTypes {
     | '/api/hubspot-vertrag'
     | '/api/hubspot-vertrag-senden'
     | '/api/pandadoc-webhook'
+    | '/vertrag/$token'
     | '/zr-check/$sessionId'
     | '/zr-output/$sessionId'
     | '/zr-review/$sessionId'
@@ -262,6 +272,7 @@ export interface FileRouteTypes {
     | '/api/hubspot-vertrag'
     | '/api/hubspot-vertrag-senden'
     | '/api/pandadoc-webhook'
+    | '/vertrag/$token'
     | '/zr-check/$sessionId'
     | '/zr-output/$sessionId'
     | '/zr-review/$sessionId'
@@ -286,6 +297,7 @@ export interface FileRouteTypes {
     | '/api/hubspot-vertrag'
     | '/api/hubspot-vertrag-senden'
     | '/api/pandadoc-webhook'
+    | '/vertrag/$token'
     | '/zr-check/$sessionId'
     | '/zr-output/$sessionId'
     | '/zr-review/$sessionId'
@@ -311,6 +323,7 @@ export interface RootRouteChildren {
   ApiHubspotVertragRoute: typeof ApiHubspotVertragRoute
   ApiHubspotVertragSendenRoute: typeof ApiHubspotVertragSendenRoute
   ApiPandadocWebhookRoute: typeof ApiPandadocWebhookRoute
+  VertragTokenRoute: typeof VertragTokenRoute
   ZrCheckSessionIdRoute: typeof ZrCheckSessionIdRoute
   ZrOutputSessionIdRoute: typeof ZrOutputSessionIdRoute
   ZrReviewSessionIdRoute: typeof ZrReviewSessionIdRoute
@@ -318,102 +331,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/zr-upload': {
-      id: '/zr-upload'
-      path: '/zr-upload'
-      fullPath: '/zr-upload'
-      preLoaderRoute: typeof ZrUploadRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/zr-lieferanten': {
-      id: '/zr-lieferanten'
-      path: '/zr-lieferanten'
-      fullPath: '/zr-lieferanten'
-      preLoaderRoute: typeof ZrLieferantenRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/zr-abgleich': {
-      id: '/zr-abgleich'
-      path: '/zr-abgleich'
-      fullPath: '/zr-abgleich'
-      preLoaderRoute: typeof ZrAbgleichRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/verify': {
-      id: '/verify'
-      path: '/verify'
-      fullPath: '/verify'
-      preLoaderRoute: typeof VerifyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/upload-center': {
-      id: '/upload-center'
-      path: '/upload-center'
-      fullPath: '/upload-center'
-      preLoaderRoute: typeof UploadCenterRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/unternehmen': {
-      id: '/unternehmen'
-      path: '/unternehmen'
-      fullPath: '/unternehmen'
-      preLoaderRoute: typeof UnternehmenRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/support': {
-      id: '/support'
-      path: '/support'
-      fullPath: '/support'
-      preLoaderRoute: typeof SupportRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/signaturen': {
-      id: '/signaturen'
-      path: '/signaturen'
-      fullPath: '/signaturen'
-      preLoaderRoute: typeof SignaturenRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/pruefung': {
-      id: '/pruefung'
-      path: '/pruefung'
-      fullPath: '/pruefung'
-      preLoaderRoute: typeof PruefungRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/intern': {
-      id: '/intern'
-      path: '/intern'
-      fullPath: '/intern'
-      preLoaderRoute: typeof InternRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/impressum': {
-      id: '/impressum'
-      path: '/impressum'
-      fullPath: '/impressum'
-      preLoaderRoute: typeof ImpressumRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/datenschutz': {
-      id: '/datenschutz'
-      path: '/datenschutz'
-      fullPath: '/datenschutz'
-      preLoaderRoute: typeof DatenschutzRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/dashboard': {
-      id: '/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof DashboardRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/checkliste': {
-      id: '/checkliste'
-      path: '/checkliste'
-      fullPath: '/checkliste'
-      preLoaderRoute: typeof ChecklisteRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -423,39 +345,109 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/checkliste': {
+      id: '/checkliste'
+      path: '/checkliste'
+      fullPath: '/checkliste'
+      preLoaderRoute: typeof ChecklisteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/zr-review/$sessionId': {
-      id: '/zr-review/$sessionId'
-      path: '/zr-review/$sessionId'
-      fullPath: '/zr-review/$sessionId'
-      preLoaderRoute: typeof ZrReviewSessionIdRouteImport
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/zr-output/$sessionId': {
-      id: '/zr-output/$sessionId'
-      path: '/zr-output/$sessionId'
-      fullPath: '/zr-output/$sessionId'
-      preLoaderRoute: typeof ZrOutputSessionIdRouteImport
+    '/datenschutz': {
+      id: '/datenschutz'
+      path: '/datenschutz'
+      fullPath: '/datenschutz'
+      preLoaderRoute: typeof DatenschutzRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/zr-check/$sessionId': {
-      id: '/zr-check/$sessionId'
-      path: '/zr-check/$sessionId'
-      fullPath: '/zr-check/$sessionId'
-      preLoaderRoute: typeof ZrCheckSessionIdRouteImport
+    '/impressum': {
+      id: '/impressum'
+      path: '/impressum'
+      fullPath: '/impressum'
+      preLoaderRoute: typeof ImpressumRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/pandadoc-webhook': {
-      id: '/api/pandadoc-webhook'
-      path: '/api/pandadoc-webhook'
-      fullPath: '/api/pandadoc-webhook'
-      preLoaderRoute: typeof ApiPandadocWebhookRouteImport
+    '/intern': {
+      id: '/intern'
+      path: '/intern'
+      fullPath: '/intern'
+      preLoaderRoute: typeof InternRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pruefung': {
+      id: '/pruefung'
+      path: '/pruefung'
+      fullPath: '/pruefung'
+      preLoaderRoute: typeof PruefungRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/signaturen': {
+      id: '/signaturen'
+      path: '/signaturen'
+      fullPath: '/signaturen'
+      preLoaderRoute: typeof SignaturenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/support': {
+      id: '/support'
+      path: '/support'
+      fullPath: '/support'
+      preLoaderRoute: typeof SupportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/unternehmen': {
+      id: '/unternehmen'
+      path: '/unternehmen'
+      fullPath: '/unternehmen'
+      preLoaderRoute: typeof UnternehmenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/upload-center': {
+      id: '/upload-center'
+      path: '/upload-center'
+      fullPath: '/upload-center'
+      preLoaderRoute: typeof UploadCenterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/verify': {
+      id: '/verify'
+      path: '/verify'
+      fullPath: '/verify'
+      preLoaderRoute: typeof VerifyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/zr-abgleich': {
+      id: '/zr-abgleich'
+      path: '/zr-abgleich'
+      fullPath: '/zr-abgleich'
+      preLoaderRoute: typeof ZrAbgleichRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/zr-lieferanten': {
+      id: '/zr-lieferanten'
+      path: '/zr-lieferanten'
+      fullPath: '/zr-lieferanten'
+      preLoaderRoute: typeof ZrLieferantenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/zr-upload': {
+      id: '/zr-upload'
+      path: '/zr-upload'
+      fullPath: '/zr-upload'
+      preLoaderRoute: typeof ZrUploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/hubspot-vertrag': {
+      id: '/api/hubspot-vertrag'
+      path: '/api/hubspot-vertrag'
+      fullPath: '/api/hubspot-vertrag'
+      preLoaderRoute: typeof ApiHubspotVertragRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/hubspot-vertrag-senden': {
@@ -465,11 +457,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiHubspotVertragSendenRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/hubspot-vertrag': {
-      id: '/api/hubspot-vertrag'
-      path: '/api/hubspot-vertrag'
-      fullPath: '/api/hubspot-vertrag'
-      preLoaderRoute: typeof ApiHubspotVertragRouteImport
+    '/api/pandadoc-webhook': {
+      id: '/api/pandadoc-webhook'
+      path: '/api/pandadoc-webhook'
+      fullPath: '/api/pandadoc-webhook'
+      preLoaderRoute: typeof ApiPandadocWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/vertrag/$token': {
+      id: '/vertrag/$token'
+      path: '/vertrag/$token'
+      fullPath: '/vertrag/$token'
+      preLoaderRoute: typeof VertragTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/zr-check/$sessionId': {
+      id: '/zr-check/$sessionId'
+      path: '/zr-check/$sessionId'
+      fullPath: '/zr-check/$sessionId'
+      preLoaderRoute: typeof ZrCheckSessionIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/zr-output/$sessionId': {
+      id: '/zr-output/$sessionId'
+      path: '/zr-output/$sessionId'
+      fullPath: '/zr-output/$sessionId'
+      preLoaderRoute: typeof ZrOutputSessionIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/zr-review/$sessionId': {
+      id: '/zr-review/$sessionId'
+      path: '/zr-review/$sessionId'
+      fullPath: '/zr-review/$sessionId'
+      preLoaderRoute: typeof ZrReviewSessionIdRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -495,6 +515,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiHubspotVertragRoute: ApiHubspotVertragRoute,
   ApiHubspotVertragSendenRoute: ApiHubspotVertragSendenRoute,
   ApiPandadocWebhookRoute: ApiPandadocWebhookRoute,
+  VertragTokenRoute: VertragTokenRoute,
   ZrCheckSessionIdRoute: ZrCheckSessionIdRoute,
   ZrOutputSessionIdRoute: ZrOutputSessionIdRoute,
   ZrReviewSessionIdRoute: ZrReviewSessionIdRoute,
