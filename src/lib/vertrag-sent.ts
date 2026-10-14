@@ -36,6 +36,24 @@ export async function handleContractSent(docId: string): Promise<void> {
     return;
   }
 
+  // PandaDoc-Erinnerungen abschalten (die Erinnerung laeuft ueber HubSpot).
+  // Bewusst vor der Freigabe-Pruefung, damit sie bei jedem Vertragsdokument abgeschaltet werden.
+  try {
+    const reminderRes = await fetch(`${PANDADOC_BASE}/documents/${docId}/auto-reminders`, {
+      method: "PATCH",
+      headers: { Authorization: `API-Key ${pandadocKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled: false }),
+    });
+    if (!reminderRes.ok) {
+      const reminderBody = await reminderRes.text().catch(() => "");
+      console.error(`[vertrag-sent] Erinnerungen fuer ${docId} nicht abgeschaltet (Status ${reminderRes.status}): ${reminderBody}`);
+    } else {
+      console.log(`[vertrag-sent] Dokument ${docId}: PandaDoc-Erinnerungen abgeschaltet`);
+    }
+  } catch (err) {
+    console.error(`[vertrag-sent] Erinnerungs-Aufruf fuer ${docId} fehlgeschlagen`, err);
+  }
+
   // 2) Freigabe durch die MGS pruefen
   const companyRes = await fetch(
     `${HUBSPOT_API_BASE}/crm/v3/objects/companies/${companyId}?properties=name,vertrag_freigeben,pandadoc_link_kunde`,
