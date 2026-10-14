@@ -3,6 +3,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { notifyReviewSubmitted } from "@/lib/api/notify.functions";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { handleContractSent } from "@/lib/vertrag-sent";
 const PANDADOC_BASE = "https://api.pandadoc.com/public/v1";
 
 function verifySignature(rawBody: string, signature: string | null, sharedKey: string): boolean {
@@ -39,6 +40,15 @@ export const Route = createFileRoute("/api/pandadoc-webhook")({
         }>;
 
         for (const evt of events) {
+          // Vertrag wurde in PandaDoc gesendet: Kundenlink nach HubSpot schreiben (nur nach MGS-Freigabe)
+          if (evt.event === "document_state_changed" && evt.data?.status === "document.sent" && evt.data.id) {
+            try {
+              await handleContractSent(evt.data.id);
+            } catch (sentError) {
+              console.error(`[pandadoc-webhook] Vertrags-Versand-Verarbeitung fehlgeschlagen fuer ${evt.data.id}`, sentError);
+            }
+            continue;
+          }
           if (evt.event !== "document_state_changed" || evt.data?.status !== "document.completed") {
             continue;
           }
