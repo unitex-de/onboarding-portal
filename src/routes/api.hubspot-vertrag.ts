@@ -24,7 +24,7 @@ const UNITEX_SIGNER = { first_name: "Xaver", last_name: "Albrecht", email: "x.al
 
 // TESTMODUS: solange true, bekommt die Rolle unitex die Testadresse statt Xaver,
 // und der Aufruf darf "testLaufzeit" und "testZrStart" mitgeben.
-const TEST_MODE = true;
+const TEST_MODE = false;
 const TEST_EMAIL_UNITEX = "projekte@unitex.de";
 
 const COMPANY_PROPERTIES = [
