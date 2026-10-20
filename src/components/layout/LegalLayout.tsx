@@ -13,8 +13,19 @@ export function LegalLayout({
     <div className="flex min-h-screen flex-col bg-background text-foreground">
       <header className="border-b border-border">
         <div className="mx-auto flex w-full max-w-3xl items-center justify-between px-4 py-4 sm:px-6">
-          <Link to="/" className="text-foreground" aria-label="Zur Startseite">
-            <UnitexLogo className="h-7 w-auto" />
+          <Link
+            to="/"
+            className="flex flex-row items-end gap-3 text-foreground"
+            aria-label="Zur Startseite"
+          >
+            <div className="bg-white px-0.5 pt-10 pb-0.5 shadow-sm flex items-end justify-center shrink-0">
+              <UnitexLogo className="h-4 w-[60px] text-slate-900" />
+            </div>
+            <span className="text-[10px] leading-tight font-medium">
+              VERTRAUEN.<br />
+              KOMPETENZ.<br />
+              <span className="text-[#FACBBA]">INNOVATION.</span>
+            </span>
           </Link>
           <Link
             to="/"
