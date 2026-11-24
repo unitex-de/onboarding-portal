@@ -31,17 +31,6 @@ export function EmailLayout({ preview, children }: { preview: string; children: 
         <Container style={{ maxWidth: "480px", margin: "0 auto" }}>
           <Section style={{ backgroundColor: colors.headerBg, padding: "28px 20px", textAlign: "center" as const }}>
             <Img src={logoSrc} alt="unitex" width="130" style={{ margin: "0 auto" }} />
-            <table role="presentation" align="center" width="130" cellPadding={0} cellSpacing={0} style={{ margin: "10px auto 0 auto" }}>
-              <tbody>
-                <tr>
-                  <td align="center">
-                    <Text style={{ fontFamily, fontSize: "11px", lineHeight: "15px", letterSpacing: "0.3px", color: colors.foreground, margin: 0 }}>
-                      Vertrauen. Kompetenz. Innovation.
-                    </Text>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
           </Section>
 
           <Section style={{ backgroundColor: colors.headerBg, padding: "32px 36px" }}>
