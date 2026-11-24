@@ -114,6 +114,8 @@ export const notifyCustomerRejected = createServerFn({ method: "POST" })
     z.object({
       customerEmail: z.string().email(),
       companyName: z.string(),
+      firstName: z.string(),
+      lastName: z.string(),
       note: z.string().optional(),
       corrections: z.array(z.object({
         label: z.string(),
@@ -136,6 +138,8 @@ export const notifyCustomerRejected = createServerFn({ method: "POST" })
       react: (
         <CustomerCorrectionEmail
           companyName={data.companyName}
+          firstName={data.firstName}
+          lastName={data.lastName}
           note={data.note}
           corrections={data.corrections}
         />

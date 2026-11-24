@@ -6,17 +6,21 @@ type Correction = { label: string; comment?: string };
 
 export function CustomerCorrectionEmail({
   companyName,
+  firstName,
+  lastName,
   note,
   corrections = [],
 }: {
   companyName: string;
+  firstName: string;
+  lastName: string;
   note?: string;
   corrections?: Correction[];
 }) {
   return (
     <EmailLayout preview={`Bitte korrigieren Sie einige Angaben für ${companyName}`}>
       <Text style={{ color: colors.foreground, fontSize: "14px", lineHeight: "22px", margin: "0 0 16px 0" }}>
-        Hallo,
+        Guten Tag {firstName} {lastName},
       </Text>
       <Text style={{ color: colors.bodyText, fontSize: "14px", lineHeight: "22px", margin: "0 0 16px 0" }}>
         vielen Dank für die Einreichung Ihrer Onboarding-Unterlagen für{" "}
@@ -74,6 +78,8 @@ export default function Preview() {
   return (
     <CustomerCorrectionEmail
       companyName="Beispiel GmbH"
+      firstName="Max"
+      lastName="Mustermann"
       note="Bitte prüfen Sie die folgenden Angaben, bevor Sie erneut einreichen."
       corrections={[
         { label: "IBAN", comment: "Bitte vollständige IBAN angeben" },

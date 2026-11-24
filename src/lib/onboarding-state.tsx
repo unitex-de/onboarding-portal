@@ -1129,6 +1129,8 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
               data: {
                 customerEmail: target.email,
                 companyName: target.companyName,
+                firstName: target.firstName,
+                lastName: target.lastName,
                 note: effectiveNote,
                 corrections,
               },
