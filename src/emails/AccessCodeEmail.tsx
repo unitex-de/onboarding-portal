@@ -19,7 +19,7 @@ export function AccessCodeEmail({ token = "123456" }: { token?: string }) {
       <table role="presentation" width="100%" cellPadding={0} cellSpacing={0} style={{ margin: "0 0 24px 0" }}>
         <tbody>
           <tr>
-            <td align="center" style={{ backgroundColor: colors.footerBg, padding: "20px 0" }}>
+            <td align="center" {...({ bgcolor: colors.footerBg } as any)} style={{ backgroundColor: colors.footerBg, padding: "20px 0" }}>
               <Text style={{ fontFamily, fontSize: "30px", fontWeight: 700, letterSpacing: "6px", color: "#FFFFFF", margin: 0 }}>
                 {token}
               </Text>
