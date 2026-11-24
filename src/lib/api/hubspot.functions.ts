@@ -644,32 +644,62 @@ export const importHubspotCompanyData = createServerFn({ method: "POST" })
   });
 
 // ---------------------------------------------------------------------------
-// Willkommensmail-Trigger: setzt eine Property auf dem Portal-Login-Kontakt,
-// die einen HubSpot-Workflow auslöst (Workflow verschickt die Willkommensmail
-// aus einer Marketing-Vorlage – Mail-Inhalt bewusst in HubSpot, nicht im Code).
+// Willkommensmail-Trigger: setzt eine Property auf dem Kontakt, die einen
+// HubSpot-Workflow auslöst (Workflow verschickt die Willkommensmail aus einer
+// Marketing-Vorlage). Legt den Kontakt an, falls er noch nicht existiert
+// (zu diesem frühen Zeitpunkt – Account-Freigabe durch MGS – ist das nicht
+// garantiert); existiert er schon, wird NUR die Trigger-Property gepatcht,
+// um keine vorhandenen Daten (z.B. aus der Akquise-Phase) zu überschreiben.
 // ---------------------------------------------------------------------------
 export const triggerWillkommensmail = createServerFn({ method: "POST" })
-  .inputValidator(z.object({ contactEmail: z.string().email() }))
+  .inputValidator(
+    z.object({
+      contactEmail: z.string().email(),
+      firstName: z.string().optional(),
+      lastName: z.string().optional(),
+      companyName: z.string().optional(),
+    }),
+  )
   .handler(async ({ data }) => {
     const token = process.env.HUBSPOT_ACCESS_TOKEN;
     if (!token) {
       return { triggered: false, demo: true };
     }
-    const patched = await hubspotFetch(
-      token,
-      `/crm/v3/objects/contacts/${encodeURIComponent(data.contactEmail)}?idProperty=email`,
-      {
-        method: "PATCH",
-        body: JSON.stringify({
-          properties: { onboarding_willkommensmail_trigger: "true" },
-        }),
-      },
-    );
-    if (!patched.ok) {
-      console.error("[triggerWillkommensmail] Property-Update-Fehler:", patched.body);
-      return { triggered: false, demo: false, error: patched.body?.message ?? "Property-Update fehlgeschlagen" };
+
+    const createProperties: Record<string, string> = {
+      email: data.contactEmail,
+      onboarding_willkommensmail_trigger: "true",
+    };
+    if (data.firstName) createProperties.firstname = data.firstName;
+    if (data.lastName) createProperties.lastname = data.lastName;
+    if (data.companyName) createProperties.company = data.companyName;
+
+    const created = await hubspotFetch(token, "/crm/v3/objects/contacts", {
+      method: "POST",
+      body: JSON.stringify({ properties: createProperties }),
+    });
+
+    if (created.status === 409) {
+      const patched = await hubspotFetch(
+        token,
+        `/crm/v3/objects/contacts/${encodeURIComponent(data.contactEmail)}?idProperty=email`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({ properties: { onboarding_willkommensmail_trigger: "true" } }),
+        },
+      );
+      if (!patched.ok) {
+        console.error("[triggerWillkommensmail] Property-Update-Fehler:", patched.body);
+        return { triggered: false, demo: false, error: patched.body?.message ?? "Property-Update fehlgeschlagen" };
+      }
+      return { triggered: true, demo: false, created: false };
     }
-    return { triggered: true, demo: false };
+
+    if (!created.ok) {
+      console.error("[triggerWillkommensmail] Contact-Anlage-Fehler:", created.body);
+      return { triggered: false, demo: false, error: created.body?.message ?? "Kontakt konnte nicht angelegt werden" };
+    }
+    return { triggered: true, demo: false, created: true };
   });
 
 

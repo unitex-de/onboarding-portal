@@ -1213,14 +1213,8 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         } catch (e) {
           console.error("[reviewCustomer] HubSpot-Sync fehlgeschlagen:", e);
         }
-        
-        // Willkommensmail-Trigger: Property auf dem Kontakt setzen, HubSpot-
-        // Workflow übernimmt den Versand aus der Marketing-Vorlage.
-        try {
-          await triggerWillkommensmail({ data: { contactEmail: target.email } });
-        } catch (e) {
-          console.error("[reviewCustomer] Willkommensmail-Trigger fehlgeschlagen:", e);
-        }
+
+
 
         // Neukundenformular automatisch erstellen (Punkt 5) – eigener try/catch,
         // damit ein Fehler hier die Freigabe selbst nicht blockiert.
@@ -1418,6 +1412,24 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
           : a
       ),
     }));
+
+    // Willkommensmail-Trigger: Property auf dem Kontakt setzen, HubSpot-
+    // Workflow übernimmt den Versand aus der Marketing-Vorlage.
+    const target = stateRef.current.customerAccounts.find((a) => a.id === id);
+    if (target) {
+      try {
+        await triggerWillkommensmail({
+          data: {
+            contactEmail: target.email,
+            firstName: target.firstName,
+            lastName: target.lastName,
+            companyName: target.companyName,
+          },
+        });
+      } catch (e) {
+        console.error("[sendMagicLink] Willkommensmail-Trigger fehlgeschlagen:", e);
+      }
+    }
   }, []);
 
   // ---------------------------------------------------------------------------
