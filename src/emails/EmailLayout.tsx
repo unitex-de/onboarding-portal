@@ -1,4 +1,4 @@
-import { Body, Container, Head, Html, Img, Preview, Section, Text, Hr } from "@react-email/components";
+import { Body, Container, Head, Html, Img, Preview, Section, Text } from "@react-email/components";
 import * as React from "react";
 
 const logoSrc =
@@ -8,9 +8,6 @@ const logoSrc =
 
 export const fontFamily = "Tahoma, Geneva, Verdana, sans-serif";
 
-// Hinweis: Keys bleiben wie bisher (foreground, bodyText, muted, primary, cardBorder),
-// damit AccessCodeEmail.tsx und CustomerCorrectionEmail.tsx vorerst unverändert
-// kompilieren. Die Werte sind neu auf die helle Farbwelt gemappt.
 export const colors = {
   pageBg: "#D0E0E3",
   headerBg: "#FFFFFF",
@@ -34,21 +31,29 @@ export function EmailLayout({ preview, children }: { preview: string; children: 
         <Container style={{ maxWidth: "480px", margin: "0 auto" }}>
           <Section style={{ backgroundColor: colors.headerBg, padding: "28px 20px", textAlign: "center" as const }}>
             <Img src={logoSrc} alt="unitex" width="130" style={{ margin: "0 auto" }} />
-            <Text style={{ fontFamily, fontSize: "11px", letterSpacing: "0.3px", color: colors.foreground, margin: "10px 0 0 0" }}>
-              Vertrauen. Kompetenz. Innovation.
-            </Text>
+            <table role="presentation" align="center" width="130" cellPadding={0} cellSpacing={0} style={{ margin: "10px auto 0 auto" }}>
+              <tbody>
+                <tr>
+                  <td align="center">
+                    <Text style={{ fontFamily, fontSize: "11px", lineHeight: "15px", letterSpacing: "0.3px", color: colors.foreground, margin: 0 }}>
+                      Vertrauen. Kompetenz. Innovation.
+                    </Text>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </Section>
 
-          <Section style={{ backgroundColor: colors.pageBg, padding: "32px 36px" }}>
+          <Section style={{ backgroundColor: colors.headerBg, padding: "32px 36px" }}>
             {children}
           </Section>
 
-          <Section style={{ backgroundColor: colors.pageBg, padding: "22px 20px", textAlign: "center" as const }}>
+          <Section style={{ backgroundColor: colors.headerBg, padding: "22px 20px", textAlign: "center" as const }}>
             <Text style={{ fontFamily, fontSize: "11px", lineHeight: "18px", color: colors.foreground, margin: 0 }}>
               unitex GmbH · Albrecht-Berblinger-Str. 11 · 89231 Neu-Ulm
             </Text>
-              <Text style={{ fontFamily, fontSize: "11px", lineHeight: "18px", color: colors.foreground, margin: 0 }}>
-              Diese Mail wurde automatisch versendet.
+            <Text style={{ fontFamily, fontSize: "11px", lineHeight: "18px", color: colors.foreground, margin: 0 }}>
+              Diese Email wurde automatisch versendet.
             </Text>
           </Section>
         </Container>

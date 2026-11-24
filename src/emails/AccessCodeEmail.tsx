@@ -1,4 +1,4 @@
-import { Section, Text } from "@react-email/components";
+import { Text } from "@react-email/components";
 import * as React from "react";
 import { EmailLayout, colors, fontFamily } from "./EmailLayout";
 
@@ -15,28 +15,19 @@ export function AccessCodeEmail({ token = "123456" }: { token?: string }) {
         </a>{" "}
         ein, um sich anzumelden:
       </Text>
-        <Section
-          style={{
-            backgroundColor: colors.footerBg,
-            borderRadius: "0px",
-            padding: "20px 0",
-            textAlign: "center" as const,
-            margin: "0 0 24px 0",
-          }}
-        >
-        <Text
-          style={{
-            fontFamily,
-            fontSize: "30px",
-            fontWeight: 700,
-            letterSpacing: "6px",
-            color: "#FFFFFF",
-            margin: 0,
-          }}
-        >
-          {token}
-        </Text>
-      </Section>
+
+      <table role="presentation" width="100%" cellPadding={0} cellSpacing={0} style={{ margin: "0 0 24px 0" }}>
+        <tbody>
+          <tr>
+            <td bgcolor={colors.footerBg} align="center" style={{ backgroundColor: colors.footerBg, padding: "20px 0" }}>
+              <Text style={{ fontFamily, fontSize: "30px", fontWeight: 700, letterSpacing: "6px", color: "#FFFFFF", margin: 0 }}>
+                {token}
+              </Text>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
       <Text style={{ color: colors.muted, fontSize: "13px", lineHeight: "20px", margin: 0, textAlign: "center" as const }}>
         Der Code ist 1 Stunde gültig.
       </Text>
