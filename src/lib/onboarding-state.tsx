@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState, useCallback, u
 import { useRouter } from "@tanstack/react-router";
 import { supabase } from "./supabase";
 import { notifyReviewSubmitted, notifyCustomerRejected, notifyNeukundenformularReady, notifyGwgBogenReady } from "./api/notify.functions";
-import { syncCustomerToHubspot, importHubspotCompanyData, type HubspotImportData } from "./api/hubspot.functions";
+import { syncCustomerToHubspot, importHubspotCompanyData, triggerWillkommensmail, type HubspotImportData } from "./api/hubspot.functions";
 import { archiveCustomerToSharepoint } from "./api/sharepoint.functions";
 import { generateNeukundenPdfFilled, generateLieferantPdfFilled } from "./pdf-form-filler";
 import { generateGwgBogenHaendlerPdf } from "./gwg_bogen_filler";
@@ -1212,6 +1212,14 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
           });
         } catch (e) {
           console.error("[reviewCustomer] HubSpot-Sync fehlgeschlagen:", e);
+        }
+        
+        // Willkommensmail-Trigger: Property auf dem Kontakt setzen, HubSpot-
+        // Workflow übernimmt den Versand aus der Marketing-Vorlage.
+        try {
+          await triggerWillkommensmail({ data: { contactEmail: target.email } });
+        } catch (e) {
+          console.error("[reviewCustomer] Willkommensmail-Trigger fehlgeschlagen:", e);
         }
 
         // Neukundenformular automatisch erstellen (Punkt 5) – eigener try/catch,

@@ -644,6 +644,36 @@ export const importHubspotCompanyData = createServerFn({ method: "POST" })
   });
 
 // ---------------------------------------------------------------------------
+// Willkommensmail-Trigger: setzt eine Property auf dem Portal-Login-Kontakt,
+// die einen HubSpot-Workflow auslöst (Workflow verschickt die Willkommensmail
+// aus einer Marketing-Vorlage – Mail-Inhalt bewusst in HubSpot, nicht im Code).
+// ---------------------------------------------------------------------------
+export const triggerWillkommensmail = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ contactEmail: z.string().email() }))
+  .handler(async ({ data }) => {
+    const token = process.env.HUBSPOT_ACCESS_TOKEN;
+    if (!token) {
+      return { triggered: false, demo: true };
+    }
+    const patched = await hubspotFetch(
+      token,
+      `/crm/v3/objects/contacts/${encodeURIComponent(data.contactEmail)}?idProperty=email`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({
+          properties: { onboarding_willkommensmail_trigger: "true" },
+        }),
+      },
+    );
+    if (!patched.ok) {
+      console.error("[triggerWillkommensmail] Property-Update-Fehler:", patched.body);
+      return { triggered: false, demo: false, error: patched.body?.message ?? "Property-Update fehlgeschlagen" };
+    }
+    return { triggered: true, demo: false };
+  });
+
+
+// ---------------------------------------------------------------------------
 // Mail auf der Kontakt-Timeline loggen (best effort, kein Blocker beim Senden;
 // loggt nur, wenn zur E-Mail-Adresse bereits ein HubSpot-Kontakt existiert)
 // ---------------------------------------------------------------------------
