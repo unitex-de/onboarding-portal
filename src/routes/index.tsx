@@ -119,8 +119,18 @@ function Index() {
   const [codeError, setCodeError] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [showWelcome, setShowWelcome] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [resendError, setResendError] = useState<string | null>(null);
   const pendingNav = useRef<() => void>(() => {});
   const pendingName = useRef<string>("");
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setResendCooldown((c) => (c <= 1 ? 0 : c - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
 
   const onKundeRequest = async () => {
     if (!email.includes("@")) return;
@@ -151,6 +161,33 @@ function Index() {
     }
 
     setSent(true);
+    setResendCooldown(30);
+  };
+
+  const onResendCode = async () => {
+    if (resendCooldown > 0) return;
+    setResendError(null);
+    setVerifyCode("");
+    setCodeError(false);
+
+    const { error: otpError } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        shouldCreateUser: true,
+        emailRedirectTo: `https://onboarding.unitex.de/?email=${encodeURIComponent(email)}&verify=1`,
+      },
+    });
+
+    if (otpError) {
+      setResendError(
+        otpError.code === "over_email_send_rate_limit"
+          ? "Es wurde bereits vor Kurzem ein Code gesendet. Bitte prüfen Sie Ihr Postfach oder warten Sie kurz."
+          : "Code konnte nicht erneut versendet werden. Bitte versuchen Sie es später."
+      );
+      return;
+    }
+
+    setResendCooldown(30);
   };
 
   const doVerify = async (code: string) => {
@@ -339,6 +376,14 @@ function Index() {
                 >
                   Bestätigen <ArrowRight className="h-4 w-4" />
                 </button>
+                <div className="space-y-1">
+                  <button type="button" onClick={onResendCode} disabled={resendCooldown > 0}
+                    className="text-xs text-secondary hover:text-foreground underline underline-offset-4 disabled:opacity-50 disabled:cursor-not-allowed disabled:no-underline"
+                  >
+                    {resendCooldown > 0 ? `Code neu anfordern (${resendCooldown}s)` : "Code neu anfordern"}
+                  </button>
+                  {resendError && <p className="text-xs text-destructive">{resendError}</p>}
+                </div>
                 <button type="button"
                   onClick={() => { setSent(false); setVerifyCode(""); setCodeError(false); }}
                   className="text-xs text-secondary hover:text-foreground underline underline-offset-4"
