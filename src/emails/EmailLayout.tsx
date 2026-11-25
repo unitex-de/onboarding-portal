@@ -37,7 +37,7 @@ export function EmailLayout({ preview, children }: { preview: string; children: 
             {children}
           </Section>
 
-          <Section style={{ backgroundColor: colors.headerBg, padding: "22px 20px", textAlign: "center" as const }}>
+          <Section style={{ backgroundColor: colors.pageBg, padding: "22px 20px", textAlign: "center" as const }}>
             <Text style={{ fontFamily, fontSize: "11px", lineHeight: "18px", color: colors.foreground, margin: 0 }}>
               unitex GmbH · Albrecht-Berblinger-Str. 11 · 89231 Neu-Ulm
             </Text>
