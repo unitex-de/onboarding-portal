@@ -29,17 +29,20 @@ export function CustomerCorrectionEmail({
       </Text>
 
       {note && (
-        <Section
-          style={{
-            backgroundColor: colors.headerBg,
-            border: `1px solid ${colors.cardBorder}`,
-            borderRadius: "0px",
-            padding: "14px 16px",
-            margin: "0 0 20px 0",
-          }}
-        >
-          <Text style={{ color: colors.foreground, fontSize: "14px", lineHeight: "20px", margin: 0 }}>{note}</Text>
-        </Section>
+        <table role="presentation" width="100%" cellPadding={0} cellSpacing={0} style={{ margin: "0 0 20px 0" }}>
+          <tbody>
+            <tr>
+              <td
+                {...({ bgcolor: colors.footerBg } as any)}
+                style={{ backgroundColor: colors.footerBg, padding: "14px 16px" }}
+              >
+                <Text style={{ color: "#FFFFFF", fontSize: "14px", lineHeight: "20px", margin: 0 }}>
+                  {note}
+                </Text>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       )}
 
       {corrections.length > 0 && (
