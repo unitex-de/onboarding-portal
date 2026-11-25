@@ -1,4 +1,4 @@
-import { Body, Container, Head, Html, Img, Preview, Section, Text } from "@react-email/components";
+import { Body, Container, Head, Html, Img, Preview, Text } from "@react-email/components";
 import * as React from "react";
 
 const logoSrc =
@@ -29,22 +29,41 @@ export function EmailLayout({ preview, children }: { preview: string; children: 
       <Preview>{preview}</Preview>
       <Body style={{ backgroundColor: colors.pageBg, margin: 0, padding: 0, fontFamily }}>
         <Container style={{ maxWidth: "480px", margin: "0 auto" }}>
-          <Section style={{ backgroundColor: colors.headerBg, padding: "28px 20px", textAlign: "center" as const }}>
-            <Img src={logoSrc} alt="unitex" width="130" style={{ margin: "0 auto" }} />
-          </Section>
-
-          <Section style={{ backgroundColor: colors.headerBg, padding: "32px 36px" }}>
-            {children}
-          </Section>
-
-          <Section style={{ backgroundColor: colors.pageBg, padding: "22px 20px", textAlign: "center" as const }}>
-            <Text style={{ fontFamily, fontSize: "11px", lineHeight: "18px", color: colors.foreground, margin: 0 }}>
-              unitex GmbH · Albrecht-Berblinger-Str. 11 · 89231 Neu-Ulm
-            </Text>
-            <Text style={{ fontFamily, fontSize: "11px", lineHeight: "18px", color: colors.foreground, margin: 0 }}>
-              Diese Email wurde automatisch versendet.
-            </Text>
-          </Section>
+          <table role="presentation" width="100%" cellPadding={0} cellSpacing={0}>
+            <tbody>
+              <tr>
+                <td
+                  align="center"
+                  {...({ bgcolor: colors.headerBg } as any)}
+                  style={{ backgroundColor: colors.headerBg, padding: "28px 20px", textAlign: "center" as const }}
+                >
+                  <Img src={logoSrc} alt="unitex" width="130" style={{ margin: "0 auto" }} />
+                </td>
+              </tr>
+              <tr>
+                <td
+                  {...({ bgcolor: colors.headerBg } as any)}
+                  style={{ backgroundColor: colors.headerBg, padding: "32px 36px" }}
+                >
+                  {children}
+                </td>
+              </tr>
+              <tr>
+                <td
+                  align="center"
+                  {...({ bgcolor: colors.pageBg } as any)}
+                  style={{ backgroundColor: colors.pageBg, padding: "22px 20px", textAlign: "center" as const }}
+                >
+                  <Text style={{ fontFamily, fontSize: "11px", lineHeight: "18px", color: colors.foreground, margin: 0 }}>
+                    unitex GmbH · Albrecht-Berblinger-Str. 11 · 89231 Neu-Ulm
+                  </Text>
+                  <Text style={{ fontFamily, fontSize: "11px", lineHeight: "18px", color: colors.foreground, margin: 0 }}>
+                    Diese Email wurde automatisch versendet.
+                  </Text>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </Container>
       </Body>
     </Html>
