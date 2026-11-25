@@ -275,4 +275,11 @@ export const ADMIN_ONLY_DOCS: RequiredDoc[] = [
     hint: "Unterlagen von Atradius (z. B. Limitbestätigung), nur für die interne Ablage.",
     required: false,
   },
+  
+  {
+    id: "sonstige_dokumente",
+    label: "Sonstige Dokumente",
+    hint: "Weitere Unterlagen zur internen Ablage, die keiner der anderen Kategorien zugeordnet werden können.",
+    required: false,
+  },
 ];
